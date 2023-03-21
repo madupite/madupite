@@ -5,10 +5,11 @@
 #include "MDP.h"
 #include <random>
 #include <iostream>
+#include <iomanip>
 
 // constructor
-MDP::MDP(unsigned int numStates, unsigned int numActions) :
-    numStates_(numStates), numActions_(numActions) {
+MDP::MDP(unsigned int numStates, unsigned int numActions, double discount) :
+    numStates_(numStates), numActions_(numActions), discount_(discount) {
     transitionMatrix_ = Eigen::Tensor<double, 3>(numActions_, numStates_, numStates_);
     stageCosts_ = Eigen::MatrixXd(numStates_, numActions_);
 }
@@ -46,10 +47,37 @@ void MDP::generateStageCosts() {
 
 void MDP::outputInfo() {
     std::cout << "MDP has " << numStates_ << " states and " << numActions_ << " actions.\n\n";
-
-    for(int i = 0; i < numActions_; ++i) {
-        std::cout << "For action " << i << ":\n----------------\nTransition matrix:\n";
-        std::cout << transitionMatrix_.chip(i, 0) << "\n\nStage costs:\n";
-        std::cout << stageCosts_.col(i).transpose() << "\n\n\n";
+    if(numStates_ < 10 && numActions_ < 10) {
+        for (int i = 0; i < numActions_; ++i) {
+            std::cout << "For action " << i << ":\n----------------\nTransition matrix:\n";
+            std::cout << transitionMatrix_.chip(i, 0) << "\n\nStage costs:\n";
+            std::cout << stageCosts_.col(i).transpose() << "\n\n\n";
+        }
     }
+}
+
+void MDP::valueIteration(Eigen::VectorXd& V0, int iterations) {
+    Eigen::VectorXd V = V0;
+    double tol = 10e-6;
+
+    Eigen::MatrixXd costs(numStates_, numActions_);
+    Eigen::VectorXd policy(numStates_);
+    for(int i = 0; i < iterations; ++i) {
+        // compute costs for each action
+        std::cout << "Iteration " << i << ":\n";
+        for(int j = 0; j < numActions_; ++j) {
+            Eigen::Tensor<double, 2> tmp = transitionMatrix_.chip(j, 0);
+            Eigen::MatrixXd P =Eigen::Map<Eigen::MatrixXd>(tmp.data(), numStates_, numStates_);
+            costs.col(j) = stageCosts_.col(j) + discount_ * P * V;
+        }
+        // find optimal action for each state
+        for(int j = 0; j < numStates_; ++j) {
+            int minIndex;
+            V(j) = costs.row(j).minCoeff(&minIndex);
+            policy(j) = minIndex; // optimal action
+            std::cout << std::setw(8) << V(j) << " |" << std::setw(8) << policy(j) << "\n";
+        }
+        std::cout << "\n\n";
+    }
+
 }

@@ -9,17 +9,20 @@
 
 class MDP {
 public:
-    MDP(unsigned int numStates, unsigned int numActions);
+    MDP(unsigned int numStates, unsigned int numActions, double discount);
     void generateTransitionMatrix();
     void generateStageCosts();
     void outputInfo();
+    void valueIteration(Eigen::VectorXd& V0, int iterations);
 
 private:
     unsigned int numStates_;
     unsigned int numActions_;
+    double discount_;
     int seed_ = 42;
     Eigen::Tensor<double, 3, Eigen::ColMajor> transitionMatrix_;
     Eigen::MatrixXd stageCosts_;
+
 
 };
 
