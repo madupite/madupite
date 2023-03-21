@@ -44,7 +44,7 @@ void MDP::generateStageCosts() {
     }
 }
 
-void MDP::ouputInfo() {
+void MDP::outputInfo() {
     std::cout << "MDP has " << numStates_ << " states and " << numActions_ << " actions.\n\n";
 
     for(int i = 0; i < numActions_; ++i) {

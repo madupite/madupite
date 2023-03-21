@@ -12,11 +12,11 @@ public:
     MDP(unsigned int numStates, unsigned int numActions);
     void generateTransitionMatrix();
     void generateStageCosts();
-    void ouputInfo();
+    void outputInfo();
 
 private:
-    int numStates_;
-    int numActions_;
+    unsigned int numStates_;
+    unsigned int numActions_;
     int seed_ = 42;
     Eigen::Tensor<double, 3, Eigen::ColMajor> transitionMatrix_;
     Eigen::MatrixXd stageCosts_;

@@ -7,7 +7,7 @@ int main() {
     MDP mdp(states, actions);
     mdp.generateTransitionMatrix();
     mdp.generateStageCosts();
-    mdp.ouputInfo();
+    mdp.outputInfo();
 
 
     return 0;
