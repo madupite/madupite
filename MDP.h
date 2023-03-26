@@ -14,14 +14,17 @@ public:
     void generateStageCosts();
     void outputInfo();
     void valueIteration(Eigen::VectorXd& V0, int iterations);
+    void policyIteration(const Eigen::VectorXi& policy0);
 
-private:
+//private:
     unsigned int numStates_;
     unsigned int numActions_;
     double discount_;
     int seed_ = 42;
     Eigen::Tensor<double, 3, Eigen::ColMajor> transitionMatrix_;
     Eigen::MatrixXd stageCosts_;
+
+    inline void constructCostAndTransitionsFromPolicy_(const Eigen::VectorXi& policy, Eigen::VectorXd& stageCost, Eigen::MatrixXd& P);
 
 
 };

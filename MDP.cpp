@@ -6,6 +6,8 @@
 #include <random>
 #include <iostream>
 #include <iomanip>
+#include <Eigen/Dense>
+#include <cassert>
 
 // constructor
 MDP::MDP(unsigned int numStates, unsigned int numActions, double discount) :
@@ -58,26 +60,79 @@ void MDP::outputInfo() {
 
 void MDP::valueIteration(Eigen::VectorXd& V0, int iterations) {
     Eigen::VectorXd V = V0;
-    double tol = 10e-6;
+    Eigen::VectorXd V_old = Eigen::VectorXd::Zero(numStates_);
+    double tol = 10e-13;
 
     Eigen::MatrixXd costs(numStates_, numActions_);
     Eigen::VectorXd policy(numStates_);
-    for(int i = 0; i < iterations; ++i) {
+    std::cout << "Value iteration:\n";
+    for(int i = 0; i < iterations && (V - V_old).lpNorm<Eigen::Infinity>() > tol; ++i) {
         // compute costs for each action
         std::cout << "Iteration " << i << ":\n";
         for(int j = 0; j < numActions_; ++j) {
             Eigen::Tensor<double, 2> tmp = transitionMatrix_.chip(j, 0);
-            Eigen::MatrixXd P =Eigen::Map<Eigen::MatrixXd>(tmp.data(), numStates_, numStates_);
-            costs.col(j) = stageCosts_.col(j) + discount_ * P * V;
+            Eigen::MatrixXd P = Eigen::Map<Eigen::MatrixXd>(tmp.data(), numStates_, numStates_);
+            costs.col(j) = stageCosts_.col(j) + discount_ * P * V; // maybe V is the error
         }
         // find optimal action for each state
+        V_old = V;
         for(int j = 0; j < numStates_; ++j) {
             int minIndex;
             V(j) = costs.row(j).minCoeff(&minIndex);
             policy(j) = minIndex; // optimal action
-            std::cout << std::setw(8) << V(j) << " |" << std::setw(8) << policy(j) << "\n";
+            std::cout << std::setw(8) << V(j) << " |" << std::setw(4) << policy(j) << "\n";
         }
         std::cout << "\n\n";
     }
-
 }
+
+inline void MDP::constructCostAndTransitionsFromPolicy_(const Eigen::VectorXi& policy, Eigen::VectorXd& stageCost, Eigen::MatrixXd& P) {
+    // project costs and probabilities from tensor to matrix according to action for each state
+    for(int stateInd = 0; stateInd < numStates_; ++stateInd) {
+        int action = policy(stateInd);
+        stageCost(stateInd) = stageCosts_(stateInd, action);
+        Eigen::Tensor<double, 1> tmp = transitionMatrix_.chip(action, 0).chip(stateInd, 0);
+        P.row(stateInd) = Eigen::Map<Eigen::MatrixXd>(tmp.data(), 1, numStates_);
+    }
+}
+
+void MDP::policyIteration(const Eigen::VectorXi& policy0) {
+    Eigen::VectorXi policy = policy0;
+    Eigen::VectorXi policy_old(numStates_);
+    Eigen::MatrixXd costs = Eigen::MatrixXd::Zero(numStates_, numActions_);
+    Eigen::VectorXd V = Eigen::VectorXd::Zero(numStates_);
+    Eigen::VectorXd stageCost = Eigen::VectorXd::Zero(numStates_);
+    Eigen::MatrixXd P(numStates_, numStates_);
+
+    std::cout << "Policy iteration:\n";
+    for(int i = 0; ; ++i) {
+        std::cout << "Iteration " << i << ":\n";
+
+        // policy evaluation
+        constructCostAndTransitionsFromPolicy_(policy, stageCost, P);
+        Eigen::MatrixXd J = Eigen::MatrixXd::Identity(numStates_, numStates_) - discount_ * P;
+        V = J.lu().solve(stageCost);
+
+        // policy improvement
+        for(int actionInd = 0; actionInd < numActions_; ++actionInd) {
+            constructCostAndTransitionsFromPolicy_(policy, stageCost, P);
+            costs.col(actionInd) = stageCosts_.col(actionInd) + discount_ * P * V;
+        }
+        // find optimal action for each state (obtain greedy policy)
+        policy_old = policy;
+        for(int j = 0; j < numStates_; ++j) {
+            int minIndex;
+            costs.row(j).minCoeff(&minIndex);
+            policy(j) = minIndex; // optimal action
+            std::cout << std::setw(8) << V(j) << " |" << std::setw(4) << policy_old(j) << "\n";
+        }
+
+        // converged if policy does not change
+        if(policy == policy_old) {
+            break;
+        }
+        std::cout << "\n\n";
+    }
+}
+
+
