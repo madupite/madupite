@@ -17,7 +17,8 @@ public:
     void generateTransitionMatrix();
     void generateStageCosts();
     void outputInfo();
-    void valueIteration(Eigen::VectorXd& V0, int iterations);
+    void extractGreedyPolicy_(const Eigen::VectorXd& V, Eigen::VectorXi& policy);
+    void valueIteration(Eigen::VectorXd& V0, int iterations, const Eigen::VectorXd& V_opt);
     void policyIteration(const Eigen::VectorXi& policy0);
     void optimisticPolicyIteration(const Eigen::VectorXi& policy0, int iterations);
 
@@ -25,8 +26,9 @@ public:
     unsigned int numStates_;
     unsigned int numActions_;
     double discount_;
-    int seed_ = 2938;
-    int iterPrint_ = 20; // print output ever iterPrint iterations
+    const int seed_ = 2938;
+    const int iterPrint_ = 100; // print output ever iterPrint iterations
+    const double tol_ = 10e-13;  // tolerance for convergence
     Eigen::Tensor<double, 3, Eigen::ColMajor> transitionMatrix_;
     Eigen::MatrixXd stageCosts_;
 

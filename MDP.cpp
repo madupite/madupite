@@ -35,8 +35,13 @@ void MDP::generateTransitionMatrix() {
             double sum = 0;
             for (int k = 0; k < numStates_; k++) {
                 double rand = distribution(generator);
+                if(distribution(generator) < 0.1) // disturb the matrix a bit
+                    rand = 0;
+                else if(distribution(generator) < 0.1)
+                    rand = 1;
                 transitionMatrix_(i, j, k) = rand;
                 sum += rand;
+
             }
             for (int k = 0; k < numStates_; k++) {
                 transitionMatrix_(i, j, k) /= sum;
@@ -54,7 +59,9 @@ void MDP::generateStageCosts() {
     std::uniform_real_distribution<double> distribution(a, b);
     for (int i = 0; i < numStates_; i++) {
         for (int j = 0; j < numActions_; j++) {
-            stageCosts_(i, j) = distribution(generator);
+            double rand = distribution(generator);
+            if(distribution(generator) < 0.1) rand = 25; // disturb uniformity of costs
+            stageCosts_(i, j) = rand;
         }
     }
 }
@@ -70,44 +77,6 @@ void MDP::outputInfo() {
     }
 }
 
-void MDP::valueIteration(Eigen::VectorXd& V0, int iterations) {
-    // V0 must no be all zeros! (-> loop won't start)
-
-    double tol = 10e-13;
-    Timer t;
-
-    Eigen::VectorXd V = V0;
-    Eigen::VectorXd V_old = Eigen::VectorXd::Zero(numStates_);
-    Eigen::MatrixXd costs(numStates_, numActions_);
-    Eigen::VectorXd policy(numStates_);
-
-    *logger_ << "Value iteration:\n";
-    for(int i = 0; i < iterations && (V - V_old).lpNorm<Eigen::Infinity>() > tol; ++i) {
-        // compute costs for each action
-        if(i % iterPrint_ == 0) *logger_ << "Iteration " << i << ":\n";
-        t.start();
-        for(int j = 0; j < numActions_; ++j) {
-            Eigen::Tensor<double, 2> tmp = transitionMatrix_.chip(j, 0);
-            Eigen::MatrixXd P = Eigen::Map<Eigen::MatrixXd>(tmp.data(), numStates_, numStates_);
-            costs.col(j) = stageCosts_.col(j) + discount_ * P * V;
-        }
-        t.stop("Time for computing costs: ");
-
-        // find optimal action and cost for each state (greedy policy)
-        t.start();
-        V_old = V;
-        for(int j = 0; j < numStates_; ++j) {
-            int minIndex;
-            V(j) = costs.row(j).minCoeff(&minIndex);
-            policy(j) = minIndex; // optimal action
-            if(i % iterPrint_ == 0) *logger_ << std::setw(12) << V(j) << " |" << std::setw(4) << policy(j) << "\n";
-        }
-        results_VI_.push_back(V);
-        t.stop("Time for extracting greedy policy: ");
-    }
-    *logger_ << "\n\n";
-}
-
 inline void MDP::constructCostAndTransitionsFromPolicy_(const Eigen::VectorXi& policy, Eigen::VectorXd& stageCost, Eigen::MatrixXd& P) {
     // project costs and probabilities from tensor to matrix according to action for each state
     for(int stateInd = 0; stateInd < numStates_; ++stateInd) {
@@ -116,6 +85,49 @@ inline void MDP::constructCostAndTransitionsFromPolicy_(const Eigen::VectorXi& p
         Eigen::Tensor<double, 1> tmp = transitionMatrix_.chip(action, 0).chip(stateInd, 0);
         P.row(stateInd) = Eigen::Map<Eigen::MatrixXd>(tmp.data(), 1, numStates_);
     }
+}
+
+void MDP::extractGreedyPolicy_(const Eigen::VectorXd &V, Eigen::VectorXi &policy) {
+    Eigen::MatrixXd costs(numStates_, numActions_);
+    for(int actionInd = 0; actionInd < numActions_; ++actionInd) {
+        Eigen::Tensor<double, 2> tmp = transitionMatrix_.chip(actionInd, 0);
+        Eigen::MatrixXd P = Eigen::Map<Eigen::MatrixXd>(tmp.data(), numStates_, numStates_);
+        costs.col(actionInd) = stageCosts_.col(actionInd) + discount_ * P * V;
+    }
+    for(int i = 0; i < numStates_; ++i) {
+        costs.row(i).minCoeff(&policy(i));
+    }
+}
+
+void MDP::valueIteration(Eigen::VectorXd& V0, int iterations, const Eigen::VectorXd& V_opt) {
+    // V0 must no be all zeros! (-> loop won't start)
+
+    Eigen::VectorXd V = V0;
+    Eigen::VectorXd V_old = Eigen::VectorXd::Zero(numStates_);
+    Eigen::MatrixXd costs(numStates_, numActions_);
+    Eigen::VectorXi policy(numStates_);
+
+    Timer t;
+
+    *logger_ << "Value iteration:\n";
+    for(int i = 0; i < iterations && (V - V_opt).lpNorm<Eigen::Infinity>() > tol_; ++i) {
+        // compute costs for each action
+        t.start();
+        if(i % iterPrint_ == 0) *logger_ << "Iteration " << i << ":\n";
+        for(int stateInd = 0; stateInd < numStates_; ++stateInd) {
+            for(int actionInd = 0; actionInd < numActions_; ++actionInd) {
+                Eigen::Tensor<double, 1> tmp = transitionMatrix_.chip(actionInd, 0).chip(stateInd, 0);
+                Eigen::VectorXd P = Eigen::Map<Eigen::VectorXd>(tmp.data(), numStates_);
+                costs(stateInd, actionInd) = stageCosts_(stateInd, actionInd) + discount_ * P.dot(V);
+            }
+            V_old(stateInd) = V(stateInd);
+            V(stateInd) = costs.row(stateInd).minCoeff(&policy(stateInd));
+            if(stateInd == numStates_ - 1) results_VI_.push_back(V);
+        }
+        t.stop("Time for value iteration: ");
+    }
+
+    *logger_ << "\n\n";
 }
 
 void MDP::policyIteration(const Eigen::VectorXi& policy0) {
@@ -150,11 +162,9 @@ void MDP::policyIteration(const Eigen::VectorXi& policy0) {
         }
         // find optimal action for each state (obtain greedy policy)
         policy_old = policy;
-        for(int j = 0; j < numStates_; ++j) {
-            int minIndex;
-            costs.row(j).minCoeff(&minIndex);
-            policy(j) = minIndex; // optimal action
-            if(i % iterPrint_ == 0) *logger_ << std::setw(12) << V(j) << " |" << std::setw(4) << policy_old(j) << "\n";
+        for(int stateInd = 0; stateInd < numStates_; ++stateInd) {
+            costs.row(stateInd).minCoeff(&policy(stateInd));
+            if(i % iterPrint_ == 0) *logger_ << std::setw(12) << V(stateInd) << " |" << std::setw(4) << policy_old(stateInd) << "\n";
         }
         *logger_ << "\n\n";
         t.stop("Time for policy improvement: ");
@@ -169,18 +179,20 @@ void MDP::optimisticPolicyIteration(const Eigen::VectorXi &policy0, int iteratio
     Eigen::VectorXi policy_old(numStates_);
     Eigen::MatrixXd costs = Eigen::MatrixXd::Zero(numStates_, numActions_);
     Eigen::VectorXd V = Eigen::VectorXd::Zero(numStates_);
+    Eigen::VectorXd V_old = Eigen::VectorXd::Ones(numStates_);
     Eigen::VectorXd stageCost = Eigen::VectorXd::Zero(numStates_);
     Eigen::MatrixXd P(numStates_, numStates_);
 
     Timer t;
 
     *logger_ << "Optimistic policy iteration (K = "<< iterations << " inner iterations):\n";
-    for(int i = 0; ; ++i) {
+    for(int i = 0; (V - V_old).lpNorm<Eigen::Infinity>() > tol_; ++i) {
         if(i % iterPrint_ == 0) *logger_ << "Iteration " << i << ":\n";
 
         // policy evaluation (value iteration)
         t.start();
         constructCostAndTransitionsFromPolicy_(policy, stageCost, P);
+        V_old = V;
         for(int j = 0; j < iterations; ++j) { // perform as many value iterations as specified to approximate V
             V = stageCost + discount_ * P * V;
         }
@@ -193,20 +205,14 @@ void MDP::optimisticPolicyIteration(const Eigen::VectorXi &policy0, int iteratio
             constructCostAndTransitionsFromPolicy_(policy, stageCost, P);
             costs.col(actionInd) = stageCosts_.col(actionInd) + discount_ * P * V;
         }
+
         // find optimal action for each state (obtain greedy policy)
         policy_old = policy;
-        for(int j = 0; j < numStates_; ++j) {
-            int minIndex;
-            costs.row(j).minCoeff(&minIndex);
-            policy(j) = minIndex; // optimal action
-            if(i % iterPrint_ == 0) *logger_ << std::setw(12) << V(j) << " |" << std::setw(4) << policy_old(j) << "\n";
+        for(int stateInd = 0; stateInd < numStates_; ++stateInd) {
+            costs.row(stateInd).minCoeff(&policy(stateInd));
+            if(i % iterPrint_ == 0) *logger_ << std::setw(12) << V(stateInd) << " |" << std::setw(4) << policy_old(stateInd) << "\n";
         }
         *logger_ << "\n\n";
         t.stop("Time for policy improvement: ");
-
-        // converged if policy does not change
-        if(policy == policy_old) break;
     }
 }
-
-
