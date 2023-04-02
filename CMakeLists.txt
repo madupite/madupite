@@ -19,9 +19,6 @@ if (FORTRAN_COMPILER)
 endif (FORTRAN_COMPILER)
 
 
-# set compilers
-#set(CMAKE_C_COMPILER mpicc)
-#set(CMAKE_CXX_COMPILER mpicxx)
 set(CMAKE_CXX_STANDARD 17)
 
 project(distributed_inexact_policy_iteration)
@@ -29,20 +26,12 @@ project(distributed_inexact_policy_iteration)
 # for PETSc
 find_package(PkgConfig REQUIRED)
 pkg_search_module(PETSC REQUIRED  IMPORTED_TARGET PETSc)
-#INCLUDE_DIRECTORIES(${PETSC_INCLUDES})
 INCLUDE_DIRECTORIES($ENV{PETSC_DIR}/include)
 INCLUDE_DIRECTORIES($ENV{PETSC_DIR}/$ENV{PETSC_ARCH}/include)
-#ADD_DEFINITIONS(${PETSC_DEFINITIONS})
-
-#set(PETSC $ENV{PETSC_DIR}/$ENV{PETSC_ARCH})
-#set(ENV{PKG_CONFIG_PATH} ${PETSC}/lib/pkgconfig)
-# Find PETSc with pkg
-find_package(PkgConfig REQUIRED)
 
 
-# Add the executable
+
+# Add the executable, link libraries
 add_executable(distributed_inexact_policy_iteration main.cpp)
-
-# Link the PETSc libraries to the executable
-#target_link_libraries(distributed_inexact_policy_iteration ${PETSC_LIBRARIES})
-target_link_libraries(distributed_inexact_policy_iteration PkgConfig::PETSC)
+#target_link_libraries(distributed_inexact_policy_iteration PkgConfig::PETSC)
+target_link_libraries(distributed_inexact_policy_iteration ${PETSC_LIBRARIES})
