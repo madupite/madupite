@@ -9,7 +9,7 @@ def main():
     # mdp.stageCosts_ = np.array([[2, 0.5], [1, 3]])
     # mdp.transitionTensor_ = np.array([[[0.75, 0.25], [0.75, 0.25]], [[0.25, 0.75], [0.25, 0.75]]])
 
-    mdp = MDP(3000, 50, 0.6, 42, 1e-14, 300)
+    mdp = MDP(200, 50, 0.6, 42, 1e-14, 300)
     mdp.generateTransitionTensor(0.2)
     mdp.generateStageCosts(0.4)
 
@@ -18,7 +18,12 @@ def main():
 
     VI_res, VI_policy = mdp.valueIteration(V0, 1000)
     PI_res, PI_policy = mdp.policyIteration(policy0, V0)
-    OPI_res, OPI_policy = mdp.optimisticPolicyIteration(policy0, V0, 20)
+
+    innerIterations = [5, 10, 20, 50]
+    OPI_res = []
+    for k in innerIterations:
+        result, OPI_policy = mdp.optimisticPolicyIteration(policy0, V0, k)
+        OPI_res.append([result, k])
 
     plotResult(mdp, VI_res, PI_res, OPI_res)
 
