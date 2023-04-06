@@ -32,6 +32,6 @@ INCLUDE_DIRECTORIES($ENV{PETSC_DIR}/$ENV{PETSC_ARCH}/include)
 
 
 # Add the executable, link libraries
-add_executable(distributed_inexact_policy_iteration main.cpp)
+add_executable(distributed_inexact_policy_iteration main.cpp PETScFunctions.h)
 target_link_libraries(distributed_inexact_policy_iteration PkgConfig::PETSC)
 #target_link_libraries(distributed_inexact_policy_iteration ${PETSC_LIBRARIES})
