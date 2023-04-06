@@ -4,60 +4,56 @@
 
 #include <petscmat.h>
 #include <petscvec.h>
-#include <petsc.h>
+#include <iostream>
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
-    PetscInitialize(&argc, &argv, NULL, NULL);
-    // chat gpt example
+    // Initialize PETSc
+    PetscInitialize(&argc, &argv, PETSC_NULL, PETSC_NULL);
 
-    // Define matrix and vector sizes
-    const PetscInt n = 3;
-
-    // Create matrix A
+    // Create a 3x3 matrix A with values 1 to 9 row-wise
     Mat A;
     MatCreate(PETSC_COMM_WORLD, &A);
-    MatSetSizes(A, PETSC_DECIDE, PETSC_DECIDE, n, n);
+    MatSetSizes(A, PETSC_DECIDE, PETSC_DECIDE, 3, 3);
     MatSetFromOptions(A);
     MatSetUp(A);
-
-    // Fill matrix A with values 1 to 9 rowwise
-    PetscScalar *vals;
-    MatGetArray(A, &vals);
-    for (PetscInt i = 0; i < n; i++) {
-        for (PetscInt j = 0; j < n; j++) {
-            vals[i*n + j] = i*n + j + 1;
-        }
+    PetscInt rowStart, rowEnd;
+    MatGetOwnershipRange(A, &rowStart, &rowEnd);
+    for (PetscInt i = rowStart; i < rowEnd; i++) {
+        PetscInt ncols = 3;
+        PetscInt cols[3] = {0, 1, 2};
+        PetscScalar vals[3] = {i*3+1, i*3+2, i*3+3};
+        MatSetValues(A, 1, &i, ncols, cols, vals, INSERT_VALUES);
     }
-    MatRestoreArray(A, &vals);
+    MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY);
+    MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);
 
-    // Create vector v
+    // Create a vector v with values 10, 20, 30
     Vec v;
     VecCreate(PETSC_COMM_WORLD, &v);
-    VecSetSizes(v, PETSC_DECIDE, n);
+    VecSetSizes(v, PETSC_DECIDE, 3);
     VecSetFromOptions(v);
-    VecSetUp(v);
+    VecSetValue(v, 0, 10.0, INSERT_VALUES);
+    VecSetValue(v, 1, 20.0, INSERT_VALUES);
+    VecSetValue(v, 2, 30.0, INSERT_VALUES);
+    VecAssemblyBegin(v);
+    VecAssemblyEnd(v);
 
-    // Fill vector v with values 10, 20, 30
-    PetscScalar *vvals;
-    VecGetArray(v, &vvals);
-    vvals[0] = 10;
-    vvals[1] = 20;
-    vvals[2] = 30;
-    VecRestoreArray(v, &vvals);
+    // Perform the matrix-vector multiplication A * v
+    Vec result;
+    VecDuplicate(v, &result);
+    MatMult(A, v, result);
 
-    // Print matrix A, vector v, and the result A*v
+    // Print the original matrix, vector, and result
     MatView(A, PETSC_VIEWER_STDOUT_WORLD);
     VecView(v, PETSC_VIEWER_STDOUT_WORLD);
-    Vec w;
-    VecDuplicate(v, &w);
-    MatMult(A, v, w);
-    VecView(w, PETSC_VIEWER_STDOUT_WORLD);
+    VecView(result, PETSC_VIEWER_STDOUT_WORLD);
 
-    // Destroy objects and finalize PETSc
+    // Destroy PETSc objects and finalize PETSc
     VecDestroy(&v);
-    VecDestroy(&w);
+    VecDestroy(&result);
     MatDestroy(&A);
     PetscFinalize();
+
     return 0;
 }
