@@ -34,6 +34,7 @@ void generateDenseMatrix(Mat& A, unsigned int rows, unsigned int cols, double* v
     MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);
 }
 
+// create a dense vector, fill it with values, and assemble it
 void fillVector(Vec& v, unsigned int size, double* values) {
     VecCreateSeq(PETSC_COMM_WORLD, size, &v);
     auto indices = new PetscInt[size];

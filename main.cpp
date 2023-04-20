@@ -11,6 +11,7 @@
 #include "PETScFunctions.h"
 #include "Filewriter.h"
 #include "TransitionMatrixGenerator.h"
+#include "StageCostGenerator.h"
 #include "Timer.h"
 
 int main(int argc, char** argv)
@@ -29,8 +30,8 @@ int main(int argc, char** argv)
 
     Timer t;
 
-    const unsigned long states = 2000;
-    const unsigned long actions = 50;
+    const unsigned long states = 200;
+    const unsigned long actions = 20;
     const double sparsityFactor = 0.1;
     const int seed = 8624;
 
@@ -55,10 +56,24 @@ int main(int argc, char** argv)
     std::cout << "Row-stochasticity error: " << error << std::endl;
     t.stop("Time to check row-stochasticity: ");
 
-    // destroy matrix
+    // generate stage costs
+    Mat stageCosts;
+    t.start();
+    generateStageCosts(stageCosts, states, actions, seed + 123, 0.2);
+    t.stop("Time to generate stage costs: ");
+    filename = "../data/g_" + std::to_string(states) + "_" + std::to_string(actions) + "_" + std::to_string(seed);
+    std::cout << "Writing stage costs to bin:" << std::endl;
+    t.start();
+    matrixToBin(stageCosts, filename + ".bin");
+    t.stop("Time to write stage costs to file: ");
+    //matrixToAscii(stageCosts, filename + ".csv");
+
+
+    // destroy
     MatDestroy(&A);
+    MatDestroy(&stageCosts);
+
     // Finalize PETSc
     PetscFinalize();
-
     return 0;
 }
