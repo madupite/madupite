@@ -94,7 +94,7 @@ void generateTransitionMatrix(Mat& A, idx_t numStates, idx_t numActions, double 
             // TODO: perturb values for less uniformity
             for(idx_t i = 0; i < nnzPerAction; ++i) {
                 double val = uniform_dis(gen);
-                if(val < perturbFactor) {
+                if(uniform_dis(gen) < perturbFactor) {
                     val *= 5;
                 }
                 values[i] = val;
