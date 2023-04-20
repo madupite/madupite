@@ -29,6 +29,10 @@ pkg_search_module(PETSC REQUIRED  IMPORTED_TARGET PETSc)
 INCLUDE_DIRECTORIES($ENV{PETSC_DIR}/include)
 INCLUDE_DIRECTORIES($ENV{PETSC_DIR}/$ENV{PETSC_ARCH}/include)
 
+# for MPI
+find_package(MPI REQUIRED)
+include_directories(${MPI_INCLUDE_PATH})
+set(CMAKE_CXX_COMPILER ${MPI_CXX_COMPILER})
 
 
 # Add the executable, link libraries
