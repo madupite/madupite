@@ -40,4 +40,17 @@ void generateStageCosts(Mat& stageCosts, PetscInt numStates, PetscInt numActions
     delete[] values;
 }
 
+// precondition: policy is an array of size numStates and contains values in [0, numActions)
+// postcondition: stageCosts is a vector of size numStates and contains the stage costs for the given policy
+void constructStageCostsFromPolicy(const Mat &stageCostsMatrix, Vec &stageCosts, PetscInt *policy) {
+    PetscInt states;
+    MatGetSize(stageCostsMatrix, &states, PETSC_NULL);
+    for(PetscInt stateInd = 0; stateInd < states; stateInd++) {
+        PetscScalar cost;
+        MatGetValues(stageCostsMatrix, 1, &stateInd, 1, &policy[stateInd], &cost);
+        VecSetValue(stageCosts, stateInd, cost, INSERT_VALUES);
+    }
+}
+
+
 #endif //DISTRIBUTED_INEXACT_POLICY_ITERATION_STAGECOSTGENERATOR_H

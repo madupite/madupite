@@ -91,7 +91,6 @@ void generateTransitionMatrix(Mat& A, idx_t numStates, idx_t numActions, double 
             double sum = 0;
 
             // generate random values
-            // TODO: perturb values for less uniformity
             for(idx_t i = 0; i < nnzPerAction; ++i) {
                 double val = uniform_dis(gen);
                 if(uniform_dis(gen) < perturbFactor) {
@@ -124,5 +123,33 @@ void generateTransitionMatrix(Mat& A, idx_t numStates, idx_t numActions, double 
         }
     }
 }
+
+void constructTransitionProbabilityMatrixFromPolicy(const Mat &transitionProbabilityTensor,
+                                                    Mat &transitionProbabilityMatrix,
+                                                    PetscInt *policy) {
+    // transitionProbabilityTensor has size numStates x numStates*numActions
+    // extract for each state (=row) the entries of [policy[state]*numStates, policy[state]*numStates+numStates]
+    // and put them into transitionProbabilityMatrix
+
+    PetscInt states, actions;
+    MatGetSize(transitionProbabilityTensor, &states, &actions);
+    actions /= states;
+
+    for(PetscInt stateInd = 0; stateInd < states; ++stateInd) {
+        PetscInt actionInd = policy[stateInd];
+        PetscInt tensor_cols[states];
+        PetscInt matrix_cols[states];
+        PetscReal vals[states];
+        for(PetscInt i = 0; i < states; ++i) { // create column indices [actionInd*numStates, actionInd*numStates+numStates]
+            tensor_cols[i] = actionInd * states + i;
+            if(stateInd == 0) matrix_cols[i] = i;
+        }
+        MatGetValues(transitionProbabilityTensor, 1, &stateInd, states, tensor_cols, vals);
+        MatSetValues(transitionProbabilityMatrix, 1, &stateInd, states, matrix_cols, vals, INSERT_VALUES);
+    }
+
+
+}
+
 
 #endif //DISTRIBUTED_INEXACT_POLICY_ITERATION_TRANSITIONMATRIXGENERATOR_H
