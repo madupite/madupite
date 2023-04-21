@@ -36,6 +36,7 @@ void vectorToAscii(const Vec& v, const std::string& filename) {
 }
 
 void matrixFromBin(Mat& A, const std::string& filename) {
+    MatCreate(PETSC_COMM_WORLD, &A);
     PetscViewer viewer;
     PetscViewerBinaryOpen(PETSC_COMM_WORLD, filename.c_str(), FILE_MODE_READ, &viewer);
     MatLoad(A, viewer);
@@ -43,6 +44,7 @@ void matrixFromBin(Mat& A, const std::string& filename) {
 }
 
 void vectorFromBin(Vec& v, const std::string& filename) {
+    VecCreate(PETSC_COMM_WORLD, &v);
     PetscViewer viewer;
     PetscViewerBinaryOpen(PETSC_COMM_WORLD, filename.c_str(), FILE_MODE_READ, &viewer);
     VecLoad(v, viewer);
@@ -50,6 +52,7 @@ void vectorFromBin(Vec& v, const std::string& filename) {
 }
 
 void matrixFromAscii(Mat& A, const std::string& filename) {
+    MatCreate(PETSC_COMM_WORLD, &A);
     PetscViewer viewer;
     PetscViewerASCIIOpen(PETSC_COMM_WORLD, filename.c_str(), &viewer);
     MatLoad(A, viewer);
@@ -57,6 +60,7 @@ void matrixFromAscii(Mat& A, const std::string& filename) {
 }
 
 void vectorFromAscii(Vec& v, const std::string& filename) {
+    VecCreate(PETSC_COMM_WORLD, &v);
     PetscViewer viewer;
     PetscViewerASCIIOpen(PETSC_COMM_WORLD, filename.c_str(), &viewer);
     VecLoad(v, viewer);
