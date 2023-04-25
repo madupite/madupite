@@ -14,7 +14,8 @@
 #include "StageCostGenerator.h"
 #include "Timer.h"
 
-/*PetscErrorCode cvgTest(KSP ksp, PetscInt n, PetscReal rnorm, KSPConvergedReason *reason, void *ctx) {
+/*
+PetscErrorCode cvgTest(KSP ksp, PetscInt n, PetscReal rnorm, KSPConvergedReason *reason, void *ctx) {
     PetscPrintf(PETSC_COMM_WORLD, "Iteration %d, Residual norm %e\n", n, rnorm);
     if (rnorm < 1e-13) {
         PetscPrintf(PETSC_COMM_WORLD, "Converged! Residual norm = %e\n", rnorm);
@@ -24,7 +25,8 @@
         *reason = KSP_DIVERGED_DTOL;
         return KSP_DIVERGED_DTOL;
     }
-}*/
+}
+*/
 
 int main(int argc, char** argv)
 {
@@ -43,25 +45,23 @@ int main(int argc, char** argv)
     Timer t;
     PetscErrorCode ierr;
 
-
-//    const unsigned long states = 3000;
-//    const unsigned long actions = 50;
-//    const double sparsityFactor = 0.02;
-//    const int seed = 8624;
-
+    // Parameters
     const PetscInt states = 500;
     const PetscInt actions = 30;
-    const double sparsityFactor = 0.02;
-    const int seed = 8624;
+    const PetscReal sparsityFactor = 0.02;
+    const PetscInt seed = 8624;
+    const PetscReal rtol = 1e-14;
+    const PetscInt maxIter = 1.5 * states;
 
-    //PetscOptionsSetValue(NULL, "-ksp_monitor", NULL);
+    // Petsc options
     PetscOptionsSetValue(NULL, "-ksp_converged_reason", NULL);
     PetscOptionsSetValue(NULL, "-ksp_monitor_true_residual", NULL);
     PetscOptionsSetValue(NULL, "-pc_type", "none"); // lu // svd
     //PetscOptionsSetValue(NULL, "-pc_svd_monitor", NULL);
+    //PetscOptionsSetValue(NULL, "-ksp_monitor", NULL);
 
 /*
-    // generate transition matrix
+    // generate transition probabilities and stage costs and write them to file
     Mat A;
 
     t.start();
@@ -106,14 +106,14 @@ int main(int argc, char** argv)
     t.start();
     matrixFromBin(stageCosts, "../data/" + g_filename);
     t.stop("Time to read stage costs from file: ");
-
     PetscInt P_rows, P_cols, numStates, numActions;
     MatGetSize(transitionProbabilityTensor, &P_rows, &P_cols);
     MatGetSize(stageCosts, &numStates, &numActions);
     assert(P_rows == numStates);
     assert(P_cols == numStates * numActions);
 
-    // solve linear system
+    // solve linear system with generated transition probabilities and stage costs from policy
+
     auto *policy = new PetscInt[numStates];
     for(PetscInt stateInd = 0; stateInd < numStates; ++stateInd) {
         policy[stateInd] = (stateInd+3) % numActions;
@@ -125,7 +125,6 @@ int main(int argc, char** argv)
     constructStageCostsFromPolicy(stageCosts, g, policy);
     VecAssemblyBegin(g);
     VecAssemblyEnd(g);
-
     Mat P;
     MatCreateSeqDense(PETSC_COMM_WORLD, numStates, numStates, PETSC_NULL, &P);
     constructTransitionProbabilityMatrixFromPolicy(transitionProbabilityTensor, P, policy);
@@ -138,44 +137,18 @@ int main(int argc, char** argv)
     MatDuplicate(P, MAT_COPY_VALUES, &jacobian);
     MatScale(jacobian, -gamma);
     MatShift(jacobian, 1.0);
-    MatAssemblyBegin(jacobian, MAT_FINAL_ASSEMBLY);
-    MatAssemblyEnd(jacobian, MAT_FINAL_ASSEMBLY);
-
 
     // create KSP solver
     KSP ksp;
     KSPCreate(PETSC_COMM_WORLD, &ksp);
     KSPSetOperators(ksp, jacobian, jacobian);
     KSPSetType(ksp, KSPGMRES);
-    //PetscOptionsSetValue(NULL, "-ksp_view", NULL);
-    //PetscOptionsSetValue(NULL, "-ksp_plot_eigenvalues", NULL);
-    //PetscOptionsSetValue(NULL, "-ksp_monitor", NULL);
-    //PetscOptionsSetValue(NULL, "-pc_type", "none");
-    //PetscOptionsSetValue(NULL, "-ksp_converged_reason", NULL);
     KSPSetFromOptions(ksp);
-    PetscReal rtol = 1e-14;
-    PetscInt maxIter = 1.5 * numStates;
     //KSPSetConvergenceTest(ksp, cvgTest, PETSC_NULLPTR, PETSC_NULLPTR);
     KSPSetTolerances(ksp, rtol, 1e-20, PETSC_DEFAULT, maxIter);
 
     Vec V;
     VecCreateSeq(PETSC_COMM_WORLD, numStates, &V);
-
-    // DEBUG: print dimensions of jacobian, g, V
-    PetscInt jacobian_rows, jacobian_cols;
-    MatGetSize(jacobian, &jacobian_rows, &jacobian_cols);
-    PetscInt g_rows, V_rows;
-    VecGetSize(g, &g_rows);
-    VecGetSize(V, &V_rows);
-    std::cout << "states: " << numStates << ", actions: " << numActions << std::endl;
-    std::cout << "jacobian: " << jacobian_rows << " x " << jacobian_cols << std::endl;
-    std::cout << "g: " << g_rows << std::endl;
-    std::cout << "V: " << V_rows << std::endl;
-
-    //ierr = MatMult(P, g, V);
-    //CHKERRQ(ierr);
-
-    // solve for V, store residual norm for every iteration
     std::cout << "Solving LSE with row-stochastic matrix:" << std::endl;
     ierr = KSPSolve(ksp, g, V);
     CHKERRQ(ierr);
@@ -195,24 +168,20 @@ int main(int argc, char** argv)
     Mat A;
     MatCreateSeqDense(PETSC_COMM_WORLD, numStates, numStates, values, &A);
 
-    std::cout << "Solving LSE with random matrix:" << std::endl;
+    // create KSP solver
     KSP ksp2;
     KSPCreate(PETSC_COMM_WORLD, &ksp2);
     KSPSetOperators(ksp2, A, A);
     KSPSetType(ksp2, KSPGMRES);
-
-    //PetscOptionsSetValue(NULL, "-ksp_view_eigenvalues", "draw");
     KSPSetFromOptions(ksp2);
     KSPSetTolerances(ksp2, rtol, 1e-20, PETSC_DEFAULT, maxIter);
 
     Vec V2;
     VecCreateSeq(PETSC_COMM_WORLD, numStates, &V2);
 
+    std::cout << "Solving LSE with random matrix:" << std::endl;
     ierr = KSPSolve(ksp2, g, V2);
     CHKERRQ(ierr);
-
-
-
 
     // destroy
     MatDestroy(&transitionProbabilityTensor);
@@ -224,11 +193,11 @@ int main(int argc, char** argv)
     VecDestroy(&V2);
     VecDestroy(&g);
     KSPDestroy(&ksp);
-
+    KSPDestroy(&ksp2);
+    delete[] values;
     delete[] policy;
 
     // Finalize PETSc
     PetscFinalize();
     return 0;
 }
-// convergence test for GMRES that outputs the residual norm at each iteration
