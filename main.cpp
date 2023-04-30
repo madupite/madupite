@@ -10,9 +10,10 @@
 #include <random>
 #include "PETScFunctions.h"
 #include "Filewriter.h"
-#include "TransitionMatrixGenerator.h"
-#include "StageCostGenerator.h"
+//#include "TransitionMatrixGenerator.h"
+//#include "StageCostGenerator.h"
 #include "Timer.h"
+#include "MDP.h"
 
 /*
 PetscErrorCode cvgTest(KSP ksp, PetscInt n, PetscReal rnorm, KSPConvergedReason *reason, void *ctx) {
@@ -42,6 +43,34 @@ int main(int argc, char** argv)
         std::cout << "Number of processors: " << size << std::endl;
     }
 
+    MDP mdp(50, 10, 0.9); // sparsity factor = 0.1
+    //MDP mdp(500, 30, 0.9); // sparsity factor = 0.02
+    std::cout << mdp.numStates_ << std::endl;
+    std::cout << mdp.numActions_ << std::endl;
+    std::cout << mdp.discountFactor_ << std::endl;
+
+    PetscReal sparsityFactor = 0.1;
+    PetscInt seed = 8624;
+    std::string P_filename = "../data/P_" + std::to_string(mdp.numStates_) + "_" + std::to_string(mdp.numActions_) + "_" + std::to_string(sparsityFactor) + "_" + std::to_string(seed) + ".bin";
+    std::string g_filename = "../data/g_" + std::to_string(mdp.numStates_) + "_" + std::to_string(mdp.numActions_) + "_" + std::to_string(seed) + ".bin";
+
+    mdp.loadFromBinaryFile(P_filename, g_filename);
+
+    Vec V;
+    VecCreate(PETSC_COMM_WORLD, &V);
+    VecSetType(V, VECSEQ);
+    VecSetSizes(V, PETSC_DECIDE, mdp.numStates_);
+    VecSet(V, 1.0);
+    PetscInt *policy = new PetscInt[mdp.numStates_];
+    mdp.extractGreedyPolicy(V, policy);
+    std::cout << "Policy: " << std::endl;
+    for (auto *it = policy; it != policy + mdp.numStates_; ++it) {
+        std::cout << *it << " ";
+    }
+
+
+    mdp.~MDP();
+/*
     Timer t;
     PetscErrorCode ierr;
 
@@ -56,8 +85,8 @@ int main(int argc, char** argv)
     // Petsc options
     PetscOptionsSetValue(NULL, "-ksp_converged_reason", NULL);
     PetscOptionsSetValue(NULL, "-ksp_monitor_true_residual", NULL);
-    PetscOptionsSetValue(NULL, "-pc_type", "none"); // lu // svd
-    //PetscOptionsSetValue(NULL, "-pc_svd_monitor", NULL);
+    PetscOptionsSetValue(NULL, "-pc_type", "svd"); // lu // svd
+    PetscOptionsSetValue(NULL, "-pc_svd_monitor", NULL);
     //PetscOptionsSetValue(NULL, "-ksp_monitor", NULL);
 
 /*
@@ -94,7 +123,7 @@ int main(int argc, char** argv)
     matrixToBin(stageCosts, filename + ".bin");
     t.stop("Time to write stage costs to file: ");
     //matrixToAscii(stageCosts, filename + ".csv");
-*/
+//*
 
     // read transition matrix from file
     std::string P_filename = "P_" + std::to_string(states) + "_" + std::to_string(actions) + "_" + std::to_string(sparsityFactor) + "_" + std::to_string(seed) + ".bin";
@@ -196,7 +225,7 @@ int main(int argc, char** argv)
     KSPDestroy(&ksp2);
     delete[] values;
     delete[] policy;
-
+*/
     // Finalize PETSc
     PetscFinalize();
     return 0;
