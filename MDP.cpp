@@ -9,9 +9,6 @@
 MDP::MDP(const PetscInt numStates, const PetscInt numActions, const PetscReal discountFactor) : numStates_(numStates),
                                                                                                 numActions_(numActions),
                                                                                                 discountFactor_(discountFactor) {
-    //MatCreate(PETSC_COMM_WORLD, &transitionProbabilityTensor);
-    //MatCreate(PETSC_COMM_WORLD, &stageCostMatrix);
-    // TODO initialize matrices
     transitionProbabilityTensor_ = nullptr;
     stageCostMatrix_ = nullptr;
 }
@@ -101,11 +98,11 @@ PetscErrorCode MDP::extractGreedyPolicy(Vec &V, PetscInt *policy) {
     for(PetscInt actionInd = 0; actionInd < numActions_; ++actionInd) {
         std::fill(tmppolicy, tmppolicy + numStates_, actionInd);
         constructFromPolicy(tmppolicy, P, g);
-        MatAssemblyBegin(P, MAT_FINAL_ASSEMBLY);
-        MatAssemblyEnd(P, MAT_FINAL_ASSEMBLY);
+        ierr = MatAssemblyBegin(P, MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
+        ierr = MatAssemblyEnd(P, MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
         ierr = MatScale(P, discountFactor_); CHKERRQ(ierr);
         ierr = MatMultAdd(P, V, g, g); CHKERRQ(ierr);
-        VecGetArray(g, &costValues);
+        ierr = VecGetArray(g, &costValues); CHKERRQ(ierr);
 
         for(int stateInd = 0; stateInd < numStates_; ++stateInd) {
             if(costValues[stateInd] < minCostValues[stateInd]) {
@@ -113,7 +110,7 @@ PetscErrorCode MDP::extractGreedyPolicy(Vec &V, PetscInt *policy) {
                 policy[stateInd] = actionInd;
             }
         }
-        VecRestoreArray(g, &costValues);
+        ierr = VecRestoreArray(g, &costValues); CHKERRQ(ierr);
     }
 
     ierr = PetscFree(tmppolicy); CHKERRQ(ierr);
@@ -150,7 +147,6 @@ PetscErrorCode MDP::constructFromPolicy(PetscInt *policy, Mat &transitionProbabi
     }
     ierr = VecSetValues(stageCosts, numStates_, baseIndices, g_values, INSERT_VALUES); CHKERRQ(ierr);
 
-
     PetscFree(indices);
     PetscFree(baseIndices);
     PetscFree(P_values);
@@ -161,7 +157,6 @@ PetscErrorCode MDP::constructFromPolicy(PetscInt *policy, Mat &transitionProbabi
 PetscErrorCode MDP::iterativePolicyEvaluation(Mat &jacobian, Vec &stageCosts, Vec &V, PetscReal alpha) {
     PetscErrorCode ierr;
     const PetscReal rtol = 1e-15;
-
 
     // ksp solver
     KSP ksp;
@@ -175,15 +170,11 @@ PetscErrorCode MDP::iterativePolicyEvaluation(Mat &jacobian, Vec &stageCosts, Ve
 
     ierr = KSPSolve(ksp, stageCosts, V); CHKERRQ(ierr);
 
-
-    // Value iteration: jacobian = I
-    // ierr = VecCopy(stageCosts, V); CHKERRQ(ierr);
-
     return ierr;
 }
 
 std::vector<PetscInt> MDP::inexactPolicyIteration(Vec &V0, const PetscInt maxIter, PetscReal alpha) {
-
+// #define VI
     std::vector<PetscInt> policy(numStates_); // result
 
     // todo: change jacobian to ShellMat
@@ -206,16 +197,25 @@ std::vector<PetscInt> MDP::inexactPolicyIteration(Vec &V0, const PetscInt maxIte
     for(PetscInt i = 0; i < maxIter; ++i) {
 
         extractGreedyPolicy(V, policy.data());
+#ifdef VI
         constructFromPolicy(policy.data(), jacobian, stageCosts);
-
+        MatAssemblyBegin(jacobian, MAT_FINAL_ASSEMBLY);
+        MatAssemblyEnd(jacobian, MAT_FINAL_ASSEMBLY);
+        MatScale(jacobian, discountFactor_); // needs assembled matrix
+        MatMultAdd(jacobian, V, stageCosts, stageCosts);
+        VecCopy(stageCosts, V);
+#endif
+#ifndef VI
+        constructFromPolicy(policy.data(), jacobian, stageCosts);
         MatAssemblyBegin(jacobian, MAT_FINAL_ASSEMBLY);
         MatAssemblyEnd(jacobian, MAT_FINAL_ASSEMBLY);
         MatScale(jacobian, -discountFactor_); // needs assembled matrix
         MatShift(jacobian, 1);
-
-        //VecCopy(V, V_old);
+        VecCopy(V, V_old);
         iterativePolicyEvaluation(jacobian, stageCosts, V, alpha);
+#endif
     }
+    // todo: stopping condition for loop
     // print V
     PetscPrintf(PETSC_COMM_WORLD, "V = \n");
     VecView(V, PETSC_VIEWER_STDOUT_WORLD);
