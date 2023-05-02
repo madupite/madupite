@@ -116,15 +116,16 @@ class MDP:
         i = 1
 
         print("Policy Iteration")
-        while True:
+        while i < 1000:
             # print("Iteration: ", i)
             
             # policy evaluation
             g, P = self.constructCostAndTransitions(policy)
             V = np.linalg.solve(np.eye(self.numStates_) - self.discount_ * P, g)
-
+            #V = g.copy() # value iteration (jacobian = identity)
             # policy improvement
             policy_old[:] = policy
+            """
             # calculate costs for all actions
             for state in range(self.numStates_):
                 for action in range(self.numActions_):
@@ -132,6 +133,8 @@ class MDP:
 
             # extract greedy policy
             policy[:] = np.argmin(costs, axis=1)
+            """
+            policy[:] = self.extractGreedyPolicy(V)
 
             # store iteration
             result.append([i, V.copy().tolist(), time.time()])
@@ -139,6 +142,7 @@ class MDP:
             # print(f"{V} | {policy}")
 
             if np.array_equal(policy, policy_old):
+                pass
                 print("Converged after ", i, " iterations")
                 return result, policy
 
@@ -184,3 +188,18 @@ class MDP:
                 return result, policy
 
             i += 1
+
+    def inexactPolicyIteration(self, V0, maxIter):
+        # for now exact, but algorithm according to algorithm 1 in iGMRES-PI paper
+        V = V0.copy()
+        V_old = np.zeros(self.numStates_)
+
+        for k in range(maxIter):
+            policy = self.extractGreedyPolicy(V)
+            g, P = self.constructCostAndTransitions(policy)
+            jacobian = np.eye(self.numStates_) - self.discount_ * P
+            V_old[:] = V
+            V = np.linalg.solve(jacobian, g)
+            if np.linalg.norm(V - V_old, ord=np.inf) < self.tol_:
+                print("Converged after ", k, " iterations")
+                return V, policy

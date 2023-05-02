@@ -43,7 +43,7 @@ int main(int argc, char** argv)
         std::cout << "Number of processors: " << size << std::endl;
     }
 
-    MDP mdp(50, 10, 0.9); // sparsity factor = 0.1
+    MDP mdp(200, 20, 0.9); // sparsity factor = 0.1
     //MDP mdp(500, 30, 0.9); // sparsity factor = 0.02
     std::cout << mdp.numStates_ << std::endl;
     std::cout << mdp.numActions_ << std::endl;
@@ -62,11 +62,15 @@ int main(int argc, char** argv)
     VecSetSizes(V, PETSC_DECIDE, mdp.numStates_);
     VecSet(V, 1.0);
     PetscInt *policy = new PetscInt[mdp.numStates_];
-    mdp.extractGreedyPolicy(V, policy);
+    //mdp.extractGreedyPolicy(V, policy);
+
+
+    auto result = mdp.inexactPolicyIteration(V, 100, 0.001);
     std::cout << "Policy: " << std::endl;
-    for (auto *it = policy; it != policy + mdp.numStates_; ++it) {
-        std::cout << *it << " ";
-    }
+    for(auto x : result) std::cout << x << " ";
+    //for (auto *it = policy; it != policy + mdp.numStates_; ++it) {
+    //    std::cout << *it << " ";
+    //}
 
 
     mdp.~MDP();
