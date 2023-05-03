@@ -43,7 +43,7 @@ PetscErrorCode MDP::extractGreedyPolicy(Vec &V, PetscInt *policy) {
     for(PetscInt stateInd = 0; stateInd < numStates_; ++stateInd) {
         for(PetscInt actionInd = 0; actionInd < numActions_; ++actionInd) {
             // extract transition probabilities
-            std::iota(indices, indices + numStates_, actionInd*numStates_); // initialize indices to 0, 1, 2, ..., numStates_-1
+            std::iota(indices, indices + numStates_, actionInd*numStates_); // initialize indices to [actionInd*numStates, (actionInd+1)*numStates-1]
             ierr = MatGetValues(transitionProbabilityTensor_, 1, &stateInd, numStates_, indices, tmpValues); CHKERRQ(ierr);
             ierr = VecSetValues(tmp, numStates_, vecIndices, tmpValues, INSERT_VALUES); CHKERRQ(ierr);
             // extract stage costs
