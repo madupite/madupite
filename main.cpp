@@ -65,7 +65,7 @@ int main(int argc, char** argv)
     //mdp.extractGreedyPolicy(V, policy);
 
 
-    auto result = mdp.inexactPolicyIteration(V, 400, 0.001);
+    auto result = mdp.inexactPolicyIteration(V, 10, 0.001);
     std::cout << "Policy: " << std::endl;
     for(auto x : result) std::cout << x << " ";
     //for (auto *it = policy; it != policy + mdp.numStates_; ++it) {
