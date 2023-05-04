@@ -7,6 +7,7 @@
 
 #include <petscvec.h>
 #include <petscmat.h>
+#include <petscksp.h>
 #include <vector>
 
 class MDP {
@@ -20,6 +21,8 @@ public:
     PetscErrorCode iterativePolicyEvaluation(Mat &jacobian, Vec &stageCosts, Vec &V, PetscReal alpha);
     std::vector<PetscInt> inexactPolicyIteration(Vec &V0, PetscInt maxIter, PetscReal alpha);
 
+    PetscErrorCode cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason *reason, void *ctx); // TODO
+
     PetscErrorCode loadFromBinaryFile(std::string filename_P, std::string filename_g);
 
     const PetscInt    numStates_;
@@ -28,7 +31,6 @@ public:
 
     Mat transitionProbabilityTensor_;   // transition probability tensor
     Mat stageCostMatrix_;               // stage cost matrix
-
 };
 
 

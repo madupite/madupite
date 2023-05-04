@@ -163,8 +163,6 @@ PetscErrorCode MDP::iterativePolicyEvaluation(Mat &jacobian, Vec &stageCosts, Ve
     ierr = KSPCreate(PETSC_COMM_WORLD, &ksp); CHKERRQ(ierr);
     ierr = KSPSetOperators(ksp, jacobian, jacobian); CHKERRQ(ierr);
     ierr = KSPSetType(ksp, KSPGMRES); CHKERRQ(ierr);
-    ierr = PetscOptionsSetValue(NULL, "-ksp_monitor_true_residual", NULL); CHKERRQ(ierr);
-    ierr = PetscOptionsSetValue(NULL, "-pc_type", "lu"); CHKERRQ(ierr);
     ierr = KSPSetFromOptions(ksp); CHKERRQ(ierr);
     ierr = KSPSetTolerances(ksp, rtol, PETSC_DEFAULT, PETSC_DEFAULT, PETSC_DEFAULT); CHKERRQ(ierr); // todo: custom stopping criterion
 
@@ -206,7 +204,7 @@ std::vector<PetscInt> MDP::inexactPolicyIteration(Vec &V0, const PetscInt maxIte
         VecCopy(stageCosts, V);
 #endif
 #ifndef VI
-        constructFromPolicy(policy.data(), jacobian, stageCosts);
+        constructFromPolicy(policy.data(), jacobian, stageCosts); // returns g
         MatAssemblyBegin(jacobian, MAT_FINAL_ASSEMBLY);
         MatAssemblyEnd(jacobian, MAT_FINAL_ASSEMBLY);
         MatScale(jacobian, -discountFactor_); // needs assembled matrix
