@@ -1,0 +1,4 @@
+-ksp_monitor_true_residual
+-pc_type lu
+-log_view
+-info

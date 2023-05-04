@@ -19,108 +19,119 @@ MDP::~MDP() {
 }
 
 // find $\argmin_{\pi} \{ g^\pi + \gamma P^\pi V \}$
-PetscErrorCode MDP::extractGreedyPolicy(Vec &V, PetscInt *policy) {
-#define V2
+PetscErrorCode MDP::extractGreedyPolicy(Vec &V, PetscInt *policy, GreedyPolicyType type) {
 
-#ifdef V1
-    PetscErrorCode ierr;
-    PetscInt *indices; // stores indices [actionInd*numStates, (actionInd+1)*numStates-1] for extracting values from P
-    PetscMalloc1(numStates_, &indices);
-    PetscInt *vecIndices; // contains indices [0, 1, 2, ..., numStates_-1] for setting values in tmp
-    PetscMalloc1(numStates_, &vecIndices);
-    std::iota(vecIndices, vecIndices + numStates_, 0); // initialize vecIndices to 0, 1, 2, ..., numStates_-1
-    PetscReal *tmpValues; // contains values to be stored in tmp
-    PetscMalloc1(numStates_, &tmpValues);
+    if(type == GreedyPolicyType::V1) {
 
-    Vec tmp; // contains block from P
-    ierr = VecCreate(PETSC_COMM_WORLD, &tmp); CHKERRQ(ierr);
-    ierr = VecSetType(tmp, VECSEQ); CHKERRQ(ierr); // todo: to be changed for parallel version
-    ierr = VecSetSizes(tmp, PETSC_DECIDE, numStates_); CHKERRQ(ierr);
-    ierr = VecSetUp(tmp); CHKERRQ(ierr);
+        PetscErrorCode ierr;
+        PetscInt *indices; // stores indices [actionInd*numStates, (actionInd+1)*numStates-1] for extracting values from P
+        PetscMalloc1(numStates_, &indices);
+        PetscInt *vecIndices; // contains indices [0, 1, 2, ..., numStates_-1] for setting values in tmp
+        PetscMalloc1(numStates_, &vecIndices);
+        std::iota(vecIndices, vecIndices + numStates_, 0); // initialize vecIndices to 0, 1, 2, ..., numStates_-1
+        PetscReal *tmpValues; // contains values to be stored in tmp
+        PetscMalloc1(numStates_, &tmpValues);
 
-    PetscReal minCost = std::numeric_limits<PetscReal>::max();
+        Vec tmp; // contains block from P
+        ierr = VecCreate(PETSC_COMM_WORLD, &tmp); CHKERRQ(ierr);
+        ierr = VecSetType(tmp, VECSEQ); CHKERRQ(ierr); // todo: to be changed for parallel version
+        ierr = VecSetSizes(tmp, PETSC_DECIDE, numStates_); CHKERRQ(ierr);
+        ierr = VecSetUp(tmp); CHKERRQ(ierr);
 
-    for(PetscInt stateInd = 0; stateInd < numStates_; ++stateInd) {
-        for(PetscInt actionInd = 0; actionInd < numActions_; ++actionInd) {
-            // extract transition probabilities
-            std::iota(indices, indices + numStates_, actionInd*numStates_); // initialize indices to [actionInd*numStates, (actionInd+1)*numStates-1]
-            ierr = MatGetValues(transitionProbabilityTensor_, 1, &stateInd, numStates_, indices, tmpValues); CHKERRQ(ierr);
-            ierr = VecSetValues(tmp, numStates_, vecIndices, tmpValues, INSERT_VALUES); CHKERRQ(ierr);
-            // extract stage costs
-            PetscReal stageCost;
-            ierr = MatGetValue(stageCostMatrix_, stateInd, actionInd, &stageCost);
+        PetscReal minCost = std::numeric_limits<PetscReal>::max();
+
+        for(PetscInt stateInd = 0; stateInd < numStates_; ++stateInd) {
+            for(PetscInt actionInd = 0; actionInd < numActions_; ++actionInd) {
+                // extract transition probabilities
+                std::iota(indices, indices + numStates_, actionInd*numStates_); // initialize indices to [actionInd*numStates, (actionInd+1)*numStates-1]
+                ierr = MatGetValues(transitionProbabilityTensor_, 1, &stateInd, numStates_, indices, tmpValues); CHKERRQ(ierr);
+                ierr = VecSetValues(tmp, numStates_, vecIndices, tmpValues, INSERT_VALUES); CHKERRQ(ierr);
+                // extract stage costs
+                PetscReal stageCost;
+                ierr = MatGetValue(stageCostMatrix_, stateInd, actionInd, &stageCost);
+                CHKERRQ(ierr);
+                // compute g + gamma PV
+                PetscReal cost = 0;
+                ierr = VecDot(tmp, V, &cost); CHKERRQ(ierr);
+                cost = stageCost + discountFactor_ * cost;
+                if(cost < minCost) {
+                    minCost = cost;
+                    policy[stateInd] = actionInd;
+                }
+            }
+            minCost = std::numeric_limits<PetscReal>::max();
+        }
+
+        ierr = PetscFree(indices); CHKERRQ(ierr);
+        ierr = PetscFree(vecIndices); CHKERRQ(ierr);
+        ierr = PetscFree(tmpValues); CHKERRQ(ierr);
+        ierr = VecDestroy(&tmp); CHKERRQ(ierr);
+    }
+
+    if (type == GreedyPolicyType::V2) {
+        PetscErrorCode ierr;
+
+        PetscInt *tmppolicy; // stores temporary policy (filled with actionInd)
+        PetscMalloc1(numStates_, &tmppolicy);
+        PetscReal *costValues; // stores cost (= g + gamma PV) values for each state
+        PetscReal *minCostValues; // stores minimum cost values for each state
+        PetscMalloc1(numStates_, &minCostValues);
+        std::fill(minCostValues, minCostValues + numStates_,
+                  std::numeric_limits<PetscReal>::max());
+
+        Mat P;
+        MatCreate(PETSC_COMM_WORLD, &P);
+        MatSetType(P, MATSEQDENSE);
+        MatSetSizes(P, PETSC_DECIDE, PETSC_DECIDE, numStates_, numStates_);
+        MatSetUp(P);
+        Vec g;
+        VecCreate(PETSC_COMM_WORLD, &g);
+        VecSetType(g, VECSEQ);
+        VecSetSizes(g, PETSC_DECIDE, numStates_);
+        VecSetUp(g);
+        Vec cost;
+        VecCreate(PETSC_COMM_WORLD, &cost);
+        VecSetType(cost, VECSEQ);
+        VecSetSizes(cost, PETSC_DECIDE, numStates_);
+        VecSetUp(cost);
+
+        for (PetscInt actionInd = 0; actionInd < numActions_; ++actionInd) {
+            std::fill(tmppolicy, tmppolicy + numStates_, actionInd);
+            constructFromPolicy(tmppolicy, P, g);
+            ierr = MatAssemblyBegin(P, MAT_FINAL_ASSEMBLY);
             CHKERRQ(ierr);
-            // compute g + gamma PV
-            PetscReal cost = 0;
-            ierr = VecDot(tmp, V, &cost); CHKERRQ(ierr);
-            cost = stageCost + discountFactor_ * cost;
-            if(cost < minCost) {
-                minCost = cost;
-                policy[stateInd] = actionInd;
+            ierr = MatAssemblyEnd(P, MAT_FINAL_ASSEMBLY);
+            CHKERRQ(ierr);
+            ierr = MatScale(P, discountFactor_);
+            CHKERRQ(ierr);
+            ierr = MatMultAdd(P, V, g, g);
+            CHKERRQ(ierr);
+            ierr = VecGetArray(g, &costValues);
+            CHKERRQ(ierr);
+
+            for (int stateInd = 0; stateInd < numStates_; ++stateInd) {
+                if (costValues[stateInd] < minCostValues[stateInd]) {
+                    minCostValues[stateInd] = costValues[stateInd];
+                    policy[stateInd] = actionInd;
+                }
             }
+            ierr = VecRestoreArray(g, &costValues);
+            CHKERRQ(ierr);
         }
-        minCost = std::numeric_limits<PetscReal>::max();
+
+        ierr = PetscFree(tmppolicy);
+        CHKERRQ(ierr);
+        ierr = PetscFree(costValues);
+        CHKERRQ(ierr);
+        ierr = MatDestroy(&P);
+        CHKERRQ(ierr);
+        ierr = VecDestroy(&g);
+        CHKERRQ(ierr);
+        ierr = VecDestroy(&cost);
+        CHKERRQ(ierr);
     }
 
-    ierr = PetscFree(indices); CHKERRQ(ierr);
-    ierr = PetscFree(vecIndices); CHKERRQ(ierr);
-    ierr = PetscFree(tmpValues); CHKERRQ(ierr);
-    ierr = VecDestroy(&tmp); CHKERRQ(ierr);
-
-#endif
-
-#ifdef V2
-    PetscErrorCode ierr;
-
-    PetscInt *tmppolicy; // stores temporary policy (filled with actionInd)
-    PetscMalloc1(numStates_, &tmppolicy);
-    PetscReal *costValues; // stores cost (= g + gamma PV) values for each state
-    PetscReal *minCostValues; // stores minimum cost values for each state
-    PetscMalloc1(numStates_, &minCostValues);
-    std::fill(minCostValues, minCostValues + numStates_, std::numeric_limits<PetscReal>::max());
-
-    Mat P;
-    MatCreate(PETSC_COMM_WORLD, &P);
-    MatSetType(P, MATSEQDENSE);
-    MatSetSizes(P, PETSC_DECIDE, PETSC_DECIDE, numStates_, numStates_);
-    MatSetUp(P);
-    Vec g;
-    VecCreate(PETSC_COMM_WORLD, &g);
-    VecSetType(g, VECSEQ);
-    VecSetSizes(g, PETSC_DECIDE, numStates_);
-    VecSetUp(g);
-    Vec cost;
-    VecCreate(PETSC_COMM_WORLD, &cost);
-    VecSetType(cost, VECSEQ);
-    VecSetSizes(cost, PETSC_DECIDE, numStates_);
-    VecSetUp(cost);
-
-    for(PetscInt actionInd = 0; actionInd < numActions_; ++actionInd) {
-        std::fill(tmppolicy, tmppolicy + numStates_, actionInd);
-        constructFromPolicy(tmppolicy, P, g);
-        ierr = MatAssemblyBegin(P, MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
-        ierr = MatAssemblyEnd(P, MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
-        ierr = MatScale(P, discountFactor_); CHKERRQ(ierr);
-        ierr = MatMultAdd(P, V, g, g); CHKERRQ(ierr);
-        ierr = VecGetArray(g, &costValues); CHKERRQ(ierr);
-
-        for(int stateInd = 0; stateInd < numStates_; ++stateInd) {
-            if(costValues[stateInd] < minCostValues[stateInd]) {
-                minCostValues[stateInd] = costValues[stateInd];
-                policy[stateInd] = actionInd;
-            }
-        }
-        ierr = VecRestoreArray(g, &costValues); CHKERRQ(ierr);
-    }
-
-    ierr = PetscFree(tmppolicy); CHKERRQ(ierr);
-    ierr = PetscFree(costValues); CHKERRQ(ierr);
-    ierr = MatDestroy(&P); CHKERRQ(ierr);
-    ierr = VecDestroy(&g); CHKERRQ(ierr);
-    ierr = VecDestroy(&cost); CHKERRQ(ierr);
-#endif
-
-    return ierr;
+    return 0;
 }
 
 PetscErrorCode MDP::constructFromPolicy(PetscInt *policy, Mat &transitionProbabilities, Vec &stageCosts) {
@@ -194,7 +205,7 @@ std::vector<PetscInt> MDP::inexactPolicyIteration(Vec &V0, const PetscInt maxIte
 
     for(PetscInt i = 0; i < maxIter; ++i) {
 
-        extractGreedyPolicy(V, policy.data());
+        extractGreedyPolicy(V, policy.data(), GreedyPolicyType::V2);
 #ifdef VI
         constructFromPolicy(policy.data(), jacobian, stageCosts);
         MatAssemblyBegin(jacobian, MAT_FINAL_ASSEMBLY);

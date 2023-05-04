@@ -16,7 +16,9 @@ public:
     MDP(PetscInt numStates, PetscInt numActions, PetscReal discountFactor);
     ~MDP();
 
-    PetscErrorCode extractGreedyPolicy(Vec &V, PetscInt *policy);
+   enum GreedyPolicyType {V1, V2};
+
+    PetscErrorCode extractGreedyPolicy(Vec &V, PetscInt *policy, GreedyPolicyType type);
     PetscErrorCode constructFromPolicy(PetscInt *policy, Mat &transitionProbabilities, Vec &stageCosts);
     PetscErrorCode iterativePolicyEvaluation(Mat &jacobian, Vec &stageCosts, Vec &V, PetscReal alpha);
     std::vector<PetscInt> inexactPolicyIteration(Vec &V0, PetscInt maxIter, PetscReal alpha);
