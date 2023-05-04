@@ -95,6 +95,23 @@ class MDP:
                 costs[stateIndex, actionIndex] = self.stageCosts_[stateIndex, actionIndex] + self.discount_ * np.dot(self.transitionTensor_[actionIndex, stateIndex, :], V)
         policy[:] = np.argmin(costs, axis=1)
         return policy
+
+    def extractGreedyPolicy2(self, V):
+
+        policy = np.empty(self.numStates_, dtype=int)
+        minCosts = np.full(self.numStates_, np.inf)
+
+        for actionInd in range(self.numActions_):
+            currPolicy = np.full(self.numStates_, actionInd, dtype=int)
+            g, P = self.constructCostAndTransitions(currPolicy)
+            cost = g + self.discount_ * (P @ V)
+            for stateInd in range(self.numStates_):
+                if cost[stateInd] < minCosts[stateInd]:
+                    minCosts[stateInd] = cost[stateInd]
+                    policy[stateInd] = actionInd
+
+        return policy
+
     
     def constructCostAndTransitions(self, policy):
         g = np.empty(self.numStates_)
@@ -195,7 +212,7 @@ class MDP:
         V_old = np.zeros(self.numStates_)
 
         for k in range(maxIter):
-            policy = self.extractGreedyPolicy(V)
+            policy = self.extractGreedyPolicy2(V)
             g, P = self.constructCostAndTransitions(policy)
             jacobian = np.eye(self.numStates_) - self.discount_ * P
             V_old[:] = V
