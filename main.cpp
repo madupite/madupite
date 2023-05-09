@@ -43,7 +43,7 @@ int main(int argc, char** argv)
 
     Timer t;
     t.start();
-    mdp.loadFromBinaryFile(path + "P.bin", path + "g.bin");
+    mdp.loadFromBinaryFile(path + "P.bin", path + "g.bin", path + "nnz.bin");
     t.stop("Loading took: ");
 
 

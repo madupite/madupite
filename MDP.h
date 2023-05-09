@@ -25,7 +25,7 @@ public:
 
     PetscErrorCode cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason *reason, void *ctx); // TODO
 
-    PetscErrorCode loadFromBinaryFile(std::string filename_P, std::string filename_g);
+    PetscErrorCode loadFromBinaryFile(std::string filename_P, std::string filename_g, std::string filename_nnz);
 
     const PetscInt    numStates_;
     const PetscInt    numActions_;
@@ -33,6 +33,7 @@ public:
 
     Mat transitionProbabilityTensor_;   // transition probability tensor
     Mat stageCostMatrix_;               // stage cost matrix
+    Mat nnz_;                           // number of non-zeros in each row and logical col of the probability tensor
 };
 
 

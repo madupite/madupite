@@ -11,11 +11,13 @@ MDP::MDP(const PetscInt numStates, const PetscInt numActions, const PetscReal di
                                                                                                 discountFactor_(discountFactor) {
     transitionProbabilityTensor_ = nullptr;
     stageCostMatrix_ = nullptr;
+    nnz_ = nullptr;
 }
 
 MDP::~MDP() {
     MatDestroy(&transitionProbabilityTensor_);
     MatDestroy(&stageCostMatrix_);
+    MatDestroy(&nnz_);
 }
 
 // find $\argmin_{\pi} \{ g^\pi + \gamma P^\pi V \}$
@@ -151,6 +153,18 @@ PetscErrorCode MDP::constructFromPolicy(PetscInt *policy, Mat &transitionProbabi
     PetscReal *g_values; // contains values to be stored in g^\pi
     PetscMalloc1(numStates_, &g_values);
 
+    PetscInt *nnz;
+    PetscMalloc1(numStates_, &nnz); // stores number of nonzeros in each row of P^\pi
+    // construct nnz array
+    auto *it = nnz;
+    for(PetscInt stateInd = 0; stateInd < numStates_; ++stateInd) {
+        double tmp;
+        MatGetValue(nnz_, stateInd, policy[stateInd], &tmp);
+        *it = static_cast<PetscInt>(tmp);
+        ++it;
+    }
+    ierr = MatSeqAIJSetPreallocation(transitionProbabilities, 0, nnz); CHKERRQ(ierr);
+
     for(PetscInt stateInd = 0; stateInd < numStates_; ++stateInd) {
         // extract stage cost
         ierr = MatGetValue(stageCostMatrix_, stateInd, policy[stateInd], &g_values[stateInd]); CHKERRQ(ierr);
@@ -165,6 +179,7 @@ PetscErrorCode MDP::constructFromPolicy(PetscInt *policy, Mat &transitionProbabi
     PetscFree(baseIndices);
     PetscFree(P_values);
     PetscFree(g_values);
+    delete[] nnz;
     return ierr;
 }
 
@@ -190,7 +205,6 @@ std::vector<PetscInt> MDP::inexactPolicyIteration(Vec &V0, const PetscInt maxIte
     std::vector<PetscInt> policy(numStates_); // result
 
     // todo: change jacobian to ShellMat
-
 
     Vec V, V_old;
     VecDuplicate(V0, &V);
@@ -244,15 +258,8 @@ std::vector<PetscInt> MDP::inexactPolicyIteration(Vec &V0, const PetscInt maxIte
     return policy;
 }
 
-PetscErrorCode MDP::loadFromBinaryFile(std::string filename_P, std::string filename_g) {
+PetscErrorCode MDP::loadFromBinaryFile(std::string filename_P, std::string filename_g, std::string filename_nnz) {
     PetscErrorCode ierr = 0;
-
-    if(filename_P.empty()) {
-        filename_P = "../data/P_" + std::to_string(numStates_) + "_" + std::to_string(numActions_) + ".bin";
-    }
-    if(filename_g.empty()) {
-        filename_g = "../data/g_" + std::to_string(numStates_) + "_" + std::to_string(numActions_) + ".bin";
-    }
 
     // load transition probability tensor
     MatCreate(PETSC_COMM_WORLD, &transitionProbabilityTensor_);
@@ -265,6 +272,13 @@ PetscErrorCode MDP::loadFromBinaryFile(std::string filename_P, std::string filen
     MatCreate(PETSC_COMM_WORLD, &stageCostMatrix_);
     PetscViewerBinaryOpen(PETSC_COMM_WORLD, filename_g.c_str(), FILE_MODE_READ, &viewer);
     MatLoad(stageCostMatrix_, viewer);
+    PetscViewerDestroy(&viewer);
+
+    // load nnz
+    if(filename_nnz.empty()) return 0;
+    MatCreate(PETSC_COMM_WORLD, &nnz_);
+    PetscViewerBinaryOpen(PETSC_COMM_WORLD, filename_nnz.c_str(), FILE_MODE_READ, &viewer);
+    MatLoad(nnz_, viewer);
     PetscViewerDestroy(&viewer);
 
     return ierr;
