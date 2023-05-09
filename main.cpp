@@ -5,9 +5,12 @@
 #include <petscmat.h>
 #include <petscvec.h>
 #include <petscksp.h>
-#include <iostream>
+#include <petsc.h>
+
 #include <mpi.h>
+#include <iostream>
 #include <random>
+
 #include "Timer.h"
 #include "MDP.h"
 
@@ -18,31 +21,51 @@ int main(int argc, char** argv)
     PetscInitialize(&argc, &argv, PETSC_NULL, PETSC_NULL);
 
     // print how many processors are used
-    int rank;
+    int rank, size;
     MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
-    if(rank == 0) {
-        int size;
-        MPI_Comm_size(PETSC_COMM_WORLD, &size);
-        std::cout << "Number of processors: " << size << std::endl;
-    }
+    MPI_Comm_size(PETSC_COMM_WORLD, &size);
+    PetscPrintf(PETSC_COMM_WORLD, "Number of processors: %d\n", size);
 
     //MDP mdp(200, 20, 0.9); // sparsity factor = 0.1
+    //PetscReal sparsityFactor = 0.1;
+    MDP mdp(500, 50, 0.9); // sparsity factor = 0.01
+    PetscReal sparsityFactor = 0.05;
     //MDP mdp(500, 30, 0.9); // sparsity factor = 0.02
-    MDP mdp(3000, 50, 0.9); // sparsity factor = 0.02
+    //MDP mdp(3000, 50, 0.9); // sparsity factor = 0.02
     std::cout << mdp.numStates_ << std::endl;
     std::cout << mdp.numActions_ << std::endl;
     std::cout << mdp.discountFactor_ << std::endl;
 
-    PetscReal sparsityFactor = 0.02;
+
     PetscInt seed = 8624;
-    std::string P_filename = "../data/P_" + std::to_string(mdp.numStates_) + "_" + std::to_string(mdp.numActions_) + "_" + std::to_string(sparsityFactor) + "_" + std::to_string(seed) + ".bin";
-    std::string g_filename = "../data/g_" + std::to_string(mdp.numStates_) + "_" + std::to_string(mdp.numActions_) + "_" + std::to_string(seed) + ".bin";
+    std::string path = "../data/" + std::to_string(mdp.numStates_) + "_" + std::to_string(mdp.numActions_) + "_" + std::to_string(sparsityFactor) + "/";
+
 
     Timer t;
     t.start();
-    mdp.loadFromBinaryFile(P_filename, g_filename);
+    mdp.loadFromBinaryFile(path + "P.bin", path + "g.bin");
     t.stop("Loading took: ");
 
+
+    // solve MDP
+    Vec V;
+    VecCreate(PETSC_COMM_WORLD, &V);
+    VecSetType(V, VECSEQ);
+    VecSetSizes(V, PETSC_DECIDE, mdp.numStates_);
+    VecSet(V, 1.0);
+    PetscInt *policy = new PetscInt[mdp.numStates_];
+
+    //Timer t;
+    t.start();
+    auto result = mdp.inexactPolicyIteration(V, 5, 0.001);
+    t.stop("iPI took: ");
+    std::cout << "Policy: " << std::endl;
+    for(auto x : result) std::cout << x << " ";
+
+
+    mdp.~MDP();
+
+    /*
     PetscInt *policy = new PetscInt[mdp.numStates_];
     PetscInt iterations = 5;
 
@@ -79,28 +102,7 @@ int main(int argc, char** argv)
 
     delete[] values;
     delete[] policy;
-
-
-
-    /*
-    // solve MDP
-    Vec V;
-    VecCreate(PETSC_COMM_WORLD, &V);
-    VecSetType(V, VECSEQ);
-    VecSetSizes(V, PETSC_DECIDE, mdp.numStates_);
-    VecSet(V, 1.0);
-    PetscInt *policy = new PetscInt[mdp.numStates_];
-
-    Timer t;
-    t.start();
-    auto result = mdp.inexactPolicyIteration(V, 10, 0.001);
-    t.stop("iPI took: ");
-    std::cout << "Policy: " << std::endl;
-    for(auto x : result) std::cout << x << " ";
-    */
-
-    mdp.~MDP();
-
+*/
     // Finalize PETSc
     PetscFinalize();
     return 0;

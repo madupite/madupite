@@ -3,7 +3,7 @@
 //
 
 #include "MDP.h"
-#include "TransitionMatrixGenerator.h"
+#include <numeric>
 #include <petscksp.h>
 
 MDP::MDP(const PetscInt numStates, const PetscInt numActions, const PetscReal discountFactor) : numStates_(numStates),
@@ -34,7 +34,7 @@ PetscErrorCode MDP::extractGreedyPolicy(Vec &V, PetscInt *policy, GreedyPolicyTy
 
         Vec tmp; // contains block from P
         ierr = VecCreate(PETSC_COMM_WORLD, &tmp); CHKERRQ(ierr);
-        ierr = VecSetType(tmp, VECSEQ); CHKERRQ(ierr); // todo: to be changed for parallel version
+        ierr = VecSetType(tmp, VECSEQ); CHKERRQ(ierr); // todo: to be changed for parallel version, also maybe bad for performance since vector is dense
         ierr = VecSetSizes(tmp, PETSC_DECIDE, numStates_); CHKERRQ(ierr);
         ierr = VecSetUp(tmp); CHKERRQ(ierr);
 
@@ -73,17 +73,13 @@ PetscErrorCode MDP::extractGreedyPolicy(Vec &V, PetscInt *policy, GreedyPolicyTy
 
         PetscInt *tmppolicy; // stores temporary policy (filled with actionInd)
         PetscMalloc1(numStates_, &tmppolicy);
-        PetscReal *costValues; // stores cost (= g + gamma PV) values for each state
+        const PetscReal *costValues; // stores cost (= g + gamma PV) values for each state
         PetscReal *minCostValues; // stores minimum cost values for each state
         PetscMalloc1(numStates_, &minCostValues);
         std::fill(minCostValues, minCostValues + numStates_,
                   std::numeric_limits<PetscReal>::max());
 
-        Mat P;
-        MatCreate(PETSC_COMM_WORLD, &P);
-        MatSetType(P, MATSEQDENSE);
-        MatSetSizes(P, PETSC_DECIDE, PETSC_DECIDE, numStates_, numStates_);
-        MatSetUp(P);
+
         Vec g;
         VecCreate(PETSC_COMM_WORLD, &g);
         VecSetType(g, VECSEQ);
@@ -96,6 +92,12 @@ PetscErrorCode MDP::extractGreedyPolicy(Vec &V, PetscInt *policy, GreedyPolicyTy
         VecSetUp(cost);
 
         for (PetscInt actionInd = 0; actionInd < numActions_; ++actionInd) {
+            Mat P;
+            MatCreate(PETSC_COMM_WORLD, &P);
+            MatSetType(P, MATSEQAIJ);
+            MatSetSizes(P, PETSC_DECIDE, PETSC_DECIDE, numStates_, numStates_);
+            MatSetUp(P);
+
             std::fill(tmppolicy, tmppolicy + numStates_, actionInd);
             constructFromPolicy(tmppolicy, P, g);
             ierr = MatAssemblyBegin(P, MAT_FINAL_ASSEMBLY);
@@ -106,7 +108,7 @@ PetscErrorCode MDP::extractGreedyPolicy(Vec &V, PetscInt *policy, GreedyPolicyTy
             CHKERRQ(ierr);
             ierr = MatMultAdd(P, V, g, g);
             CHKERRQ(ierr);
-            ierr = VecGetArray(g, &costValues);
+            ierr = VecGetArrayRead(g, &costValues);
             CHKERRQ(ierr);
 
             for (int stateInd = 0; stateInd < numStates_; ++stateInd) {
@@ -115,15 +117,16 @@ PetscErrorCode MDP::extractGreedyPolicy(Vec &V, PetscInt *policy, GreedyPolicyTy
                     policy[stateInd] = actionInd;
                 }
             }
-            ierr = VecRestoreArray(g, &costValues);
+            ierr = VecRestoreArrayRead(g, &costValues);
             CHKERRQ(ierr);
+            ierr = MatDestroy(&P); CHKERRQ(ierr);
         }
 
         ierr = PetscFree(tmppolicy);
         CHKERRQ(ierr);
         ierr = PetscFree(costValues);
         CHKERRQ(ierr);
-        ierr = MatDestroy(&P);
+        //ierr = MatDestroy(&P);
         CHKERRQ(ierr);
         ierr = VecDestroy(&g);
         CHKERRQ(ierr);
@@ -187,11 +190,7 @@ std::vector<PetscInt> MDP::inexactPolicyIteration(Vec &V0, const PetscInt maxIte
     std::vector<PetscInt> policy(numStates_); // result
 
     // todo: change jacobian to ShellMat
-    Mat jacobian;
-    MatCreate(PETSC_COMM_WORLD, &jacobian);
-    MatSetSizes(jacobian, PETSC_DECIDE, PETSC_DECIDE, numStates_, numStates_);
-    MatSetType(jacobian, MATSEQDENSE);
-    MatSetUp(jacobian);
+
 
     Vec V, V_old;
     VecDuplicate(V0, &V);
@@ -204,8 +203,9 @@ std::vector<PetscInt> MDP::inexactPolicyIteration(Vec &V0, const PetscInt maxIte
     VecSetSizes(stageCosts, PETSC_DECIDE, numStates_);
 
     for(PetscInt i = 0; i < maxIter; ++i) {
+        PetscPrintf(PETSC_COMM_WORLD, "Iteration %d\n", i);
 
-        extractGreedyPolicy(V, policy.data(), GreedyPolicyType::V2);
+        extractGreedyPolicy(V, policy.data(), GreedyPolicyType::V1);
 #ifdef VI
         constructFromPolicy(policy.data(), jacobian, stageCosts);
         MatAssemblyBegin(jacobian, MAT_FINAL_ASSEMBLY);
@@ -215,6 +215,11 @@ std::vector<PetscInt> MDP::inexactPolicyIteration(Vec &V0, const PetscInt maxIte
         VecCopy(stageCosts, V);
 #endif
 #ifndef VI
+        Mat jacobian;
+        MatCreate(PETSC_COMM_WORLD, &jacobian);
+        MatSetSizes(jacobian, PETSC_DECIDE, PETSC_DECIDE, numStates_, numStates_);
+        MatSetType(jacobian, MATSEQAIJ);
+        MatSetUp(jacobian);
         constructFromPolicy(policy.data(), jacobian, stageCosts); // returns g
         MatAssemblyBegin(jacobian, MAT_FINAL_ASSEMBLY);
         MatAssemblyEnd(jacobian, MAT_FINAL_ASSEMBLY);
@@ -222,18 +227,20 @@ std::vector<PetscInt> MDP::inexactPolicyIteration(Vec &V0, const PetscInt maxIte
         MatShift(jacobian, 1);
         VecCopy(V, V_old);
         iterativePolicyEvaluation(jacobian, stageCosts, V, alpha);
+        MatDestroy(&jacobian);
 #endif
     }
     // todo: stopping condition for loop
     // print V
+    /*
     PetscPrintf(PETSC_COMM_WORLD, "V = \n");
     VecView(V, PETSC_VIEWER_STDOUT_WORLD);
     PetscPrintf(PETSC_COMM_WORLD, "\n\n");
     MatDestroy(&jacobian);
+     */
     VecDestroy(&V);
     VecDestroy(&V_old);
     VecDestroy(&stageCosts);
-
     return policy;
 }
 
