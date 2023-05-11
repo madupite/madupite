@@ -5,17 +5,20 @@ import matplotlib.pyplot as plt
 import os
 
 
-def generate_row_stochastic_matrix(n, sparsity_factor, perturbFactor, seed, stddev):
+def generate_row_stochastic_matrix(states, actions, sparsity_factor, perturbFactor, seed, stddev):
+    """generate a (n*m) x n row-stochastic matrix with random values assigned to randomly chosen columns"""
+    nrows = states * actions
+    ncols = states
     np.random.seed(seed)
 
     # Compute the number of non-zero entries per row with a perturbation
-    perturbation = np.random.normal(0, stddev, size=n)
-    nnz_per_row = np.round(n * (sparsity_factor + perturbation)).astype(int)
+    perturbation = np.random.normal(0, stddev, size=nrows)
+    nnz_per_row = (states * (sparsity_factor + perturbation)).astype(int)
     #nnz_per_row[0] = 23
     #print(nnz_per_row)
 
     # Ensure that nnzPerRow is in {1, ..., n-1}
-    nnz_per_row = np.clip(nnz_per_row, 1, n - 1)
+    nnz_per_row = np.clip(nnz_per_row, 1, ncols - 1)
     #print(nnz_per_row)
 
     # Generate a row-stochastic matrix with random values assigned to randomly chosen columns
@@ -23,15 +26,14 @@ def generate_row_stochastic_matrix(n, sparsity_factor, perturbFactor, seed, stdd
     row_indices = []
     col_indices = []
 
-    for i in range(n):
+    for i in range(nrows):
         # Generate nnzPerRow uniformly distributed random values for each row
-        #values = random(1, nnz_per_row[i], density=1.0, format='csr', dtype=float)
         values = np.random.rand(nnz_per_row[i])
         perturb_indices = np.random.choice(nnz_per_row[i], int(nnz_per_row[i] * perturbFactor), replace=False)
         values[perturb_indices] /= perturbFactor
 
         # Assign the values to randomly chosen columns
-        rand_cols = np.random.choice(n, nnz_per_row[i], replace=False)
+        rand_cols = np.random.choice(ncols, nnz_per_row[i], replace=False)
         data.append(values.data)
         row_indices.append(np.repeat(i, nnz_per_row[i]))
         col_indices.append(rand_cols)
@@ -42,58 +44,36 @@ def generate_row_stochastic_matrix(n, sparsity_factor, perturbFactor, seed, stdd
     col_indices = np.concatenate(col_indices)
 
     # Create the sparse matrix using the csr_matrix constructor
-    sparse_matrix = csr_matrix((data, (row_indices, col_indices)), shape=(n, n))
+    sparse_matrix = csr_matrix((data, (row_indices, col_indices)), shape=(nrows, ncols))
 
     # Normalize the rows of the matrix to ensure that they sum to 1
     row_sums = np.array(sparse_matrix.sum(axis=1)).flatten()
     row_indices, col_indices = sparse_matrix.nonzero()
     data = sparse_matrix.data
     data /= row_sums[row_indices]
-    sparse_matrix = csr_matrix((data, (row_indices, col_indices)), shape=(n, n))
+    sparse_matrix = csr_matrix((data, (row_indices, col_indices)), shape=(nrows, ncols))
 
     # Print the sparse matrix
     #print(sparse_matrix.toarray())
+    #print(sparse_matrix.shape)
+    #print(sparse_matrix.sum(axis=1))
+    #exit(0)
 
     return sparse_matrix, nnz_per_row
 
 
-def generateTransitionProbabilityTensor(states, actions, sparsity, perturbFactor, seed, stddev):
-    """stacks m sparse matrices horizontally of dimension n x n to a sparse matrix of dimension n x (m*n)"""
-    for i in range(actions):
-        if i == 0:
-            P, nnz = generate_row_stochastic_matrix(states, sparsity, perturbFactor, seed, stddev)
-            nnz_matrix = np.array(nnz)
-        else:
-            matrix, nnz = generate_row_stochastic_matrix(states, sparsity, perturbFactor, seed + i, stddev)
-            P = hstack((P, matrix))
-            nnz_matrix = np.vstack([nnz_matrix, nnz])
-
-    nnz_matrix = nnz_matrix.T
-    print("nnz_matrix:")
-    print(nnz_matrix)
-    print(nnz_matrix.shape)
-    # todo: store to sparse matrix bin
-    return P, nnz_matrix
-
-
-def plot_nnz_histogram(n, sparsity_factor, stddev, seed, path):
+def plot_nnz_histogram(n, m, nnz_per_row, sparsity_factor, stddev, seed, path):
     """function to see nnz per rows before generating the whole matrix to see if the values are reasonable"""
 
-    np.random.seed(seed)
-    perturbation = np.random.normal(0, stddev, size=n)
-    nnz_per_row = np.round(n * (sparsity_factor + perturbation)).astype(int)
-    nnz_per_row = np.clip(nnz_per_row, 1, n - 1)
-    print(f"Testing values for n={n}, sparsity={sparsity_factor}, n*sparsity={n*sparsity_factor}, stddev={stddev}, seed={seed}")
-    print("average nnz =", np.average(nnz_per_row))
-    #print(*nnz_per_row, sep=", ")
-
     #plot histogram of nnz per row
-    plt.hist(nnz_per_row, bins=int(n/10)) # 10 values per bin
-    plt.title(f"Histogram of nnz per row for n={n}, sparsity={sparsity_factor},\n n*sparsity={n*sparsity_factor}, stddev={stddev}, seed={seed}")
+    bins = n
+    counts, _, _ = plt.hist(nnz_per_row, bins=bins)
+    plt.title(f"Histogram of nnz per row for n={n}, m={m}, sparsity={sparsity_factor},\n n*sparsity={n*sparsity_factor}, stddev={stddev}, seed={seed}")
     plt.xlabel("nnz per row")
-    plt.ylim(0, 2*n*sparsity_factor)
+    plt.ylim(0, 2*n)
     # mark expected value n*sparsity with a vertical line
     plt.axvline(x=n*sparsity_factor, color='r', linestyle='dashed', linewidth=1)
+    plt.annotate(f'#1={int(counts[0])} ({counts[0]/(n*m)*100:0.2f}%)', (1, 0), textcoords="offset points", xytext=(-10,-30), ha='center')
     plt.savefig(f"{path}nnz_histogram_{stddev}.png", dpi=300)
 
     #exit(0) # exit program after plotting histogram, no matrix is generated
@@ -126,12 +106,12 @@ def writeBinarySparse(matrix, filename):
 def generate_stagecost_matrix(states, actions, perturbFactor, seed):
     """generate a stage cost matrix of dimension states x actions"""
     np.random.seed(seed)
-    stagecost = np.random.rand(states, actions)
+    stagecost = np.random.rand(states, actions) * 10 # random values between 0 and 10
     # perturb uniformity
     indices = np.random.choice(states*actions, int(perturbFactor*states*actions), replace=False)
     rows, cols = np.unravel_index(indices, (states, actions))
     # multiply values at rows and cols by 1/perturbFactor
-    stagecost[rows, cols] *= 1/perturbFactor
+    stagecost[rows, cols] /= perturbFactor
     
     return stagecost
 
@@ -149,25 +129,32 @@ def matrix_from_file(filename, filename_out):
 def main():
 
     states = 5000
-    actions = 40
-    seed = 8624
+    actions = 250
     sparsity = 0.01
-    stddev = 0.005 # for normal distribution for perturbation of sparsity factor
-    perturbFactor = 0.15 # perturbFactor * n*m of stagecosts are perturbed (higher by 1/perturbFactor)
+    seed = 123982
+    stddev = 0.02 # for normal distribution for perturbation of sparsity factor
+    perturbFactor = 0.1 # perturbFactor * n*m of stagecosts are perturbed (higher by 1/perturbFactor)
 
     path = "data/" + f"{states}_{actions}_{sparsity:0.6f}/"
     # create folder if it does not exist "states_actions_sparsity"
     if not os.path.exists(path):
         os.makedirs(path)
-     
+
+
+    P, nnz = generate_row_stochastic_matrix(states, actions, sparsity, perturbFactor, seed, stddev)
+    g = generate_stagecost_matrix(states, actions, perturbFactor, seed)
+
+    plot_nnz_histogram(states, actions, nnz, sparsity, stddev, seed, path)
+
+    # save matrices to file
+    writeBinarySparse(P, path + "P.bin")
+    writeBinarySparse(g, path + "g.bin")
+    writeBinarySparse(nnz, path + "nnz.bin")
+
     #matrix_from_file("../../dataP_200_20_0.100000_8624.csv", path + "P.bin")
 
-    plot_nnz_histogram(states, sparsity, stddev, seed, path)
+    row_stochasticity_error = np.linalg.norm(np.array(P.sum(axis=1)) - 1.0, ord=np.inf)
 
-    P, nnz = generateTransitionProbabilityTensor(states, actions, sparsity, perturbFactor, seed, stddev)
-    row_stochasticity_error = np.linalg.norm(np.array(P.sum(axis=1)) - np.full((states, 1), actions), ord=np.inf)
-    g = generate_stagecost_matrix(states, actions, perturbFactor, seed)
-    
     # save used values to file
     with open(path + "info.txt", "w") as f:
         f.write(f"states={states}\n")
@@ -177,12 +164,9 @@ def main():
         f.write(f"perturbFactor={perturbFactor}\n")
         f.write(f"seed={seed}\n")
         f.write(f"row_stochasticity_error={row_stochasticity_error}\n")
-
-    # save matrices to file
-    writeBinarySparse(P, path + "P.bin")
-    writeBinarySparse(g, path + "g.bin")
-    writeBinarySparse(nnz, path + "nnz.bin")
-
+        f.write(f"P.shape={P.shape}\n")
+        f.write(f"g.shape={g.shape}\n")
+        f.write(f"nnz.shape={nnz.shape}\n")
 
 if __name__ == "__main__":
     main()
