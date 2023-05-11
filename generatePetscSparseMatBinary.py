@@ -3,7 +3,7 @@ from scipy.sparse import hstack
 import numpy as np
 import matplotlib.pyplot as plt
 import os
-
+import struct
 
 def generate_row_stochastic_matrix(states, actions, sparsity_factor, perturbFactor, seed, stddev):
     """generate a (n*m) x n row-stochastic matrix with random values assigned to randomly chosen columns"""
@@ -79,7 +79,7 @@ def plot_nnz_histogram(n, m, nnz_per_row, sparsity_factor, stddev, seed, path):
     #exit(0) # exit program after plotting histogram, no matrix is generated
 
 
-def writeBinarySparse(matrix, filename):
+def writeBinarySparseMatrix(matrix, filename):
     """write matrix in petsc binary sparse format
 
     Args:
@@ -103,6 +103,23 @@ def writeBinarySparse(matrix, filename):
         pass  # avoid petsc complaints
 
 
+def writeBinaryVectorSeq(vector, filename):
+    with open(filename, "wb") as f:
+        # Write Petsc binary file header
+        # Petsc classes
+        VECSEQ = 1211214
+        f.write(struct.pack('>i', VECSEQ))  # class id, VecSeq in Petsc
+        f.write(struct.pack('>i', len(vector)))  # number of rows
+
+        # Write the vector data
+        for val in vector:
+            f.write(struct.pack('>d', val))  # values
+
+    # Write info file to avoid Petsc complaints
+    with open(filename + ".info", "wb") as f:
+        pass
+
+
 def generate_stagecost_matrix(states, actions, perturbFactor, seed):
     """generate a stage cost matrix of dimension states x actions"""
     np.random.seed(seed)
@@ -121,16 +138,16 @@ def matrix_from_file(filename, filename_out):
     """loads a dense matrix from file in csv, stores it as sp csr matrix and writes to binary file"""
     dense = np.loadtxt(filename, delimiter=",")
     sparse = csr_matrix(dense)
-    writeBinarySparse(sparse, filename_out)
+    writeBinarySparseMatrix(sparse, filename_out)
     exit(0)
 
 
 
 def main():
 
-    states = 5000
-    actions = 250
-    sparsity = 0.01
+    states = 100
+    actions = 10
+    sparsity = 0.1
     seed = 123982
     stddev = 0.02 # for normal distribution for perturbation of sparsity factor
     perturbFactor = 0.1 # perturbFactor * n*m of stagecosts are perturbed (higher by 1/perturbFactor)
@@ -144,12 +161,15 @@ def main():
     P, nnz = generate_row_stochastic_matrix(states, actions, sparsity, perturbFactor, seed, stddev)
     g = generate_stagecost_matrix(states, actions, perturbFactor, seed)
 
+    print(nnz.shape)
+    print(*nnz)
+
     plot_nnz_histogram(states, actions, nnz, sparsity, stddev, seed, path)
 
     # save matrices to file
-    writeBinarySparse(P, path + "P.bin")
-    writeBinarySparse(g, path + "g.bin")
-    writeBinarySparse(nnz, path + "nnz.bin")
+    writeBinarySparseMatrix(P, path + "P.bin")
+    writeBinarySparseMatrix(g, path + "g.bin")
+    writeBinaryVectorSeq(np.array(nnz, dtype=np.float64), path + "nnz.bin") # change to double s.t petsc can read it
 
     #matrix_from_file("../../dataP_200_20_0.100000_8624.csv", path + "P.bin")
 
