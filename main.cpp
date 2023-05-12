@@ -26,11 +26,14 @@ int main(int argc, char** argv)
     MPI_Comm_size(PETSC_COMM_WORLD, &size);
     PetscPrintf(PETSC_COMM_WORLD, "Number of processors: %d\n", size);
 
-    //MDP mdp(200, 20, 0.9); // sparsity factor = 0.1
-    //PetscReal sparsityFactor = 0.1;
-    MDP mdp(500, 50, 0.9); // sparsity factor = 0.01
-    PetscReal sparsityFactor = 0.05;
-    //MDP mdp(500, 30, 0.9); // sparsity factor = 0.02
+
+
+    MDP mdp(800, 20, 0.9); // sparsity factor = 0.1
+    PetscReal sparsityFactor = 0.03;
+    //MDP mdp(500, 50, 0.9); // sparsity factor = 0.01
+    //PetscReal sparsityFactor = 0.05;
+    //MDP mdp(5000, 40, 0.9); // sparsity factor = 0.01
+    //PetscReal sparsityFactor = 0.01;
     //MDP mdp(3000, 50, 0.9); // sparsity factor = 0.02
     std::cout << mdp.numStates_ << std::endl;
     std::cout << mdp.numActions_ << std::endl;
@@ -53,7 +56,7 @@ int main(int argc, char** argv)
     VecSetType(V, VECSEQ);
     VecSetSizes(V, PETSC_DECIDE, mdp.numStates_);
     VecSet(V, 1.0);
-    PetscInt *policy = new PetscInt[mdp.numStates_];
+    //PetscInt *policy = new PetscInt[mdp.numStates_];
 
     //Timer t;
     t.start();
