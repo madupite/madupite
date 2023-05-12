@@ -23,7 +23,8 @@ public:
     PetscErrorCode iterativePolicyEvaluation(Mat &jacobian, Vec &stageCosts, Vec &V, PetscReal alpha);
     std::vector<PetscInt> inexactPolicyIteration(Vec &V0, PetscInt maxIter, PetscReal alpha);
 
-    PetscErrorCode cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason *reason, void *ctx); // TODO
+    //PetscErrorCode cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason *reason, void *ctx); // Test if residual norm is smaller than alpha * r0_norm
+    PetscErrorCode computeResidualNorm(Mat J, Vec V, Vec g, PetscReal *rnorm); // TODO: compute ||g - J*V||_\infty
 
     PetscErrorCode loadFromBinaryFile(std::string filename_P, std::string filename_g, std::string filename_nnz);
 

@@ -28,7 +28,7 @@ int main(int argc, char** argv)
 
 
 
-    MDP mdp(800, 20, 0.9); // sparsity factor = 0.1
+    MDP mdp(5000, 20, 0.9); // sparsity factor = 0.1
     PetscReal sparsityFactor = 0.03;
     //MDP mdp(500, 50, 0.9); // sparsity factor = 0.01
     //PetscReal sparsityFactor = 0.05;

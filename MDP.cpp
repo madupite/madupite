@@ -6,6 +6,10 @@
 #include <numeric>
 #include <petscksp.h>
 
+// declare function for convergence test
+PetscErrorCode cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason *reason, void *ctx);
+
+
 MDP::MDP(const PetscInt numStates, const PetscInt numActions, const PetscReal discountFactor) : numStates_(numStates),
                                                                                                 numActions_(numActions),
                                                                                                 discountFactor_(discountFactor) {
@@ -207,7 +211,7 @@ PetscErrorCode MDP::constructFromPolicy(PetscInt *policy, Mat &transitionProbabi
     PetscFree(indices);
 }
 
-PetscErrorCode MDP::iterativePolicyEvaluation(Mat &jacobian, Vec &stageCosts, Vec &V, PetscReal alpha) {
+PetscErrorCode MDP::iterativePolicyEvaluation(Mat &jacobian, Vec &stageCosts, Vec &V, PetscReal threshold) {
     PetscErrorCode ierr;
     const PetscReal rtol = 1e-15;
 
@@ -217,8 +221,8 @@ PetscErrorCode MDP::iterativePolicyEvaluation(Mat &jacobian, Vec &stageCosts, Ve
     ierr = KSPSetOperators(ksp, jacobian, jacobian); CHKERRQ(ierr);
     ierr = KSPSetType(ksp, KSPGMRES); CHKERRQ(ierr);
     ierr = KSPSetFromOptions(ksp); CHKERRQ(ierr);
-    ierr = KSPSetTolerances(ksp, rtol, PETSC_DEFAULT, PETSC_DEFAULT, PETSC_DEFAULT); CHKERRQ(ierr); // todo: custom stopping criterion
-
+    //ierr = KSPSetTolerances(ksp, rtol, PETSC_DEFAULT, PETSC_DEFAULT, PETSC_DEFAULT); CHKERRQ(ierr); // todo: custom stopping criterion
+    ierr = KSPSetConvergenceTest(ksp, &cvgTest, &threshold, NULL); CHKERRQ(ierr);
     ierr = KSPSolve(ksp, stageCosts, V); CHKERRQ(ierr);
 
     return ierr;
@@ -258,13 +262,20 @@ std::vector<PetscInt> MDP::inexactPolicyIteration(Vec &V0, const PetscInt maxIte
         //MatSetSizes(jacobian, PETSC_DECIDE, PETSC_DECIDE, numStates_, numStates_);
         //MatSetType(jacobian, MATSEQAIJ);
         //MatSetUp(jacobian);
+        // construct Jacobian
         constructFromPolicy(policy.data(), jacobian, stageCosts); // creates jacobian => needs to be destroyed
         MatAssemblyBegin(jacobian, MAT_FINAL_ASSEMBLY);
         MatAssemblyEnd(jacobian, MAT_FINAL_ASSEMBLY);
         MatScale(jacobian, -discountFactor_); // needs assembled matrix
         MatShift(jacobian, 1);
+
         VecCopy(V, V_old);
-        iterativePolicyEvaluation(jacobian, stageCosts, V, alpha);
+
+        // compute residual norm used for stopping criterion
+        PetscReal r0_norm;
+        computeResidualNorm(jacobian, V, stageCosts, &r0_norm);
+
+        iterativePolicyEvaluation(jacobian, stageCosts, V, r0_norm*alpha);
         MatDestroy(&jacobian);
 #endif
     }
@@ -306,4 +317,37 @@ PetscErrorCode MDP::loadFromBinaryFile(std::string filename_P, std::string filen
     PetscViewerDestroy(&viewer);
 
     return ierr;
+}
+
+PetscErrorCode MDP::computeResidualNorm(Mat J, Vec V, Vec g, PetscReal *rnorm) {
+    // compute residual norm ||g - J*V||_\infty
+    PetscErrorCode ierr;
+    Vec res;
+    VecDuplicate(g, &res);
+    MatMult(J, V, res);
+    VecAXPY(res, -1, g);
+    VecNorm(res, NORM_INFINITY, rnorm);
+    VecDestroy(&res);
+    return ierr;
+}
+
+PetscErrorCode cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason *reason, void *ctx) {
+    PetscErrorCode ierr;
+    PetscReal threshold = *static_cast<PetscReal*>(ctx);
+    PetscReal norm;
+
+    Vec res;
+    //ierr = VecDuplicate(ksp->vec_rhs, &res); CHKERRQ(ierr);
+    ierr = KSPBuildResidual(ksp, NULL, NULL, &res); CHKERRQ(ierr);
+    ierr = VecNorm(res, NORM_INFINITY, &norm); CHKERRQ(ierr);
+    ierr = VecDestroy(&res); CHKERRQ(ierr);
+
+    PetscPrintf(PETSC_COMM_WORLD, "it = %d: residual norm = %f\n", it, norm);
+
+    if(it == 0) *reason = KSP_CONVERGED_ITERATING;
+    else if(norm < threshold) *reason = KSP_CONVERGED_RTOL;
+    //else if(it >= ksp->max_it) *reason = KSP_DIVERGED_ITS;
+    else *reason = KSP_CONVERGED_ITERATING;
+
+    return 0;
 }
