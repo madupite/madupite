@@ -5,6 +5,8 @@
 #include "MDP.h"
 #include <numeric>
 #include <petscksp.h>
+#include <mpi.h>
+#include <iostream>
 
 // declare function for convergence test
 PetscErrorCode cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason *reason, void *ctx);
@@ -16,6 +18,11 @@ MDP::MDP(const PetscInt numStates, const PetscInt numActions, const PetscReal di
     transitionProbabilityTensor_ = nullptr;
     stageCostMatrix_ = nullptr;
     nnz_ = nullptr;
+
+    // MPI parallelization initialization
+    MPI_Comm_rank(PETSC_COMM_WORLD, &rank_);
+    MPI_Comm_size(PETSC_COMM_WORLD, &size_);
+    localNumStates_ = (rank_ != size_ - 1) ? numStates_ / size_ : numStates_ / size_ + numStates_ % size_; // last rank takes remaining states
 }
 
 MDP::~MDP() {
@@ -209,6 +216,7 @@ PetscErrorCode MDP::constructFromPolicy(PetscInt *policy, Mat &transitionProbabi
     PetscFree(nnzidx);
     PetscFree(stageCostVal);
     PetscFree(indices);
+    return 0;
 }
 
 PetscErrorCode MDP::iterativePolicyEvaluation(Mat &jacobian, Vec &stageCosts, Vec &V, PetscReal threshold) {
@@ -298,6 +306,7 @@ PetscErrorCode MDP::loadFromBinaryFile(std::string filename_P, std::string filen
 
     // load transition probability tensor
     MatCreate(PETSC_COMM_WORLD, &transitionProbabilityTensor_);
+    MatSetFromOptions(transitionProbabilityTensor_);
     PetscViewer viewer;
     PetscViewerBinaryOpen(PETSC_COMM_WORLD, filename_P.c_str(), FILE_MODE_READ, &viewer);
     MatLoad(transitionProbabilityTensor_, viewer);
@@ -305,6 +314,7 @@ PetscErrorCode MDP::loadFromBinaryFile(std::string filename_P, std::string filen
 
     // load stage cost matrix
     MatCreate(PETSC_COMM_WORLD, &stageCostMatrix_);
+    MatSetFromOptions(stageCostMatrix_);
     PetscViewerBinaryOpen(PETSC_COMM_WORLD, filename_g.c_str(), FILE_MODE_READ, &viewer);
     MatLoad(stageCostMatrix_, viewer);
     PetscViewerDestroy(&viewer);
@@ -312,9 +322,22 @@ PetscErrorCode MDP::loadFromBinaryFile(std::string filename_P, std::string filen
     // load nnz
     if(filename_nnz.empty()) return 0;
     VecCreate(PETSC_COMM_WORLD, &nnz_);
+    VecSetFromOptions(nnz_);
     PetscViewerBinaryOpen(PETSC_COMM_WORLD, filename_nnz.c_str(), FILE_MODE_READ, &viewer);
     VecLoad(nnz_, viewer);
     PetscViewerDestroy(&viewer);
+
+    // Information about distribution on processes
+    std::cout << "Rank: " << rank_ << " owns " << localNumStates_ << " states." << std::endl;
+    PetscInt start, end;
+    MatGetOwnershipRange(transitionProbabilityTensor_, &start, &end);
+    std::cout << "Rank: " << rank_ << " owns rows " << start << " to " << end << " of the transition probability tensor." << std::endl;
+    MatGetOwnershipRange(stageCostMatrix_, &start, &end);
+    std::cout << "Rank: " << rank_ << " owns rows " << start << " to " << end << " of the stage cost matrix." << std::endl;
+    VecGetOwnershipRange(nnz_, &start, &end);
+    std::cout << "Rank: " << rank_ << " owns entries " << start << " to " << end << " of the nnz vector." << std::endl;
+
+
 
     return ierr;
 }

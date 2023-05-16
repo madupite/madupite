@@ -31,6 +31,9 @@ public:
     const PetscInt    numStates_;
     const PetscInt    numActions_;
     const PetscReal   discountFactor_;
+    PetscInt    localNumStates_; // number of states owned by this rank
+    PetscInt rank_; // rank of this process
+    PetscInt size_; // number of processes
 
     Mat transitionProbabilityTensor_;   // transition probability tensor
     Mat stageCostMatrix_;               // stage cost matrix
