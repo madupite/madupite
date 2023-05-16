@@ -34,6 +34,9 @@ public:
     PetscInt    localNumStates_; // number of states owned by this rank
     PetscInt rank_; // rank of this process
     PetscInt size_; // number of processes
+    PetscInt localRowStart_; // global row index of first row owned by this rank
+    PetscInt localRowEnd_; // global row index of last row owned by this rank
+
 
     Mat transitionProbabilityTensor_;   // transition probability tensor
     Mat stageCostMatrix_;               // stage cost matrix

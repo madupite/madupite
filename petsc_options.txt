@@ -1,4 +1,2 @@
--ksp_monitor_true_residual
--pc_type lu
--log_view
--info
+-mat_type mpiaij
+-vec_type mpi
