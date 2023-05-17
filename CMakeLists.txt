@@ -36,6 +36,6 @@ set(CMAKE_CXX_COMPILER ${MPI_CXX_COMPILER})
 
 
 # Add the executable, link libraries
-add_executable(distributed_inexact_policy_iteration main.cpp MDP.cpp)
+add_executable(distributed_inexact_policy_iteration main.cpp MDP.cpp utils/Logger.cpp)
 target_link_libraries(distributed_inexact_policy_iteration PkgConfig::PETSC)
 #target_link_libraries(distributed_inexact_policy_iteration ${PETSC_LIBRARIES})
