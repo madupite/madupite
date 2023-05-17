@@ -24,8 +24,8 @@ MDP::MDP(const PetscInt numStates, const PetscInt numActions, const PetscReal di
     MPI_Comm_rank(PETSC_COMM_WORLD, &rank_);
     MPI_Comm_size(PETSC_COMM_WORLD, &size_);
     localNumStates_ = (rank_ < numStates_ % size_) ? numStates_ / size_ + 1 : numStates_ / size_; // first numStates_ % size_ ranks get one more state
-
-    LOG("[R" + std::to_string(rank_) + "] owns " + std::to_string(localNumStates_) + " states.");
+    Logger::setPrefix("[R" + std::to_string(rank_) + "] ");
+    LOG("owns " + std::to_string(localNumStates_) + " states.");
 }
 
 MDP::~MDP() {
@@ -33,7 +33,7 @@ MDP::~MDP() {
     MatDestroy(&stageCostMatrix_);
     VecDestroy(&nnz_);
 }
-#if 0
+
 // find $\argmin_{\pi} \{ g^\pi + \gamma P^\pi V \}$
 PetscErrorCode MDP::extractGreedyPolicy(Vec &V, PetscInt *policy, GreedyPolicyType type) {
 
@@ -303,7 +303,7 @@ std::vector<PetscInt> MDP::inexactPolicyIteration(Vec &V0, const PetscInt maxIte
     VecDestroy(&stageCosts);
     return policy;
 }
-#endif
+
 PetscErrorCode MDP::loadFromBinaryFile(std::string filename_P, std::string filename_g, std::string filename_nnz) {
     PetscErrorCode ierr = 0;
     PetscViewer viewer;
@@ -347,8 +347,8 @@ PetscErrorCode MDP::loadFromBinaryFile(std::string filename_P, std::string filen
     // Information about distribution on processes
     MatGetOwnershipRange(transitionProbabilityTensor_, &P_start_, &P_end_);
     MatGetOwnershipRange(stageCostMatrix_, &g_start_, &g_end_);
-    LOG("[R" + std::to_string(rank_) + "]: owns rows " + std::to_string(P_start_) + " to " + std::to_string(P_end_) + " of P.");
-    LOG("[R" + std::to_string(rank_) + "]: owns rows " + std::to_string(g_start_) + " to " + std::to_string(g_end_) + " of g.");
+    LOG("owns rows " + std::to_string(P_start_) + " to " + std::to_string(P_end_) + " of P.");
+    LOG("owns rows " + std::to_string(g_start_) + " to " + std::to_string(g_end_) + " of g.");
 
     /*
     // cols
