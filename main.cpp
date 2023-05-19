@@ -12,6 +12,7 @@
 #include <random>
 
 #include "utils/Timer.h"
+#include "utils/Logger.h"
 #include "MDP.h"
 
 
@@ -41,6 +42,17 @@ int main(int argc, char** argv)
     t.start();
     mdp.loadFromBinaryFile(path + "P.bin", path + "g.bin", path + "nnz.bin");
     t.stop("Loading took: ");
+
+    // test construct from policy
+    Mat P;
+    Vec g;
+    LOG("About to enter constructFromPolicy()");
+    mdp.constructFromPolicy(0, P, g);
+    MatView(P, PETSC_VIEWER_STDOUT_WORLD);
+    VecView(g, PETSC_VIEWER_STDOUT_WORLD);
+
+    MatDestroy(&P);
+    VecDestroy(&g);
 
 /*
     // solve MDP

@@ -8,6 +8,7 @@
 #include <mpi.h>
 #include <iostream>
 #include "utils/Logger.h"
+#include <cassert>
 
 // declare function for convergence test
 PetscErrorCode cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason *reason, void *ctx);
@@ -88,23 +89,23 @@ PetscErrorCode MDP::extractGreedyPolicy(Vec &V, PetscInt *policy, GreedyPolicyTy
         PetscErrorCode ierr;
 
         PetscInt *tmppolicy; // stores temporary policy (filled with actionInd)
-        PetscMalloc1(numStates_, &tmppolicy);
+        PetscMalloc1(localNumStates_, &tmppolicy);
         const PetscReal *costValues; // stores cost (= g + gamma PV) values for each state
         PetscReal *minCostValues; // stores minimum cost values for each state
-        PetscMalloc1(numStates_, &minCostValues);
-        std::fill(minCostValues, minCostValues + numStates_,
+        PetscMalloc1(localNumStates_, &minCostValues);
+        std::fill(minCostValues, minCostValues + localNumStates_,
                   std::numeric_limits<PetscReal>::max());
 
 
         Vec g;
         VecCreate(PETSC_COMM_WORLD, &g);
-        VecSetType(g, VECSEQ);
-        VecSetSizes(g, PETSC_DECIDE, numStates_);
+        VecSetType(g, VECMPI);
+        VecSetSizes(g, localNumStates_, PETSC_DECIDE);
         VecSetUp(g);
         Vec cost;
         VecCreate(PETSC_COMM_WORLD, &cost);
-        VecSetType(cost, VECSEQ);
-        VecSetSizes(cost, PETSC_DECIDE, numStates_);
+        VecSetType(cost, VECMPI);
+        VecSetSizes(cost, localNumStates_, PETSC_DECIDE);
         VecSetUp(cost);
 
         for (PetscInt actionInd = 0; actionInd < numActions_; ++actionInd) {
@@ -114,7 +115,7 @@ PetscErrorCode MDP::extractGreedyPolicy(Vec &V, PetscInt *policy, GreedyPolicyTy
             //MatSetSizes(P, PETSC_DECIDE, PETSC_DECIDE, numStates_, numStates_);
             //MatSetUp(P);
 
-            std::fill(tmppolicy, tmppolicy + numStates_, actionInd);
+            //std::fill(tmppolicy, tmppolicy + numStates_, actionInd);
             constructFromPolicy(tmppolicy, P, g); // creates P => need to destroy P ourselves
             ierr = MatAssemblyBegin(P, MAT_FINAL_ASSEMBLY);
             CHKERRQ(ierr);
@@ -165,6 +166,111 @@ PetscErrorCode MDP::extractGreedyPolicy(Vec &V, PetscInt *policy, GreedyPolicyTy
 
     return 0;
 }
+
+// fills a provided and previously allocated array with the number of nonzeros per row of a matrix
+PetscErrorCode getNNZPerRow(const Mat M, PetscInt* const nnzPerRow, PetscInt rows) {
+    for(PetscInt row = 0; row < rows; ++row) {
+        PetscInt nnz;
+        MatGetRow(M, row, &nnz, NULL, NULL);
+        nnzPerRow[row] = nnz;
+        MatRestoreRow(M, row, &nnz, NULL, NULL);
+    }
+    /* alternative approach according to ChatGPT, maybe faster, but don't know if it even works
+    for (i = 0; i < rows; i++) {
+        nnz = a->i[i+1] - a->i[i];  // The i array stores the row offsets in the matrix data
+        nnzPerRow[i] = nnz;
+    }
+    */
+    return 0;
+}
+
+
+PetscErrorCode MDP::constructFromPolicy(const PetscInt actionInd, Mat &transitionProbabilities, Vec &stageCosts) {
+    // same as below, but same action for all states (used in greedy PolicyType V2)
+
+    /* Procedure
+     * Prealloc: on each rank obtain local off and on diagonal matrix (MatMPIAIJGetSeqAIJ)
+     * get nnz for diag and offdiag using MatGetInfo
+     * set prealloc using MatMPIAIJSetPreallocation
+     * get values from MatGetRow and set values using MatSetValues, then restore row
+     */
+    LOG("Entering constructFromPolicy");
+    MatCreate(PETSC_COMM_WORLD, &transitionProbabilities);
+    MatSetType(transitionProbabilities, MATMPIAIJ);
+    MatSetSizes(transitionProbabilities, localNumStates_, PETSC_DECIDE, PETSC_DECIDE, numStates_);
+
+
+    LOG("Preallocating transitionProbabilities matrix");
+    // Preallocation
+    Mat Diag, Offdiag;
+    MatMPIAIJGetSeqAIJ(transitionProbabilityTensor_, &Diag, &Offdiag, NULL);
+    MatInfo DiagInfo, OffdiagInfo;
+    MatGetInfo(Diag, MAT_LOCAL, &DiagInfo);
+    MatGetInfo(Offdiag, MAT_LOCAL, &OffdiagInfo);
+    PetscInt *diagNNZPerRow, *offdiagNNZPerRow;
+    PetscMalloc1(localNumStates_, &diagNNZPerRow);
+    PetscMalloc1(localNumStates_, &offdiagNNZPerRow);
+    getNNZPerRow(Diag, diagNNZPerRow, localNumStates_);
+    getNNZPerRow(Offdiag, offdiagNNZPerRow, localNumStates_);
+    MatMPIAIJSetPreallocation(transitionProbabilities, NULL, diagNNZPerRow, NULL, offdiagNNZPerRow);
+    LOG("Finished preallocating transitionProbabilities matrix");
+
+    LOG("Creating stageCosts vector");
+
+    VecCreateMPI(PETSC_COMM_WORLD, localNumStates_, numStates_, &stageCosts);
+    PetscReal *stageCostValues;
+    PetscMalloc1(localNumStates_, &stageCostValues);
+    PetscInt *stageCostIndices; // global indices
+    PetscMalloc1(localNumStates_, &stageCostIndices);
+    std::iota(stageCostIndices, stageCostIndices + localNumStates_, g_start_); // fill with global indices
+    LOG("Finished creating stageCosts vector");
+
+    // set values (row-wise)
+    PetscInt P_srcRow, P_destRow, g_srcRow;
+    for(PetscInt localStateInd = 0; localStateInd < localNumStates_; ++localStateInd) {
+        // compute global indices
+        P_srcRow  = P_start_ + localStateInd * numActions_ + actionInd;
+        P_destRow = P_start_ + localStateInd;
+        g_srcRow  = g_start_ + localStateInd;
+
+        // DEBUG
+        PetscReal nnzPy;
+        VecGetValues(nnz_, 1, &P_srcRow, &nnzPy);
+
+
+        PetscInt nnz;
+        const PetscInt *cols;
+        const PetscReal *vals;
+//        assert(arr[])
+
+        MatGetRow(transitionProbabilityTensor_, P_srcRow, &nnz, &cols, &vals);
+        LOG("nnzPy: " + std::to_string(nnzPy) + ", nnz: " + std::to_string(nnz) + ", diagNNZ: " + std::to_string(diagNNZPerRow[localStateInd]) + ", offdiagNNZ: " + std::to_string(offdiagNNZPerRow[localStateInd]));
+        //assert(nnz == diagNNZPerRow[localStateInd] + offdiagNNZPerRow[localStateInd]);
+        MatSetValues(transitionProbabilities, 1, &P_destRow, diagNNZPerRow[localStateInd] + offdiagNNZPerRow[localStateInd], cols, vals, INSERT_VALUES);
+        MatRestoreRow(transitionProbabilityTensor_, P_srcRow, &nnz, &cols, &vals);
+
+        // get stage cost
+        MatGetValue(stageCostMatrix_, g_srcRow, actionInd, &stageCostValues[localStateInd]);
+    }
+    LOG("Finished setting matrix values");
+    VecSetValues(stageCosts, localNumStates_, stageCostIndices, stageCostValues, INSERT_VALUES);
+
+
+    LOG("Assembling transitionProbabilities and stageCosts");
+    MatAssemblyBegin(transitionProbabilities, MAT_FINAL_ASSEMBLY);
+    VecAssemblyBegin(stageCosts);
+    MatAssemblyEnd(transitionProbabilities, MAT_FINAL_ASSEMBLY);
+    VecAssemblyEnd(stageCosts);
+
+
+
+    PetscFree(diagNNZPerRow);
+    PetscFree(offdiagNNZPerRow);
+    PetscFree(stageCostValues);
+    PetscFree(stageCostIndices);
+}
+
+
 
 PetscErrorCode MDP::constructFromPolicy(PetscInt *policy, Mat &transitionProbabilities, Vec &stageCosts) {
     // extract row i*numStates_+policy[i] from transitionProbabilityTensor_ for every i (row)
@@ -290,7 +396,8 @@ std::vector<PetscInt> MDP::inexactPolicyIteration(Vec &V0, const PetscInt maxIte
         MatDestroy(&jacobian);
 #endif
     }
-    // todo: stopping condition for loop
+    // todo: stopping condition for loop as discussed in meeting
+    // todo: save time and optimality gap for each iteration
     // print V
     /*
     PetscPrintf(PETSC_COMM_WORLD, "V = \n");
@@ -302,6 +409,40 @@ std::vector<PetscInt> MDP::inexactPolicyIteration(Vec &V0, const PetscInt maxIte
     VecDestroy(&V_old);
     VecDestroy(&stageCosts);
     return policy;
+}
+
+PetscErrorCode MDP::computeResidualNorm(Mat J, Vec V, Vec g, PetscReal *rnorm) {
+    // compute residual norm ||g - J*V||_\infty
+    PetscErrorCode ierr;
+    Vec res;
+    VecDuplicate(g, &res);
+    MatMult(J, V, res);
+    VecAXPY(res, -1, g);
+    VecNorm(res, NORM_INFINITY, rnorm);
+    VecDestroy(&res);
+    return ierr;
+}
+
+
+PetscErrorCode cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason *reason, void *ctx) {
+    PetscErrorCode ierr;
+    PetscReal threshold = *static_cast<PetscReal*>(ctx);
+    PetscReal norm;
+
+    Vec res;
+    //ierr = VecDuplicate(ksp->vec_rhs, &res); CHKERRQ(ierr);
+    ierr = KSPBuildResidual(ksp, NULL, NULL, &res); CHKERRQ(ierr);
+    ierr = VecNorm(res, NORM_INFINITY, &norm); CHKERRQ(ierr);
+    ierr = VecDestroy(&res); CHKERRQ(ierr);
+
+    PetscPrintf(PETSC_COMM_WORLD, "it = %d: residual norm = %f\n", it, norm);
+
+    if(it == 0) *reason = KSP_CONVERGED_ITERATING;
+    else if(norm < threshold) *reason = KSP_CONVERGED_RTOL;
+    //else if(it >= ksp->max_it) *reason = KSP_DIVERGED_ITS;
+    else *reason = KSP_CONVERGED_ITERATING;
+
+    return 0;
 }
 
 PetscErrorCode MDP::loadFromBinaryFile(std::string filename_P, std::string filename_g, std::string filename_nnz) {
@@ -360,38 +501,4 @@ PetscErrorCode MDP::loadFromBinaryFile(std::string filename_P, std::string filen
     */
 
     return ierr;
-}
-
-
-PetscErrorCode MDP::computeResidualNorm(Mat J, Vec V, Vec g, PetscReal *rnorm) {
-    // compute residual norm ||g - J*V||_\infty
-    PetscErrorCode ierr;
-    Vec res;
-    VecDuplicate(g, &res);
-    MatMult(J, V, res);
-    VecAXPY(res, -1, g);
-    VecNorm(res, NORM_INFINITY, rnorm);
-    VecDestroy(&res);
-    return ierr;
-}
-
-PetscErrorCode cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason *reason, void *ctx) {
-    PetscErrorCode ierr;
-    PetscReal threshold = *static_cast<PetscReal*>(ctx);
-    PetscReal norm;
-
-    Vec res;
-    //ierr = VecDuplicate(ksp->vec_rhs, &res); CHKERRQ(ierr);
-    ierr = KSPBuildResidual(ksp, NULL, NULL, &res); CHKERRQ(ierr);
-    ierr = VecNorm(res, NORM_INFINITY, &norm); CHKERRQ(ierr);
-    ierr = VecDestroy(&res); CHKERRQ(ierr);
-
-    PetscPrintf(PETSC_COMM_WORLD, "it = %d: residual norm = %f\n", it, norm);
-
-    if(it == 0) *reason = KSP_CONVERGED_ITERATING;
-    else if(norm < threshold) *reason = KSP_CONVERGED_RTOL;
-    //else if(it >= ksp->max_it) *reason = KSP_DIVERGED_ITS;
-    else *reason = KSP_CONVERGED_ITERATING;
-
-    return 0;
 }
