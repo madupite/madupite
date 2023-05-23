@@ -9,6 +9,7 @@
 #include <iostream>
 #include "utils/Logger.h"
 #include <cassert>
+#include <algorithm>
 
 // declare function for convergence test
 PetscErrorCode cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason *reason, void *ctx);
@@ -168,7 +169,7 @@ PetscErrorCode MDP::extractGreedyPolicy(Vec &V, PetscInt *policy, GreedyPolicyTy
 }
 
 // fills a provided and previously allocated array with the number of nonzeros per row of a matrix
-PetscErrorCode getNNZPerRow(const Mat M, PetscInt* const nnzPerRow, PetscInt rows) {
+PetscErrorCode getNNZPerRow(const Mat M, PetscInt* nnzPerRow, PetscInt rows) {
     for(PetscInt row = 0; row < rows; ++row) {
         PetscInt nnz;
         MatGetRow(M, row, &nnz, NULL, NULL);
@@ -212,8 +213,10 @@ PetscErrorCode MDP::constructFromPolicy(const PetscInt actionInd, Mat &transitio
     PetscMalloc1(localNumStates_, &offdiagNNZPerRow);
     getNNZPerRow(Diag, diagNNZPerRow, localNumStates_);
     getNNZPerRow(Offdiag, offdiagNNZPerRow, localNumStates_);
-    MatMPIAIJSetPreallocation(transitionProbabilities, NULL, diagNNZPerRow, NULL, offdiagNNZPerRow);
+    MatMPIAIJSetPreallocation(transitionProbabilities, 0, diagNNZPerRow, 0, offdiagNNZPerRow); // 0 is ignored
     LOG("Finished preallocating transitionProbabilities matrix");
+    PetscInt P_pi_start;
+    MatGetOwnershipRange(transitionProbabilities, &P_pi_start, NULL);
 
     LOG("Creating stageCosts vector");
 
@@ -222,31 +225,33 @@ PetscErrorCode MDP::constructFromPolicy(const PetscInt actionInd, Mat &transitio
     PetscMalloc1(localNumStates_, &stageCostValues);
     PetscInt *stageCostIndices; // global indices
     PetscMalloc1(localNumStates_, &stageCostIndices);
-    std::iota(stageCostIndices, stageCostIndices + localNumStates_, g_start_); // fill with global indices
+    std::iota(stageCostIndices, stageCostIndices + localNumStates_, g_start_); // fill with global indices with [g_start_, g_start_ + localNumStates_)
     LOG("Finished creating stageCosts vector");
 
     // set values (row-wise)
-    PetscInt P_srcRow, P_destRow, g_srcRow;
+    PetscInt P_srcRow, P_pi_destRow, g_srcRow;
     for(PetscInt localStateInd = 0; localStateInd < localNumStates_; ++localStateInd) {
+        LOG("Currently at local state " + std::to_string(localStateInd) + "/" + std::to_string(localNumStates_));
         // compute global indices
         P_srcRow  = P_start_ + localStateInd * numActions_ + actionInd;
-        P_destRow = P_start_ + localStateInd;
+        //P_destRow = P_start_ + localStateInd;
+        P_pi_destRow = P_pi_start + localStateInd;
         g_srcRow  = g_start_ + localStateInd;
 
         // DEBUG
-        PetscReal nnzPy;
+        PetscReal nnzPy; // data from python
         VecGetValues(nnz_, 1, &P_srcRow, &nnzPy);
 
-
-        PetscInt nnz;
+        PetscInt nnz; // data from PETSc MatGetRow()
         const PetscInt *cols;
         const PetscReal *vals;
-//        assert(arr[])
 
         MatGetRow(transitionProbabilityTensor_, P_srcRow, &nnz, &cols, &vals);
-        LOG("nnzPy: " + std::to_string(nnzPy) + ", nnz: " + std::to_string(nnz) + ", diagNNZ: " + std::to_string(diagNNZPerRow[localStateInd]) + ", offdiagNNZ: " + std::to_string(offdiagNNZPerRow[localStateInd]));
-        //assert(nnz == diagNNZPerRow[localStateInd] + offdiagNNZPerRow[localStateInd]);
-        MatSetValues(transitionProbabilities, 1, &P_destRow, diagNNZPerRow[localStateInd] + offdiagNNZPerRow[localStateInd], cols, vals, INSERT_VALUES);
+
+        LOG("nnzPy: " + std::to_string(static_cast<PetscInt>(nnzPy)) + ", nnz: " + std::to_string(nnz) + ", diagNNZ: " + std::to_string(diagNNZPerRow[localStateInd]) + ", offdiagNNZ: " + std::to_string(offdiagNNZPerRow[localStateInd]));
+        PetscInt maxNNZ = std::max({nnz, diagNNZPerRow[localStateInd] + offdiagNNZPerRow[localStateInd], static_cast<PetscInt>(nnzPy)});
+
+        MatSetValues(transitionProbabilities, 1, &P_pi_destRow, maxNNZ, cols, vals, INSERT_VALUES);
         MatRestoreRow(transitionProbabilityTensor_, P_srcRow, &nnz, &cols, &vals);
 
         // get stage cost
@@ -268,6 +273,7 @@ PetscErrorCode MDP::constructFromPolicy(const PetscInt actionInd, Mat &transitio
     PetscFree(offdiagNNZPerRow);
     PetscFree(stageCostValues);
     PetscFree(stageCostIndices);
+    return 0;
 }
 
 
