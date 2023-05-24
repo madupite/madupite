@@ -35,6 +35,7 @@ public:
   static void log(const std::string &message, const char function[] = "");
 
   static void setPrefix(const std::string &s);
+  static void setFilename(const std::string s);
 
 private:
   /*!
@@ -44,7 +45,7 @@ private:
   static std::string getCurrentDateTime();
 
   static std::string prefix;  ///< prefix for logging messages. intended to be "client" or "server"
-  static const char* const logFile; ///< file path for the log file
+  static std::string logFile; ///< file path for the log file
   static const char* const tab;   ///< defines a tabulator (4 spaces)
 };
 
