@@ -27,6 +27,7 @@ MDP::MDP(const PetscInt numStates, const PetscInt numActions, const PetscReal di
     MPI_Comm_size(PETSC_COMM_WORLD, &size_);
     localNumStates_ = (rank_ < numStates_ % size_) ? numStates_ / size_ + 1 : numStates_ / size_; // first numStates_ % size_ ranks get one more state
     Logger::setPrefix("[R" + std::to_string(rank_) + "] ");
+    Logger::setFilename("log_R" + std::to_string(rank_) + ".txt"); // remove if all rank should output to the same file
     LOG("owns " + std::to_string(localNumStates_) + " states.");
 }
 
@@ -200,7 +201,6 @@ PetscErrorCode MDP::constructFromPolicy(const PetscInt actionInd, Mat &transitio
     MatSetType(transitionProbabilities, MATMPIAIJ);
     MatSetSizes(transitionProbabilities, localNumStates_, PETSC_DECIDE, PETSC_DECIDE, numStates_);
 
-
     LOG("Preallocating transitionProbabilities matrix");
     // Preallocation
     Mat Diag, Offdiag;
@@ -215,6 +215,8 @@ PetscErrorCode MDP::constructFromPolicy(const PetscInt actionInd, Mat &transitio
     getNNZPerRow(Offdiag, offdiagNNZPerRow, localNumStates_);
     MatMPIAIJSetPreallocation(transitionProbabilities, 0, diagNNZPerRow, 0, offdiagNNZPerRow); // 0 is ignored
     LOG("Finished preallocating transitionProbabilities matrix");
+    MatSetOption(transitionProbabilities, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE); // TODO remove
+
     PetscInt P_pi_start;
     MatGetOwnershipRange(transitionProbabilities, &P_pi_start, NULL);
 
