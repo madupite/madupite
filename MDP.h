@@ -16,7 +16,7 @@ public:
     MDP(PetscInt numStates, PetscInt numActions, PetscReal discountFactor);
     ~MDP();
 
-   enum GreedyPolicyType {V1, V2};
+   enum GreedyPolicyType {V1, V2, V3};
 
     PetscErrorCode extractGreedyPolicy(Vec &V, PetscInt *policy, GreedyPolicyType type);
     PetscErrorCode constructFromPolicy(PetscInt *policy, Mat &transitionProbabilities, Vec &stageCosts);
@@ -33,7 +33,7 @@ public:
 
     Mat transitionProbabilityTensor_;   // transition probability tensor
     Mat stageCostMatrix_;               // stage cost matrix
-    Mat nnz_;                           // number of non-zeros in each row and logical col of the probability tensor
+    Vec nnz_;                           // number of non-zeros in each row of transitionProbabilityTensor_
 };
 
 
