@@ -282,44 +282,44 @@ PetscErrorCode MDP::constructFromPolicy(const PetscInt actionInd, Mat &transitio
 PetscErrorCode MDP::constructFromPolicy(const PetscInt actionInd, Mat &transitionProbabilities, Vec &stageCosts) {
     LOG("Entering constructFromPolicy");
 
+    // compute where local ownership of new P_pi matrix starts
     PetscInt P_pi_start; // start of ownership of new matrix (to be created)
     MatGetOwnershipRange(transitionProbabilityTensor_, &P_pi_start, NULL);
     P_pi_start /= numActions_;
 
-    PetscInt *P_globalRowIndexValues;
-    PetscMalloc1(localNumStates_, &P_globalRowIndexValues);
+    // allocate memory for values
+    PetscInt *P_rowIndexValues;
+    PetscMalloc1(localNumStates_, &P_rowIndexValues);
+    PetscReal *g_pi_values;
+    PetscMalloc1(localNumStates_, &g_pi_values);
+
+    // compute global row indices for P and get values for g_pi
+    PetscInt g_srcRow;
     for(PetscInt localStateInd = 0; localStateInd < localNumStates_; ++localStateInd) {
-        P_globalRowIndexValues[localStateInd] = P_start_ + localStateInd * numActions_ + actionInd;
+        // compute values for row index set
+        P_rowIndexValues[localStateInd] = P_start_ + localStateInd * numActions_ + actionInd;
+        // get values for stageCosts
+        g_srcRow  = g_start_ + localStateInd;
+        MatGetValue(stageCostMatrix_, g_srcRow, actionInd, &g_pi_values[localStateInd]);
     }
 
-    IS P_globalRowIndices;
-    ISCreateGeneral(PETSC_COMM_WORLD, localNumStates_, P_globalRowIndexValues, PETSC_COPY_VALUES, &P_globalRowIndices);
-
-    IS P_colIndices;
-    ISCreateStride(PETSC_COMM_WORLD, localNumStates_, P_pi_start, 1, &P_colIndices);
+    // generate index sets
+    IS P_rowIndices;
+    ISCreateGeneral(PETSC_COMM_WORLD, localNumStates_, P_rowIndexValues, PETSC_COPY_VALUES, &P_rowIndices);
+    IS P_pi_colIndices;
+    ISCreateStride(PETSC_COMM_WORLD, localNumStates_, P_pi_start, 1, &P_pi_colIndices);
+    IS g_pi_rowIndices;
+    ISCreateStride(PETSC_COMM_WORLD, localNumStates_, g_start_, 1, &g_pi_rowIndices);
 
     LOG("Creating transitionProbabilities submatrix");
-    MatCreateSubMatrix(transitionProbabilityTensor_, P_globalRowIndices, P_colIndices, MAT_INITIAL_MATRIX, &transitionProbabilities);
-
+    MatCreateSubMatrix(transitionProbabilityTensor_, P_rowIndices, P_pi_colIndices, MAT_INITIAL_MATRIX, &transitionProbabilities);
 
     LOG("Creating stageCosts vector");
     VecCreateMPI(PETSC_COMM_WORLD, localNumStates_, numStates_, &stageCosts);
-    PetscReal *stageCostValues;
-    PetscMalloc1(localNumStates_, &stageCostValues);
-    PetscInt *stageCostIndices; // global indices
-    PetscMalloc1(localNumStates_, &stageCostIndices);
-    std::iota(stageCostIndices, stageCostIndices + localNumStates_, g_start_); // fill with global indices with [g_start_, g_start_ + localNumStates_)
-    LOG("Finished creating stageCosts vector");
-
-    // get values
-    PetscInt P_srcRow, g_srcRow;
-    for(PetscInt localStateInd = 0; localStateInd < localNumStates_; ++localStateInd) {
-        //LOG("Currently at local state " + std::to_string(localStateInd) + "/" + std::to_string(localNumStates_));
-        g_srcRow  = g_start_ + localStateInd;
-        MatGetValue(stageCostMatrix_, g_srcRow, actionInd, &stageCostValues[localStateInd]);
-    }
-    LOG("Finished setting matrix values");
-    VecSetValues(stageCosts, localNumStates_, stageCostIndices, stageCostValues, INSERT_VALUES);
+    const PetscInt *g_pi_rowIndexValues; // global indices
+    ISGetIndices(g_pi_rowIndices, &g_pi_rowIndexValues);
+    VecSetValues(stageCosts, localNumStates_, g_pi_rowIndexValues, g_pi_values, INSERT_VALUES);
+    ISRestoreIndices(g_pi_rowIndices, &g_pi_rowIndexValues);
 
     LOG("Assembling transitionProbabilities and stageCosts");
     MatAssemblyBegin(transitionProbabilities, MAT_FINAL_ASSEMBLY);
@@ -327,21 +327,18 @@ PetscErrorCode MDP::constructFromPolicy(const PetscInt actionInd, Mat &transitio
     MatAssemblyEnd(transitionProbabilities, MAT_FINAL_ASSEMBLY);
     VecAssemblyEnd(stageCosts);
 
-    // output dimensions
+    // output dimensions (DEBUG)
     PetscInt m, n;
     MatGetSize(transitionProbabilities, &m, &n);
     LOG("transitionProbabilities: " + std::to_string(m) + "x" + std::to_string(n));
 
-
-    ISDestroy(&P_globalRowIndices);
-    ISDestroy(&P_colIndices);
-    PetscFree(P_globalRowIndexValues);
-    PetscFree(stageCostValues);
-    PetscFree(stageCostIndices);
+    ISDestroy(&P_rowIndices);
+    ISDestroy(&P_pi_colIndices);
+    ISDestroy(&g_pi_rowIndices);
+    PetscFree(P_rowIndexValues);
+    PetscFree(g_pi_values);
     return 0;
 }
-
-
 
 
 PetscErrorCode MDP::constructFromPolicy(PetscInt *policy, Mat &transitionProbabilities, Vec &stageCosts) {
