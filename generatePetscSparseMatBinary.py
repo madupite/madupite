@@ -142,6 +142,17 @@ def matrix_from_file(filename, filename_out):
     exit(0)
 
 
+def save_as_csv(P, g, path):
+    """save P and g as csv files"""
+    # if P has more than 1000 rows return
+    if P.shape[0] > 1000:
+        print("P has more than 1000 rows, not saving as csv")
+        return
+    np.savetxt(f"{path}P.csv", P.toarray(), delimiter=",")
+    np.savetxt(f"{path}g.csv", g, delimiter=",")
+
+
+
 
 def main():
 
@@ -187,6 +198,8 @@ def main():
         f.write(f"P.shape={P.shape}\n")
         f.write(f"g.shape={g.shape}\n")
         f.write(f"nnz.shape={nnz.shape}\n")
+
+    save_as_csv(P, g, path)
 
 if __name__ == "__main__":
     main()
