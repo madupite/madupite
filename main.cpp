@@ -11,7 +11,8 @@
 #include <iostream>
 #include <random>
 
-#include "Timer.h"
+#include "utils/Timer.h"
+#include "utils/Logger.h"
 #include "MDP.h"
 
 
@@ -20,24 +21,17 @@ int main(int argc, char** argv)
     // Initialize PETSc
     PetscInitialize(&argc, &argv, PETSC_NULL, PETSC_NULL);
 
-    // print how many processors are used
-    int rank, size;
-    MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
-    MPI_Comm_size(PETSC_COMM_WORLD, &size);
-    PetscPrintf(PETSC_COMM_WORLD, "Number of processors: %d\n", size);
+    //MDP mdp(5000, 20, 0.9); // sparsity factor = 0.1
+    //PetscReal sparsityFactor = 0.03;
+    MDP mdp(100, 10, 0.9); // sparsity factor = 0.1
+    PetscReal sparsityFactor = 0.1;
 
-
-
-    MDP mdp(800, 20, 0.9); // sparsity factor = 0.1
-    PetscReal sparsityFactor = 0.03;
     //MDP mdp(500, 50, 0.9); // sparsity factor = 0.01
     //PetscReal sparsityFactor = 0.05;
     //MDP mdp(5000, 40, 0.9); // sparsity factor = 0.01
     //PetscReal sparsityFactor = 0.01;
     //MDP mdp(3000, 50, 0.9); // sparsity factor = 0.02
-    std::cout << mdp.numStates_ << std::endl;
-    std::cout << mdp.numActions_ << std::endl;
-    std::cout << mdp.discountFactor_ << std::endl;
+    PetscPrintf(PETSC_COMM_WORLD, "States: %d, Actions: %d, Sparsity factor: %f\n", mdp.numStates_, mdp.numActions_, sparsityFactor);
 
 
     PetscInt seed = 8624;
@@ -49,7 +43,40 @@ int main(int argc, char** argv)
     mdp.loadFromBinaryFile(path + "P.bin", path + "g.bin", path + "nnz.bin");
     t.stop("Loading took: ");
 
+#if 0
+    // test construct from policy
+    Mat P;
+    Vec g;
+    LOG("About to enter constructFromPolicy()");
+    mdp.constructFromPolicy(0, P, g);
+    MatView(P, PETSC_VIEWER_STDOUT_WORLD);
+    VecView(g, PETSC_VIEWER_STDOUT_WORLD);
 
+    MatDestroy(&P);
+    VecDestroy(&g);
+#endif
+
+    // test extractGreedyPolicy
+    Vec V;
+    VecCreateMPI(PETSC_COMM_WORLD, mdp.localNumStates_, mdp.numStates_, &V);
+    VecSet(V, 1.0);
+
+    PetscInt *policyValues = new PetscInt[mdp.localNumStates_];
+    mdp.extractGreedyPolicy(V, policyValues, MDP::V2);
+
+    // create parallel index set from local policy
+    IS policy;
+    ISCreateGeneral(PETSC_COMM_WORLD, mdp.localNumStates_, policyValues, PETSC_COPY_VALUES, &policy);
+    delete[] policyValues;
+
+    // print policy
+    ISView(policy, PETSC_VIEWER_STDOUT_WORLD);
+
+    ISDestroy(&policy);
+    VecDestroy(&V);
+
+
+/*
     // solve MDP
     Vec V;
     VecCreate(PETSC_COMM_WORLD, &V);
@@ -64,7 +91,7 @@ int main(int argc, char** argv)
     t.stop("iPI took: ");
     std::cout << "Policy: " << std::endl;
     for(auto x : result) std::cout << x << " ";
-
+*/
 
     mdp.~MDP();
 
