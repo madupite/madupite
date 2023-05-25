@@ -43,6 +43,7 @@ int main(int argc, char** argv)
     mdp.loadFromBinaryFile(path + "P.bin", path + "g.bin", path + "nnz.bin");
     t.stop("Loading took: ");
 
+#if 0
     // test construct from policy
     Mat P;
     Vec g;
@@ -53,6 +54,27 @@ int main(int argc, char** argv)
 
     MatDestroy(&P);
     VecDestroy(&g);
+#endif
+
+    // test extractGreedyPolicy
+    Vec V;
+    VecCreateMPI(PETSC_COMM_WORLD, mdp.localNumStates_, mdp.numStates_, &V);
+    VecSet(V, 1.0);
+
+    PetscInt *policyValues = new PetscInt[mdp.localNumStates_];
+    mdp.extractGreedyPolicy(V, policyValues, MDP::V2);
+
+    // create parallel index set from local policy
+    IS policy;
+    ISCreateGeneral(PETSC_COMM_WORLD, mdp.localNumStates_, policyValues, PETSC_COPY_VALUES, &policy);
+    delete[] policyValues;
+
+    // print policy
+    ISView(policy, PETSC_VIEWER_STDOUT_WORLD);
+
+    ISDestroy(&policy);
+    VecDestroy(&V);
+
 
 /*
     // solve MDP
