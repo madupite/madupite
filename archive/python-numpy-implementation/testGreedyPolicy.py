@@ -1,3 +1,5 @@
+# used to check correctness of C++ parallel implementation.
+
 import sys
 sys.path.append("archive/python-numpy-implementation/")
 import mdp
