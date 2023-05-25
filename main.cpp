@@ -23,9 +23,10 @@ int main(int argc, char** argv)
 
     //MDP mdp(5000, 20, 0.9); // sparsity factor = 0.1
     //PetscReal sparsityFactor = 0.03;
-    MDP mdp(100, 10, 0.9); // sparsity factor = 0.1
-    PetscReal sparsityFactor = 0.1;
-
+    //MDP mdp(100, 10, 0.9); // sparsity factor = 0.1
+    //PetscReal sparsityFactor = 0.1;
+    MDP mdp(2000, 40, 0.9);
+    PetscReal sparsityFactor = 0.03;
     //MDP mdp(500, 50, 0.9); // sparsity factor = 0.01
     //PetscReal sparsityFactor = 0.05;
     //MDP mdp(5000, 40, 0.9); // sparsity factor = 0.01
@@ -62,7 +63,7 @@ int main(int argc, char** argv)
     VecSet(V, 1.0);
 
     PetscInt *policyValues = new PetscInt[mdp.localNumStates_];
-    mdp.extractGreedyPolicy(V, policyValues, MDP::V2);
+    mdp.extractGreedyPolicy(V, policyValues);
 
     // create parallel index set from local policy
     IS policy;
