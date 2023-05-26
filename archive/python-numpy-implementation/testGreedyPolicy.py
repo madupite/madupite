@@ -19,5 +19,10 @@ mdp.stageCosts_ = g.copy()
 
 # test greedy policy
 V = np.ones((100, 1))
-pi = mdp.extractGreedyPolicy(V)
-print(pi)
+policy = mdp.extractGreedyPolicy(V)
+
+result, policy = mdp.policyIteration(policy, V)
+print(policy)
+
+# print optimal cost
+print(result[-1][1])
