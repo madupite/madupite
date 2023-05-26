@@ -52,14 +52,14 @@ PetscErrorCode MDP::extractGreedyPolicy(Vec &V, PetscInt *policy) {
     Vec g;
 
     for (PetscInt actionInd = 0; actionInd < numActions_; ++actionInd) {
-        LOG("action " + std::to_string(actionInd) + " of " + std::to_string(numActions_) + "...");
+        //LOG("action " + std::to_string(actionInd) + " of " + std::to_string(numActions_) + "...");
         constructFromPolicy(actionInd, P, g); // creates P and g => need to destroy P and g by ourselves
-        LOG("Finished construction of P and g. Calculating g + gamma PV...");
+        //LOG("Finished construction of P and g. Calculating g + gamma PV...");
         ierr = MatScale(P, discountFactor_); CHKERRQ(ierr);
         ierr = MatMultAdd(P, V, g, g); CHKERRQ(ierr);
         ierr = VecGetArrayRead(g, &costValues); CHKERRQ(ierr);
 
-        LOG("Performing minimization for all local states...");
+        //LOG("Performing minimization for all local states...");
         for (int localStateInd = 0; localStateInd < localNumStates_; ++localStateInd) {
             if (costValues[localStateInd] < minCostValues[localStateInd]) {
                 minCostValues[localStateInd] = costValues[localStateInd];
@@ -67,7 +67,7 @@ PetscErrorCode MDP::extractGreedyPolicy(Vec &V, PetscInt *policy) {
             }
         }
         ierr = VecRestoreArrayRead(g, &costValues); CHKERRQ(ierr);
-        LOG("Finished minimization for all local states.");
+        //LOG("Finished minimization for all local states.");
         ierr = MatDestroy(&P); CHKERRQ(ierr);
         ierr = VecDestroy(&g); CHKERRQ(ierr);
     }
@@ -79,7 +79,7 @@ PetscErrorCode MDP::extractGreedyPolicy(Vec &V, PetscInt *policy) {
 
 // user must destroy P and g by himself. Function will create them.
 PetscErrorCode MDP::constructFromPolicy(const PetscInt actionInd, Mat &transitionProbabilities, Vec &stageCosts) {
-    LOG("Entering constructFromPolicy");
+    LOG("Entering constructFromPolicy [actionInd]");
 
     // compute where local ownership of new P_pi matrix starts
     PetscInt P_pi_start; // start of ownership of new matrix (to be created)
@@ -105,22 +105,22 @@ PetscErrorCode MDP::constructFromPolicy(const PetscInt actionInd, Mat &transitio
     // generate index sets
     IS P_rowIndices;
     ISCreateGeneral(PETSC_COMM_WORLD, localNumStates_, P_rowIndexValues, PETSC_COPY_VALUES, &P_rowIndices);
-    IS P_pi_colIndices;
+    IS P_pi_colIndices; // TODO: remove
     ISCreateStride(PETSC_COMM_WORLD, localNumStates_, P_pi_start, 1, &P_pi_colIndices);
     IS g_pi_rowIndices;
     ISCreateStride(PETSC_COMM_WORLD, localNumStates_, g_start_, 1, &g_pi_rowIndices);
 
-    LOG("Creating transitionProbabilities submatrix");
-    MatCreateSubMatrix(transitionProbabilityTensor_, P_rowIndices, P_pi_colIndices, MAT_INITIAL_MATRIX, &transitionProbabilities);
+    //LOG("Creating transitionProbabilities submatrix");
+    MatCreateSubMatrix(transitionProbabilityTensor_, P_rowIndices, P_pi_colIndices, MAT_INITIAL_MATRIX, &transitionProbabilities); // todo set colIndices to NULL, then all columns are selected
 
-    LOG("Creating stageCosts vector");
+    //LOG("Creating stageCosts vector");
     VecCreateMPI(PETSC_COMM_WORLD, localNumStates_, numStates_, &stageCosts);
     const PetscInt *g_pi_rowIndexValues; // global indices
     ISGetIndices(g_pi_rowIndices, &g_pi_rowIndexValues);
     VecSetValues(stageCosts, localNumStates_, g_pi_rowIndexValues, g_pi_values, INSERT_VALUES);
     ISRestoreIndices(g_pi_rowIndices, &g_pi_rowIndexValues);
 
-    LOG("Assembling transitionProbabilities and stageCosts");
+    //LOG("Assembling transitionProbabilities and stageCosts");
     MatAssemblyBegin(transitionProbabilities, MAT_FINAL_ASSEMBLY);
     VecAssemblyBegin(stageCosts);
     MatAssemblyEnd(transitionProbabilities, MAT_FINAL_ASSEMBLY);
@@ -129,7 +129,7 @@ PetscErrorCode MDP::constructFromPolicy(const PetscInt actionInd, Mat &transitio
     // output dimensions (DEBUG)
     PetscInt m, n;
     MatGetSize(transitionProbabilities, &m, &n);
-    LOG("transitionProbabilities: " + std::to_string(m) + "x" + std::to_string(n));
+    //LOG("transitionProbabilities: " + std::to_string(m) + "x" + std::to_string(n));
 
     ISDestroy(&P_rowIndices);
     ISDestroy(&P_pi_colIndices);
@@ -141,7 +141,7 @@ PetscErrorCode MDP::constructFromPolicy(const PetscInt actionInd, Mat &transitio
 
 // user must destroy P and g by himself. Function will create them.
 PetscErrorCode MDP::constructFromPolicy(PetscInt *policy, Mat &transitionProbabilities, Vec &stageCosts) {
-    LOG("Entering constructFromPolicy");
+    LOG("Entering constructFromPolicy [policy]");
 
     // compute where local ownership of new P_pi matrix starts
     PetscInt P_pi_start; // start of ownership of new matrix (to be created)
@@ -173,17 +173,17 @@ PetscErrorCode MDP::constructFromPolicy(PetscInt *policy, Mat &transitionProbabi
     IS g_pi_rowIndices;
     ISCreateStride(PETSC_COMM_WORLD, localNumStates_, g_start_, 1, &g_pi_rowIndices);
 
-    LOG("Creating transitionProbabilities submatrix");
-    MatCreateSubMatrix(transitionProbabilityTensor_, P_rowIndices, P_pi_colIndices, MAT_INITIAL_MATRIX, &transitionProbabilities);
+    //LOG("Creating transitionProbabilities submatrix");
+    MatCreateSubMatrix(transitionProbabilityTensor_, P_rowIndices, P_pi_colIndices, MAT_INITIAL_MATRIX, &transitionProbabilities); // todo set colIndices to NULL, then all columns are selected
 
-    LOG("Creating stageCosts vector");
+    //LOG("Creating stageCosts vector");
     VecCreateMPI(PETSC_COMM_WORLD, localNumStates_, numStates_, &stageCosts);
     const PetscInt *g_pi_rowIndexValues; // global indices
     ISGetIndices(g_pi_rowIndices, &g_pi_rowIndexValues);
     VecSetValues(stageCosts, localNumStates_, g_pi_rowIndexValues, g_pi_values, INSERT_VALUES);
     ISRestoreIndices(g_pi_rowIndices, &g_pi_rowIndexValues);
 
-    LOG("Assembling transitionProbabilities and stageCosts");
+    //LOG("Assembling transitionProbabilities and stageCosts");
     MatAssemblyBegin(transitionProbabilities, MAT_FINAL_ASSEMBLY);
     VecAssemblyBegin(stageCosts);
     MatAssemblyEnd(transitionProbabilities, MAT_FINAL_ASSEMBLY);
@@ -192,7 +192,7 @@ PetscErrorCode MDP::constructFromPolicy(PetscInt *policy, Mat &transitionProbabi
     // output dimensions (DEBUG)
     PetscInt m, n;
     MatGetSize(transitionProbabilities, &m, &n);
-    LOG("transitionProbabilities: " + std::to_string(m) + "x" + std::to_string(n));
+    //LOG("transitionProbabilities: " + std::to_string(m) + "x" + std::to_string(n));
 
     ISDestroy(&P_rowIndices);
     ISDestroy(&P_pi_colIndices);
@@ -205,85 +205,113 @@ PetscErrorCode MDP::constructFromPolicy(PetscInt *policy, Mat &transitionProbabi
 
 PetscErrorCode MDP::iterativePolicyEvaluation(Mat &jacobian, Vec &stageCosts, Vec &V, PetscReal threshold) {
     PetscErrorCode ierr;
-    const PetscReal rtol = 1e-15;
+    //const PetscReal rtol = 1e-15;
 
     // ksp solver
     KSP ksp;
-    ierr = KSPCreate(PETSC_COMM_WORLD, &ksp); CHKERRQ(ierr);
+    ierr = KSPCreate(PETSC_COMM_WORLD, &ksp); CHKERRQ(ierr); // todo: destroy ksp
     ierr = KSPSetOperators(ksp, jacobian, jacobian); CHKERRQ(ierr);
     ierr = KSPSetType(ksp, KSPGMRES); CHKERRQ(ierr);
     ierr = KSPSetFromOptions(ksp); CHKERRQ(ierr);
     //ierr = KSPSetTolerances(ksp, rtol, PETSC_DEFAULT, PETSC_DEFAULT, PETSC_DEFAULT); CHKERRQ(ierr);
-    ierr = KSPSetConvergenceTest(ksp, &cvgTest, &threshold, NULL); CHKERRQ(ierr);
+    ierr = KSPSetConvergenceTest(ksp, &cvgTest, &threshold, NULL); CHKERRQ(ierr); // todo add max_it as parameter
     ierr = KSPSolve(ksp, stageCosts, V); CHKERRQ(ierr);
 
     return ierr;
 }
 
-std::vector<PetscInt> MDP::inexactPolicyIteration(Vec &V0, const PetscInt maxIter, PetscReal alpha) {
-// #define VI
-    std::vector<PetscInt> policy(numStates_); // result
+PetscErrorCode MDP::createJacobian(Mat &jacobian, const Mat &transitionProbabilities) {
+    PetscErrorCode ierr;
+    MatCreate(PETSC_COMM_WORLD, &jacobian);
+    MatSetType(jacobian, MATMPIAIJ);
+    MatSetSizes(jacobian, localNumStates_, PETSC_DECIDE, PETSC_DETERMINE, numStates_);
+    MatMPIAIJSetPreallocation(jacobian, 1, NULL, 0, NULL);
+    //IS indices;
+    //PetscInt rowStart = P_start_ / numActions_;
+    //ISCreateStride(PETSC_COMM_WORLD, localNumStates_, rowStart, 1, &indices);
+    ierr = MatZeroEntries(jacobian);
+    CHKERRQ(ierr);
+    MatAssemblyBegin(jacobian, MAT_FINAL_ASSEMBLY);
+    MatAssemblyEnd(jacobian, MAT_FINAL_ASSEMBLY);
+    ierr = MatShift(jacobian, 1.0);
+    CHKERRQ(ierr);
+    ierr = MatAXPY(jacobian, -discountFactor_, transitionProbabilities, DIFFERENT_NONZERO_PATTERN);
+    CHKERRQ(ierr);
+    return 0;
+}
 
+
+PetscErrorCode MDP::inexactPolicyIteration(Vec &V0, const PetscInt maxIter, PetscReal alpha, IS &policy, Vec &optimalCost) {
+    LOG("Entering inexactPolicyIteration");
     // todo: change jacobian to ShellMat
+    // todo: parallelize
+    PetscReal atol = 1e-10; // for outer loop todo: as parameter
+    PetscErrorCode ierr;
 
-    Vec V, V_old;
+    Vec V;
     VecDuplicate(V0, &V);
     VecCopy(V0, V);
-    VecDuplicate(V, &V_old);
 
+    Mat transitionProbabilities, jacobian;
     Vec stageCosts;
-    VecCreate(PETSC_COMM_WORLD, &stageCosts);
-    VecSetType(stageCosts, VECSEQ);
-    VecSetSizes(stageCosts, PETSC_DECIDE, numStates_);
+    PetscInt *policyValues;
+    PetscMalloc1(localNumStates_, &policyValues);
 
-    for(PetscInt i = 0; i < maxIter; ++i) {
-        PetscPrintf(PETSC_COMM_WORLD, "Iteration %d\n", i);
+    PetscReal r0_norm;
 
-        extractGreedyPolicy(V, policy.data());
-#ifdef VI
-        constructFromPolicy(policy.data(), jacobian, stageCosts);
-        MatAssemblyBegin(jacobian, MAT_FINAL_ASSEMBLY);
-        MatAssemblyEnd(jacobian, MAT_FINAL_ASSEMBLY);
-        MatScale(jacobian, discountFactor_); // needs assembled matrix
-        MatMultAdd(jacobian, V, stageCosts, stageCosts);
-        VecCopy(stageCosts, V);
-#endif
-#ifndef VI
-        Mat jacobian;
-        //MatCreate(PETSC_COMM_WORLD, &jacobian);
-        //MatSetSizes(jacobian, PETSC_DECIDE, PETSC_DECIDE, numStates_, numStates_);
-        //MatSetType(jacobian, MATSEQAIJ);
-        //MatSetUp(jacobian);
-        // construct Jacobian
-        constructFromPolicy(policy.data(), jacobian, stageCosts); // creates jacobian => needs to be destroyed
-        MatAssemblyBegin(jacobian, MAT_FINAL_ASSEMBLY);
-        MatAssemblyEnd(jacobian, MAT_FINAL_ASSEMBLY);
-        MatScale(jacobian, -discountFactor_); // needs assembled matrix
-        MatShift(jacobian, 1);
+    // initialize policy iteration
+    extractGreedyPolicy(V, policyValues);
+    constructFromPolicy(policyValues, transitionProbabilities, stageCosts);
+/*
+    ierr = MatCreateConstantDiagonal(PETSC_COMM_WORLD, localNumStates_, PETSC_DECIDE, PETSC_DETERMINE, numStates_, 1, &jacobian);
+    CHKERRQ(ierr);
+    ierr = MatAXPY(jacobian, -discountFactor_, transitionProbabilities, DIFFERENT_NONZERO_PATTERN);
+    CHKERRQ(ierr);
+*/
+    createJacobian(jacobian, transitionProbabilities);
+    // compute residual norm used for KSP stopping criterion
+    computeResidualNorm(jacobian, V, stageCosts, &r0_norm);
 
-        VecCopy(V, V_old);
+    for(PetscInt i = 1; i <= maxIter; ++i) {
+        //PetscPrintf(PETSC_COMM_WORLD, "Iteration %d\n", i);
+        LOG("Iteration " + std::to_string(i) + " residual norm: " + std::to_string(r0_norm));
 
-        // compute residual norm used for stopping criterion
-        PetscReal r0_norm;
-        computeResidualNorm(jacobian, V, stageCosts, &r0_norm);
-
+        // solve linear system
         iterativePolicyEvaluation(jacobian, stageCosts, V, r0_norm*alpha);
-        MatDestroy(&jacobian);
-#endif
+        MatDestroy(&transitionProbabilities);
+        MatDestroy(&jacobian); // avoid memory leak
+        VecDestroy(&stageCosts);
+
+        // compute jacobian wrt new policy
+        extractGreedyPolicy(V, policyValues);
+        constructFromPolicy(policyValues, transitionProbabilities, stageCosts);
+        /*
+        ierr = MatCreateConstantDiagonal(PETSC_COMM_WORLD, localNumStates_, PETSC_DECIDE, PETSC_DETERMINE, numStates_, 1, &jacobian);
+        CHKERRQ(ierr);
+        ierr = MatAXPY(jacobian, -discountFactor_, transitionProbabilities, DIFFERENT_NONZERO_PATTERN);
+        CHKERRQ(ierr);
+         */
+        createJacobian(jacobian, transitionProbabilities);
+        computeResidualNorm(jacobian, V, stageCosts, &r0_norm); // used for outer loop stopping criterion + RHS of KSP stopping criterion
+
+        if(r0_norm < atol) {
+            break;
+        }
     }
-    // todo: stopping condition for loop as discussed in meeting
-    // todo: save time and optimality gap for each iteration
-    // print V
-    /*
-    PetscPrintf(PETSC_COMM_WORLD, "V = \n");
-    VecView(V, PETSC_VIEWER_STDOUT_WORLD);
-    PetscPrintf(PETSC_COMM_WORLD, "\n\n");
+
+    MatDestroy(&transitionProbabilities);
     MatDestroy(&jacobian);
-     */
-    VecDestroy(&V);
-    VecDestroy(&V_old);
     VecDestroy(&stageCosts);
-    return policy;
+
+    VecDuplicate(V, &optimalCost);
+    VecCopy(V, optimalCost);
+
+    ISCreateGeneral(PETSC_COMM_WORLD, localNumStates_, policyValues, PETSC_COPY_VALUES, &policy);
+    PetscFree(policyValues);
+
+    VecDestroy(&V);
+
+    return 0;
 }
 
 PetscErrorCode MDP::computeResidualNorm(Mat J, Vec V, Vec g, PetscReal *rnorm) {
