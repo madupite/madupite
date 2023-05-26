@@ -79,7 +79,7 @@ PetscErrorCode MDP::extractGreedyPolicy(Vec &V, PetscInt *policy) {
 
 // user must destroy P and g by himself. Function will create them.
 PetscErrorCode MDP::constructFromPolicy(const PetscInt actionInd, Mat &transitionProbabilities, Vec &stageCosts) {
-    LOG("Entering constructFromPolicy [actionInd]");
+    //LOG("Entering constructFromPolicy [actionInd]");
 
     // compute where local ownership of new P_pi matrix starts
     PetscInt P_pi_start; // start of ownership of new matrix (to be created)
@@ -141,7 +141,7 @@ PetscErrorCode MDP::constructFromPolicy(const PetscInt actionInd, Mat &transitio
 
 // user must destroy P and g by himself. Function will create them.
 PetscErrorCode MDP::constructFromPolicy(PetscInt *policy, Mat &transitionProbabilities, Vec &stageCosts) {
-    LOG("Entering constructFromPolicy [policy]");
+    //LOG("Entering constructFromPolicy [policy]");
 
     // compute where local ownership of new P_pi matrix starts
     PetscInt P_pi_start; // start of ownership of new matrix (to be created)
@@ -220,31 +220,25 @@ PetscErrorCode MDP::iterativePolicyEvaluation(Mat &jacobian, Vec &stageCosts, Ve
     return ierr;
 }
 
+// creates MPIAIJ matrix and computes jacobian = I - gamma * P_pi
 PetscErrorCode MDP::createJacobian(Mat &jacobian, const Mat &transitionProbabilities) {
     PetscErrorCode ierr;
     MatCreate(PETSC_COMM_WORLD, &jacobian);
     MatSetType(jacobian, MATMPIAIJ);
     MatSetSizes(jacobian, localNumStates_, PETSC_DECIDE, PETSC_DETERMINE, numStates_);
     MatMPIAIJSetPreallocation(jacobian, 1, NULL, 0, NULL);
-    //IS indices;
-    //PetscInt rowStart = P_start_ / numActions_;
-    //ISCreateStride(PETSC_COMM_WORLD, localNumStates_, rowStart, 1, &indices);
-    ierr = MatZeroEntries(jacobian);
-    CHKERRQ(ierr);
+    ierr = MatZeroEntries(jacobian); CHKERRQ(ierr);
     MatAssemblyBegin(jacobian, MAT_FINAL_ASSEMBLY);
     MatAssemblyEnd(jacobian, MAT_FINAL_ASSEMBLY);
-    ierr = MatShift(jacobian, 1.0);
-    CHKERRQ(ierr);
-    ierr = MatAXPY(jacobian, -discountFactor_, transitionProbabilities, DIFFERENT_NONZERO_PATTERN);
-    CHKERRQ(ierr);
+    ierr = MatShift(jacobian, 1.0); CHKERRQ(ierr);
+    ierr = MatAXPY(jacobian, -discountFactor_, transitionProbabilities, DIFFERENT_NONZERO_PATTERN); CHKERRQ(ierr);
     return 0;
 }
 
 
 PetscErrorCode MDP::inexactPolicyIteration(Vec &V0, const PetscInt maxIter, PetscReal alpha, IS &policy, Vec &optimalCost) {
     LOG("Entering inexactPolicyIteration");
-    // todo: change jacobian to ShellMat
-    // todo: parallelize
+
     PetscReal atol = 1e-10; // for outer loop todo: as parameter
     PetscErrorCode ierr;
 
@@ -262,18 +256,10 @@ PetscErrorCode MDP::inexactPolicyIteration(Vec &V0, const PetscInt maxIter, Pets
     // initialize policy iteration
     extractGreedyPolicy(V, policyValues);
     constructFromPolicy(policyValues, transitionProbabilities, stageCosts);
-/*
-    ierr = MatCreateConstantDiagonal(PETSC_COMM_WORLD, localNumStates_, PETSC_DECIDE, PETSC_DETERMINE, numStates_, 1, &jacobian);
-    CHKERRQ(ierr);
-    ierr = MatAXPY(jacobian, -discountFactor_, transitionProbabilities, DIFFERENT_NONZERO_PATTERN);
-    CHKERRQ(ierr);
-*/
     createJacobian(jacobian, transitionProbabilities);
-    // compute residual norm used for KSP stopping criterion
-    computeResidualNorm(jacobian, V, stageCosts, &r0_norm);
+    computeResidualNorm(jacobian, V, stageCosts, &r0_norm); // for KSP convergence test
 
     for(PetscInt i = 1; i <= maxIter; ++i) {
-        //PetscPrintf(PETSC_COMM_WORLD, "Iteration %d\n", i);
         LOG("Iteration " + std::to_string(i) + " residual norm: " + std::to_string(r0_norm));
 
         // solve linear system
@@ -285,12 +271,6 @@ PetscErrorCode MDP::inexactPolicyIteration(Vec &V0, const PetscInt maxIter, Pets
         // compute jacobian wrt new policy
         extractGreedyPolicy(V, policyValues);
         constructFromPolicy(policyValues, transitionProbabilities, stageCosts);
-        /*
-        ierr = MatCreateConstantDiagonal(PETSC_COMM_WORLD, localNumStates_, PETSC_DECIDE, PETSC_DETERMINE, numStates_, 1, &jacobian);
-        CHKERRQ(ierr);
-        ierr = MatAXPY(jacobian, -discountFactor_, transitionProbabilities, DIFFERENT_NONZERO_PATTERN);
-        CHKERRQ(ierr);
-         */
         createJacobian(jacobian, transitionProbabilities);
         computeResidualNorm(jacobian, V, stageCosts, &r0_norm); // used for outer loop stopping criterion + RHS of KSP stopping criterion
 
@@ -303,13 +283,13 @@ PetscErrorCode MDP::inexactPolicyIteration(Vec &V0, const PetscInt maxIter, Pets
     MatDestroy(&jacobian);
     VecDestroy(&stageCosts);
 
+    // output results
     VecDuplicate(V, &optimalCost);
     VecCopy(V, optimalCost);
-
     ISCreateGeneral(PETSC_COMM_WORLD, localNumStates_, policyValues, PETSC_COPY_VALUES, &policy);
-    PetscFree(policyValues);
 
     VecDestroy(&V);
+    PetscFree(policyValues);
 
     return 0;
 }
