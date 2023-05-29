@@ -206,6 +206,7 @@ PetscErrorCode MDP::constructFromPolicy(PetscInt *policy, Mat &transitionProbabi
 PetscErrorCode MDP::iterativePolicyEvaluation(Mat &jacobian, Vec &stageCosts, Vec &V, PetscReal threshold) {
     PetscErrorCode ierr;
     //const PetscReal rtol = 1e-15;
+    PetscInt iter;
 
     // ksp solver
     KSP ksp;
@@ -216,7 +217,9 @@ PetscErrorCode MDP::iterativePolicyEvaluation(Mat &jacobian, Vec &stageCosts, Ve
     //ierr = KSPSetTolerances(ksp, rtol, PETSC_DEFAULT, PETSC_DEFAULT, PETSC_DEFAULT); CHKERRQ(ierr);
     ierr = KSPSetConvergenceTest(ksp, &cvgTest, &threshold, NULL); CHKERRQ(ierr); // todo add max_it as parameter
     ierr = KSPSolve(ksp, stageCosts, V); CHKERRQ(ierr);
-
+    ierr = KSPGetIterationNumber(ksp, &iter); CHKERRQ(ierr);
+    LOG("KSP converged after " + std::to_string(iter) + " iterations");
+    ierr = KSPDestroy(&ksp); CHKERRQ(ierr);
     return ierr;
 }
 
@@ -252,6 +255,7 @@ PetscErrorCode MDP::inexactPolicyIteration(Vec &V0, const PetscInt maxIter, Pets
     PetscMalloc1(localNumStates_, &policyValues);
 
     PetscReal r0_norm;
+    PetscInt kspIter;
 
     // initialize policy iteration
     extractGreedyPolicy(V, policyValues);
@@ -318,7 +322,7 @@ PetscErrorCode cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason
     ierr = VecNorm(res, NORM_INFINITY, &norm); CHKERRQ(ierr);
     ierr = VecDestroy(&res); CHKERRQ(ierr);
 
-    PetscPrintf(PETSC_COMM_WORLD, "it = %d: residual norm = %f\n", it, norm);
+    //PetscPrintf(PETSC_COMM_WORLD, "it = %d: residual norm = %f\n", it, norm);
 
     if(it == 0) *reason = KSP_CONVERGED_ITERATING;
     else if(norm < threshold) *reason = KSP_CONVERGED_RTOL;
