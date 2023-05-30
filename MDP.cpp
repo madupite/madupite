@@ -8,11 +8,9 @@
 #include <mpi.h>
 #include <iostream>
 #include "utils/Logger.h"
+#include <chrono>
 #include <cassert>
 #include <algorithm>
-
-// declare function for convergence test
-PetscErrorCode cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason *reason, void *ctx);
 
 
 MDP::MDP(const PetscInt numStates, const PetscInt numActions, const PetscReal discountFactor) : numStates_(numStates),
@@ -29,12 +27,15 @@ MDP::MDP(const PetscInt numStates, const PetscInt numActions, const PetscReal di
     Logger::setPrefix("[R" + std::to_string(rank_) + "] ");
     Logger::setFilename("log_R" + std::to_string(rank_) + ".txt"); // remove if all ranks should output to the same file
     LOG("owns " + std::to_string(localNumStates_) + " states.");
+
+    jsonWriter_ = new JsonWriter(rank_, size_);
 }
 
 MDP::~MDP() {
     MatDestroy(&transitionProbabilityTensor_);
     MatDestroy(&stageCostMatrix_);
     VecDestroy(&nnz_);
+    //delete jsonWriter_; // todo fix this (double free or corruption error)
 }
 
 // find $\argmin_{\pi} \{ g^\pi + \gamma P^\pi V \}$
@@ -105,13 +106,11 @@ PetscErrorCode MDP::constructFromPolicy(const PetscInt actionInd, Mat &transitio
     // generate index sets
     IS P_rowIndices;
     ISCreateGeneral(PETSC_COMM_WORLD, localNumStates_, P_rowIndexValues, PETSC_COPY_VALUES, &P_rowIndices);
-    IS P_pi_colIndices; // TODO: remove
-    ISCreateStride(PETSC_COMM_WORLD, localNumStates_, P_pi_start, 1, &P_pi_colIndices);
     IS g_pi_rowIndices;
     ISCreateStride(PETSC_COMM_WORLD, localNumStates_, g_start_, 1, &g_pi_rowIndices);
 
     //LOG("Creating transitionProbabilities submatrix");
-    MatCreateSubMatrix(transitionProbabilityTensor_, P_rowIndices, P_pi_colIndices, MAT_INITIAL_MATRIX, &transitionProbabilities); // todo set colIndices to NULL, then all columns are selected
+    MatCreateSubMatrix(transitionProbabilityTensor_, P_rowIndices, NULL, MAT_INITIAL_MATRIX, &transitionProbabilities);
 
     //LOG("Creating stageCosts vector");
     VecCreateMPI(PETSC_COMM_WORLD, localNumStates_, numStates_, &stageCosts);
@@ -132,7 +131,6 @@ PetscErrorCode MDP::constructFromPolicy(const PetscInt actionInd, Mat &transitio
     //LOG("transitionProbabilities: " + std::to_string(m) + "x" + std::to_string(n));
 
     ISDestroy(&P_rowIndices);
-    ISDestroy(&P_pi_colIndices);
     ISDestroy(&g_pi_rowIndices);
     PetscFree(P_rowIndexValues);
     PetscFree(g_pi_values);
@@ -168,13 +166,11 @@ PetscErrorCode MDP::constructFromPolicy(PetscInt *policy, Mat &transitionProbabi
     // generate index sets
     IS P_rowIndices;
     ISCreateGeneral(PETSC_COMM_WORLD, localNumStates_, P_rowIndexValues, PETSC_COPY_VALUES, &P_rowIndices);
-    IS P_pi_colIndices;
-    ISCreateStride(PETSC_COMM_WORLD, localNumStates_, P_pi_start, 1, &P_pi_colIndices);
     IS g_pi_rowIndices;
     ISCreateStride(PETSC_COMM_WORLD, localNumStates_, g_start_, 1, &g_pi_rowIndices);
 
     //LOG("Creating transitionProbabilities submatrix");
-    MatCreateSubMatrix(transitionProbabilityTensor_, P_rowIndices, P_pi_colIndices, MAT_INITIAL_MATRIX, &transitionProbabilities); // todo set colIndices to NULL, then all columns are selected
+    MatCreateSubMatrix(transitionProbabilityTensor_, P_rowIndices, NULL, MAT_INITIAL_MATRIX, &transitionProbabilities);
 
     //LOG("Creating stageCosts vector");
     VecCreateMPI(PETSC_COMM_WORLD, localNumStates_, numStates_, &stageCosts);
@@ -195,7 +191,6 @@ PetscErrorCode MDP::constructFromPolicy(PetscInt *policy, Mat &transitionProbabi
     //LOG("transitionProbabilities: " + std::to_string(m) + "x" + std::to_string(n));
 
     ISDestroy(&P_rowIndices);
-    ISDestroy(&P_pi_colIndices);
     ISDestroy(&g_pi_rowIndices);
     PetscFree(P_rowIndexValues);
     PetscFree(g_pi_values);
@@ -203,7 +198,7 @@ PetscErrorCode MDP::constructFromPolicy(PetscInt *policy, Mat &transitionProbabi
 }
 
 
-PetscErrorCode MDP::iterativePolicyEvaluation(Mat &jacobian, Vec &stageCosts, Vec &V, PetscReal threshold) {
+PetscErrorCode MDP::iterativePolicyEvaluation(Mat &jacobian, Vec &stageCosts, Vec &V, KSPContext &ctx) {
     PetscErrorCode ierr;
     //const PetscReal rtol = 1e-15;
     PetscInt iter;
@@ -215,10 +210,13 @@ PetscErrorCode MDP::iterativePolicyEvaluation(Mat &jacobian, Vec &stageCosts, Ve
     ierr = KSPSetType(ksp, KSPGMRES); CHKERRQ(ierr);
     ierr = KSPSetFromOptions(ksp); CHKERRQ(ierr);
     //ierr = KSPSetTolerances(ksp, rtol, PETSC_DEFAULT, PETSC_DEFAULT, PETSC_DEFAULT); CHKERRQ(ierr);
-    ierr = KSPSetConvergenceTest(ksp, &cvgTest, &threshold, NULL); CHKERRQ(ierr); // todo add max_it as parameter
+    ierr = KSPSetConvergenceTest(ksp, &cvgTest, &ctx, NULL); CHKERRQ(ierr); // todo add max_it as parameter
     ierr = KSPSolve(ksp, stageCosts, V); CHKERRQ(ierr);
-    ierr = KSPGetIterationNumber(ksp, &iter); CHKERRQ(ierr);
-    LOG("KSP converged after " + std::to_string(iter) + " iterations");
+    //ierr = KSPGetIterationNumber(ksp, &iter); CHKERRQ(ierr);
+    //LOG("KSP converged after " + std::to_string(iter) + " iterations");
+
+    ierr = KSPGetIterationNumber(ksp, &ctx.kspIterations); CHKERRQ(ierr);
+    //LOG("KSP iterations: " + std::to_string(ctx.kspIterations) + " (max: " + std::to_string(ctx.maxIter) + ")");
     ierr = KSPDestroy(&ksp); CHKERRQ(ierr);
     return ierr;
 }
@@ -254,20 +252,25 @@ PetscErrorCode MDP::inexactPolicyIteration(Vec &V0, const PetscInt maxIter, Pets
     PetscInt *policyValues;
     PetscMalloc1(localNumStates_, &policyValues);
 
-    PetscReal r0_norm;
-    PetscInt kspIter;
+    PetscReal residualNorm;
+    PetscInt maxKspIter = 1000; // todo: as parameter
 
     // initialize policy iteration
     extractGreedyPolicy(V, policyValues);
     constructFromPolicy(policyValues, transitionProbabilities, stageCosts);
     createJacobian(jacobian, transitionProbabilities);
-    computeResidualNorm(jacobian, V, stageCosts, &r0_norm); // for KSP convergence test
+    computeResidualNorm(jacobian, V, stageCosts, &residualNorm); // for KSP convergence test
+
+    PetscLogDouble startTime, endTime;
 
     for(PetscInt i = 1; i <= maxIter; ++i) {
-        LOG("Iteration " + std::to_string(i) + " residual norm: " + std::to_string(r0_norm));
+        LOG("Iteration " + std::to_string(i) + " residual norm: " + std::to_string(residualNorm));
+        PetscTime(&startTime);
+
+        KSPContext ctx = {maxKspIter, residualNorm * alpha, -1};
 
         // solve linear system
-        iterativePolicyEvaluation(jacobian, stageCosts, V, r0_norm*alpha);
+        iterativePolicyEvaluation(jacobian, stageCosts, V, ctx);
         MatDestroy(&transitionProbabilities);
         MatDestroy(&jacobian); // avoid memory leak
         VecDestroy(&stageCosts);
@@ -276,12 +279,21 @@ PetscErrorCode MDP::inexactPolicyIteration(Vec &V0, const PetscInt maxIter, Pets
         extractGreedyPolicy(V, policyValues);
         constructFromPolicy(policyValues, transitionProbabilities, stageCosts);
         createJacobian(jacobian, transitionProbabilities);
-        computeResidualNorm(jacobian, V, stageCosts, &r0_norm); // used for outer loop stopping criterion + RHS of KSP stopping criterion
+        computeResidualNorm(jacobian, V, stageCosts, &residualNorm); // used for outer loop stopping criterion + RHS of KSP stopping criterion
 
-        if(r0_norm < atol) {
+        PetscTime(&endTime);
+
+        if(rank_ == 0) {
+            jsonWriter_->add_data(i, ctx.kspIterations, (endTime-startTime)*1000, residualNorm);
+        }
+
+
+        if(residualNorm < atol) {
             break;
         }
     }
+
+    jsonWriter_->write_to_file("iterations.json");
 
     MatDestroy(&transitionProbabilities);
     MatDestroy(&jacobian);
@@ -313,7 +325,7 @@ PetscErrorCode MDP::computeResidualNorm(Mat J, Vec V, Vec g, PetscReal *rnorm) {
 
 PetscErrorCode cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason *reason, void *ctx) {
     PetscErrorCode ierr;
-    PetscReal threshold = *static_cast<PetscReal*>(ctx);
+    PetscReal threshold = static_cast<KSPContext*>(ctx)->threshold;
     PetscReal norm;
 
     Vec res;
@@ -326,7 +338,7 @@ PetscErrorCode cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason
 
     if(it == 0) *reason = KSP_CONVERGED_ITERATING;
     else if(norm < threshold) *reason = KSP_CONVERGED_RTOL;
-    //else if(it >= ksp->max_it) *reason = KSP_DIVERGED_ITS;
+    else if(it >= static_cast<KSPContext*>(ctx)->maxIter) *reason = KSP_DIVERGED_ITS;
     else *reason = KSP_CONVERGED_ITERATING;
 
     return 0;

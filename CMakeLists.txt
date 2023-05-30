@@ -34,8 +34,17 @@ find_package(MPI REQUIRED)
 include_directories(${MPI_INCLUDE_PATH})
 set(CMAKE_CXX_COMPILER ${MPI_CXX_COMPILER})
 
+# for nlohmann json
+include(FetchContent)
+FetchContent_Declare(json
+        GIT_REPOSITORY https://github.com/nlohmann/json.git
+        GIT_TAG        v3.11.2
+        )
+FETCHCONTENT_MAKEAVAILABLE(json)
+set_target_properties(nlohmann_json PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:nlohmann_json,INTERFACE_INCLUDE_DIRECTORIES>)
 
 # Add the executable, link libraries
 add_executable(distributed_inexact_policy_iteration main.cpp MDP.cpp utils/Logger.cpp)
 target_link_libraries(distributed_inexact_policy_iteration PkgConfig::PETSC)
+target_link_libraries(distributed_inexact_policy_iteration nlohmann_json::nlohmann_json)
 #target_link_libraries(distributed_inexact_policy_iteration ${PETSC_LIBRARIES})

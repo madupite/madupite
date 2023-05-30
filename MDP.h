@@ -9,6 +9,19 @@
 #include <petscmat.h>
 #include <petscksp.h>
 #include <vector>
+#include "utils/JsonWriter.h"
+
+
+// declarations
+
+// custom cvg test for KSP
+PetscErrorCode cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason *reason, void *ctx);
+
+struct KSPContext {
+    PetscInt maxIter;       // input
+    PetscReal threshold;    // input
+    PetscInt kspIterations; // output
+};
 
 class MDP {
 public:
@@ -19,7 +32,7 @@ public:
     PetscErrorCode extractGreedyPolicy(Vec &V, PetscInt *policy);
     PetscErrorCode constructFromPolicy(PetscInt   *policy, Mat &transitionProbabilities, Vec &stageCosts);
     PetscErrorCode constructFromPolicy(PetscInt actionInd, Mat &transitionProbabilities, Vec &stageCosts);
-    PetscErrorCode iterativePolicyEvaluation(Mat &jacobian, Vec &stageCosts, Vec &V, PetscReal alpha);
+    PetscErrorCode iterativePolicyEvaluation(Mat &jacobian, Vec &stageCosts, Vec &V, KSPContext &ctx);
     PetscErrorCode createJacobian(Mat &jacobian, const Mat &transitionProbabilities);
     PetscErrorCode inexactPolicyIteration(Vec &V0, const PetscInt maxIter, PetscReal alpha, IS &policy, Vec &optimalCost);
 
@@ -42,6 +55,8 @@ public:
     Mat transitionProbabilityTensor_;   // transition probability tensor
     Mat stageCostMatrix_;               // stage cost matrix
     Vec nnz_;                           // number of non-zeros in each row of transitionProbabilityTensor_
+
+    JsonWriter *jsonWriter_;
 };
 
 
