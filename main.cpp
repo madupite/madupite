@@ -23,7 +23,7 @@ int main(int argc, char** argv)
 
     //MDP mdp(5000, 20, 0.9); // sparsity factor = 0.1
     //PetscReal sparsityFactor = 0.03;
-    MDP mdp(18000, 40, 0.9); // sparsity factor = 0.1
+    MDP mdp; // sparsity factor = 0.1
     PetscReal sparsityFactor = 0.005;
     //MDP mdp(2000, 40, 0.9);
     //PetscReal sparsityFactor = 0.03;
@@ -32,14 +32,14 @@ int main(int argc, char** argv)
     //MDP mdp(5000, 40, 0.9); // sparsity factor = 0.01
     //PetscReal sparsityFactor = 0.01;
     //MDP mdp(3000, 50, 0.9); // sparsity factor = 0.02
-    PetscPrintf(PETSC_COMM_WORLD, "States: %d, Actions: %d, Sparsity factor: %f\n", mdp.numStates_, mdp.numActions_, sparsityFactor);
+    //PetscPrintf(PETSC_COMM_WORLD, "States: %d, Actions: %d, Sparsity factor: %f\n", mdp.numStates_, mdp.numActions_, sparsityFactor);
 
-    std::string path = "../data/" + std::to_string(mdp.numStates_) + "_" + std::to_string(mdp.numActions_) + "_" + std::to_string(sparsityFactor) + "/";
+    //std::string path = "../data/" + std::to_string(mdp.numStates_) + "_" + std::to_string(mdp.numActions_) + "_" + std::to_string(sparsityFactor) + "/";
 
 
     Timer t;
     t.start();
-    mdp.loadFromBinaryFile(path + "P.bin", path + "g.bin", path + "nnz.bin");
+    //mdp.loadFromBinaryFile(path + "P.bin", path + "g.bin");
     t.stop("Loading took: ");
 
     Vec V0;
@@ -49,7 +49,7 @@ int main(int argc, char** argv)
     IS optimalPolicy;
     Vec optimalCost;
     t.start();
-    mdp.inexactPolicyIteration(V0, 15, 0.001, optimalPolicy, optimalCost);
+    mdp.inexactPolicyIteration(V0, optimalPolicy, optimalCost);
     t.stop("iPI took: ");
 
     // output solutions

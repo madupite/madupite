@@ -26,26 +26,39 @@ struct KSPContext {
 class MDP {
 public:
 
-    MDP(PetscInt numStates, PetscInt numActions, PetscReal discountFactor);
+    MDP();
     ~MDP();
+    PetscErrorCode setValuesFromOptions();
 
     PetscErrorCode extractGreedyPolicy(Vec &V, PetscInt *policy);
     PetscErrorCode constructFromPolicy(PetscInt   *policy, Mat &transitionProbabilities, Vec &stageCosts);
     PetscErrorCode constructFromPolicy(PetscInt actionInd, Mat &transitionProbabilities, Vec &stageCosts);
     PetscErrorCode iterativePolicyEvaluation(Mat &jacobian, Vec &stageCosts, Vec &V, KSPContext &ctx);
     PetscErrorCode createJacobian(Mat &jacobian, const Mat &transitionProbabilities);
-    PetscErrorCode inexactPolicyIteration(Vec &V0, const PetscInt maxIter, PetscReal alpha, IS &policy, Vec &optimalCost);
+    PetscErrorCode inexactPolicyIteration(Vec &V0, IS &policy, Vec &optimalCost);
 
-    //PetscErrorCode cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason *reason, void *ctx); // Test if residual norm is smaller than alpha * r0_norm
-    PetscErrorCode computeResidualNorm(Mat J, Vec V, Vec g, PetscReal *rnorm); // TODO: compute ||g - J*V||_\infty
+    static PetscErrorCode cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason *reason, void *ctx); // Test if residual norm is smaller than alpha * r0_norm
+    PetscErrorCode computeResidualNorm(Mat J, Vec V, Vec g, PetscReal *rnorm);
 
-    PetscErrorCode loadFromBinaryFile(std::string filename_P, std::string filename_g, std::string filename_nnz);
+    PetscErrorCode loadFromBinaryFile(std::string filename_P, std::string filename_g);
+
+    // user specified parameters
+    PetscInt    numStates_;       // global
+    PetscInt    numActions_;      // global
+    PetscReal   discountFactor_;
+    PetscInt    maxIter_PI_;
+    PetscInt    maxIter_KSP_;
+    PetscReal   rtol_KSP_;
+    PetscReal   atol_PI_;
+
+    PetscChar   file_P_     [PETSC_MAX_PATH_LEN]; // input
+    PetscChar   file_g_     [PETSC_MAX_PATH_LEN]; // input
+    PetscChar   file_policy_[PETSC_MAX_PATH_LEN]; // output
+    PetscChar   file_cost_  [PETSC_MAX_PATH_LEN]; // output
+    PetscChar   file_stats_ [PETSC_MAX_PATH_LEN]; // output
 
 
-    const PetscInt    numStates_;       // global
-    const PetscInt    numActions_;      // global
-    const PetscReal   discountFactor_;
-
+    // derived parameters
     PetscInt localNumStates_;           // number of states owned by this rank
     PetscInt rank_;                     // rank of this process
     PetscInt size_;                     // number of processes
@@ -54,7 +67,6 @@ public:
 
     Mat transitionProbabilityTensor_;   // transition probability tensor
     Mat stageCostMatrix_;               // stage cost matrix
-    Vec nnz_;                           // number of non-zeros in each row of transitionProbabilityTensor_
 
     JsonWriter *jsonWriter_;
 };

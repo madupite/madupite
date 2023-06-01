@@ -1,2 +1,4 @@
 -mat_type mpiaij
 -vec_type mpi
+-log_view
+-pc_type none

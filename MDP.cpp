@@ -13,12 +13,14 @@
 #include <algorithm>
 
 
-MDP::MDP(const PetscInt numStates, const PetscInt numActions, const PetscReal discountFactor) : numStates_(numStates),
-                                                                                                numActions_(numActions),
-                                                                                                discountFactor_(discountFactor) {
+MDP::MDP() {
     transitionProbabilityTensor_ = nullptr;
     stageCostMatrix_ = nullptr;
-    nnz_ = nullptr;
+
+    setValuesFromOptions();
+    if(file_P_[0] != '\0' && file_g_[0] != '\0') {
+        loadFromBinaryFile(file_P_, file_g_);
+    }
 
     // MPI parallelization initialization
     MPI_Comm_rank(PETSC_COMM_WORLD, &rank_);
@@ -34,9 +36,68 @@ MDP::MDP(const PetscInt numStates, const PetscInt numActions, const PetscReal di
 MDP::~MDP() {
     MatDestroy(&transitionProbabilityTensor_);
     MatDestroy(&stageCostMatrix_);
-    VecDestroy(&nnz_);
     //delete jsonWriter_; // todo fix this (double free or corruption error)
 }
+
+PetscErrorCode MDP::setValuesFromOptions() {
+    PetscErrorCode ierr;
+    PetscBool flg;
+
+    ierr = PetscOptionsGetInt(NULL, NULL, "-states", &numStates_, &flg); CHKERRQ(ierr);
+    if(!flg) {
+        SETERRQ(PETSC_COMM_WORLD, 1, "Number of states not specified. Use -states <int>.");
+    }
+    ierr = PetscOptionsGetInt(NULL, NULL, "-actions", &numActions_, &flg); CHKERRQ(ierr);
+    if(!flg) {
+        SETERRQ(PETSC_COMM_WORLD, 1, "Number of actions not specified. Use -actions <int>.");
+    }
+    ierr = PetscOptionsGetReal(NULL, NULL, "-discountFactor", &discountFactor_, &flg); CHKERRQ(ierr);
+    if(!flg) {
+        SETERRQ(PETSC_COMM_WORLD, 1, "Discount factor not specified. Use -discountFactor <double>.");
+    }
+    ierr = PetscOptionsGetInt(NULL, NULL, "-maxIter_PI", &maxIter_PI_, &flg); CHKERRQ(ierr);
+    if(!flg) {
+        SETERRQ(PETSC_COMM_WORLD, 1, "Maximum number of policy iterations not specified. Use -maxIter_PI <int>.");
+    }
+    ierr = PetscOptionsGetInt(NULL, NULL, "-maxIter_KSP", &maxIter_KSP_, &flg); CHKERRQ(ierr);
+    if(!flg) {
+        SETERRQ(PETSC_COMM_WORLD, 1, "Maximum number of KSP iterations not specified. Use -maxIter_KSP <int>.");
+    }
+    ierr = PetscOptionsGetReal(NULL, NULL, "-rtol_KSP", &rtol_KSP_, &flg); CHKERRQ(ierr);
+    if(!flg) {
+        SETERRQ(PETSC_COMM_WORLD, 1, "Relative tolerance for KSP not specified. Use -rtol_KSP <double>.");
+    }
+    ierr = PetscOptionsGetReal(NULL, NULL, "-atol_PI", &atol_PI_, &flg); CHKERRQ(ierr);
+    if(!flg) {
+        SETERRQ(PETSC_COMM_WORLD, 1, "Absolute tolerance for policy iteration not specified. Use -atol_PI <double>.");
+    }
+    ierr = PetscOptionsGetString(NULL, NULL, "-file_P", file_P_, PETSC_MAX_PATH_LEN, &flg); CHKERRQ(ierr);
+    if(!flg) {
+        SETERRQ(PETSC_COMM_WORLD, 1, "Filename for transition probability tensor not specified. Use -file_P <string>. (max length: 4096 chars");
+    }
+    ierr = PetscOptionsGetString(NULL, NULL, "-file_g", file_g_, PETSC_MAX_PATH_LEN, &flg); CHKERRQ(ierr);
+    if(!flg) {
+        SETERRQ(PETSC_COMM_WORLD, 1, "Filename for stage cost matrix not specified. Use -file_g <string>. (max length: 4096 chars");
+    }
+    ierr = PetscOptionsGetString(NULL, NULL, "-file_policy", file_policy_, PETSC_MAX_PATH_LEN, &flg); CHKERRQ(ierr);
+    if(!flg) {
+        LOG("Filename for policy not specified. Optimal policy will not be written to file.");
+        file_policy_[0] = '\0';
+    }
+    ierr = PetscOptionsGetString(NULL, NULL, "-file_cost", file_cost_, PETSC_MAX_PATH_LEN, &flg); CHKERRQ(ierr);
+    if(!flg) {
+        LOG("Filename for cost not specified. Optimal cost will not be written to file.");
+        file_cost_[0] = '\0';
+    }
+    ierr = PetscOptionsGetString(NULL, NULL, "-file_stats", file_stats_, PETSC_MAX_PATH_LEN, &flg); CHKERRQ(ierr);
+    if(!flg) {
+        SETERRQ(PETSC_COMM_WORLD, 1, "Filename for statistics not specified. Use -file_stats <string>. (max length: 4096 chars");
+    }
+    return 0;
+}
+
+
+
 
 // find $\argmin_{\pi} \{ g^\pi + \gamma P^\pi V \}$
 // PRE: policy is a array of size localNumStates_ and must be allocated. Function will write into it but not allocate it.
@@ -205,12 +266,12 @@ PetscErrorCode MDP::iterativePolicyEvaluation(Mat &jacobian, Vec &stageCosts, Ve
 
     // ksp solver
     KSP ksp;
-    ierr = KSPCreate(PETSC_COMM_WORLD, &ksp); CHKERRQ(ierr); // todo: destroy ksp
+    ierr = KSPCreate(PETSC_COMM_WORLD, &ksp); CHKERRQ(ierr);
     ierr = KSPSetOperators(ksp, jacobian, jacobian); CHKERRQ(ierr);
     ierr = KSPSetType(ksp, KSPGMRES); CHKERRQ(ierr);
     ierr = KSPSetFromOptions(ksp); CHKERRQ(ierr);
     //ierr = KSPSetTolerances(ksp, rtol, PETSC_DEFAULT, PETSC_DEFAULT, PETSC_DEFAULT); CHKERRQ(ierr);
-    ierr = KSPSetConvergenceTest(ksp, &cvgTest, &ctx, NULL); CHKERRQ(ierr); // todo add max_it as parameter
+    ierr = KSPSetConvergenceTest(ksp, &MDP::cvgTest, &ctx, NULL); CHKERRQ(ierr);
     ierr = KSPSolve(ksp, stageCosts, V); CHKERRQ(ierr);
     //ierr = KSPGetIterationNumber(ksp, &iter); CHKERRQ(ierr);
     //LOG("KSP converged after " + std::to_string(iter) + " iterations");
@@ -237,10 +298,9 @@ PetscErrorCode MDP::createJacobian(Mat &jacobian, const Mat &transitionProbabili
 }
 
 
-PetscErrorCode MDP::inexactPolicyIteration(Vec &V0, const PetscInt maxIter, PetscReal alpha, IS &policy, Vec &optimalCost) {
+PetscErrorCode MDP::inexactPolicyIteration(Vec &V0, IS &policy, Vec &optimalCost) {
     LOG("Entering inexactPolicyIteration");
 
-    PetscReal atol = 1e-10; // for outer loop todo: as parameter
     PetscErrorCode ierr;
 
     Vec V;
@@ -253,7 +313,6 @@ PetscErrorCode MDP::inexactPolicyIteration(Vec &V0, const PetscInt maxIter, Pets
     PetscMalloc1(localNumStates_, &policyValues);
 
     PetscReal residualNorm;
-    PetscInt maxKspIter = 1000; // todo: as parameter
 
     // initialize policy iteration
     extractGreedyPolicy(V, policyValues);
@@ -262,12 +321,12 @@ PetscErrorCode MDP::inexactPolicyIteration(Vec &V0, const PetscInt maxIter, Pets
     computeResidualNorm(jacobian, V, stageCosts, &residualNorm); // for KSP convergence test
 
     PetscLogDouble startTime, endTime;
-
-    for(PetscInt i = 1; i <= maxIter; ++i) {
+    PetscInt i = 1;
+    for(; i <= maxIter_PI_; ++i) {
         LOG("Iteration " + std::to_string(i) + " residual norm: " + std::to_string(residualNorm));
         PetscTime(&startTime);
 
-        KSPContext ctx = {maxKspIter, residualNorm * alpha, -1};
+        KSPContext ctx = {maxIter_KSP_, residualNorm * rtol_KSP_, -1};
 
         // solve linear system
         iterativePolicyEvaluation(jacobian, stageCosts, V, ctx);
@@ -288,12 +347,15 @@ PetscErrorCode MDP::inexactPolicyIteration(Vec &V0, const PetscInt maxIter, Pets
         }
 
 
-        if(residualNorm < atol) {
+        if(residualNorm < atol_PI_) {
             break;
         }
     }
+    if(i > maxIter_PI_) {
+        LOG("Warning: maximum number of PI iterations reached");
+    }
 
-    jsonWriter_->write_to_file("iterations.json");
+    jsonWriter_->write_to_file(file_stats_);
 
     MatDestroy(&transitionProbabilities);
     MatDestroy(&jacobian);
@@ -323,7 +385,7 @@ PetscErrorCode MDP::computeResidualNorm(Mat J, Vec V, Vec g, PetscReal *rnorm) {
 }
 
 
-PetscErrorCode cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason *reason, void *ctx) {
+PetscErrorCode MDP::cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason *reason, void *ctx) {
     PetscErrorCode ierr;
     PetscReal threshold = static_cast<KSPContext*>(ctx)->threshold;
     PetscReal norm;
@@ -344,7 +406,8 @@ PetscErrorCode cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason
     return 0;
 }
 
-PetscErrorCode MDP::loadFromBinaryFile(std::string filename_P, std::string filename_g, std::string filename_nnz) {
+PetscErrorCode MDP::loadFromBinaryFile(std::string filename_P, std::string filename_g) {
+    LOG("Loading MDP from binary file: " + filename_P + ", " + filename_g);
     PetscErrorCode ierr = 0;
     PetscViewer viewer;
 
@@ -359,6 +422,7 @@ PetscErrorCode MDP::loadFromBinaryFile(std::string filename_P, std::string filen
     PetscViewerFileSetName(viewer, filename_P.c_str());
     MatLoad(transitionProbabilityTensor_, viewer);
     PetscViewerDestroy(&viewer);
+    // PetscViewerBinaryOpen?
 
     // load stage cost matrix
     MatCreate(PETSC_COMM_WORLD, &stageCostMatrix_);
@@ -370,18 +434,6 @@ PetscErrorCode MDP::loadFromBinaryFile(std::string filename_P, std::string filen
     PetscViewerFileSetMode(viewer, FILE_MODE_READ);
     PetscViewerFileSetName(viewer, filename_g.c_str());
     MatLoad(stageCostMatrix_, viewer);
-    PetscViewerDestroy(&viewer);
-
-    // load nnz
-    VecCreate(PETSC_COMM_WORLD, &nnz_);
-    VecSetFromOptions(nnz_);
-    ierr = VecSetSizes(nnz_, localNumStates_*numActions_, PETSC_DECIDE); CHKERRQ(ierr);
-    VecSetUp(nnz_);
-    PetscViewerCreate(PETSC_COMM_WORLD, &viewer);
-    PetscViewerSetType(viewer, PETSCVIEWERBINARY);
-    PetscViewerFileSetMode(viewer, FILE_MODE_READ);
-    PetscViewerFileSetName(viewer, filename_nnz.c_str());
-    VecLoad(nnz_, viewer);
     PetscViewerDestroy(&viewer);
 
     // Information about distribution on processes
