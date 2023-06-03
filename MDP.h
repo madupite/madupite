@@ -23,6 +23,12 @@ struct KSPContext {
     PetscInt kspIterations; // output
 };
 
+struct JacobianContext {
+    Mat P_pi;
+    PetscReal discountFactor;
+};
+
+
 class MDP {
 public:
 
@@ -33,7 +39,7 @@ public:
     PetscErrorCode constructFromPolicy(PetscInt   *policy, Mat &transitionProbabilities, Vec &stageCosts);
     PetscErrorCode constructFromPolicy(PetscInt actionInd, Mat &transitionProbabilities, Vec &stageCosts);
     PetscErrorCode iterativePolicyEvaluation(Mat &jacobian, Vec &stageCosts, Vec &V, KSPContext &ctx);
-    PetscErrorCode createJacobian(Mat &jacobian, const Mat &transitionProbabilities);
+    PetscErrorCode createJacobian(Mat &jacobian, const Mat &transitionProbabilities, JacobianContext &ctx);
     PetscErrorCode inexactPolicyIteration(Vec &V0, const PetscInt maxIter, PetscReal alpha, IS &policy, Vec &optimalCost);
 
     //PetscErrorCode cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason *reason, void *ctx); // Test if residual norm is smaller than alpha * r0_norm
