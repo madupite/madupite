@@ -11,9 +11,6 @@
 #include <vector>
 #include "../utils/JsonWriter.h"
 
-// custom cvg test for KSP
-PetscErrorCode cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason *reason, void *ctx);
-
 struct KSPContext {
     PetscInt maxIter;       // input
     PetscReal threshold;    // input
@@ -71,6 +68,5 @@ public:
 
     JsonWriter *jsonWriter_;
 };
-
 
 #endif //DISTRIBUTED_INEXACT_POLICY_ITERATION_MDP_H
