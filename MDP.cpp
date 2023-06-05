@@ -18,9 +18,6 @@ MDP::MDP() {
     stageCostMatrix_ = nullptr;
 
     setValuesFromOptions();
-    if(file_P_[0] != '\0' && file_g_[0] != '\0') {
-        loadFromBinaryFile(file_P_, file_g_);
-    }
 
     // MPI parallelization initialization
     MPI_Comm_rank(PETSC_COMM_WORLD, &rank_);
@@ -29,6 +26,10 @@ MDP::MDP() {
     Logger::setPrefix("[R" + std::to_string(rank_) + "] ");
     Logger::setFilename("log_R" + std::to_string(rank_) + ".txt"); // remove if all ranks should output to the same file
     LOG("owns " + std::to_string(localNumStates_) + " states.");
+
+    if(file_P_[0] != '\0' && file_g_[0] != '\0') {
+        loadFromBinaryFile(file_P_, file_g_);
+    }
 
     jsonWriter_ = new JsonWriter(rank_, size_);
 }

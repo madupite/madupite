@@ -1,4 +1,13 @@
 -mat_type mpiaij
 -vec_type mpi
--log_view
 -pc_type none
+-states 18000
+-actions 40
+-discountFactor 0.9
+-maxIter_PI 20
+-maxIter_KSP 1000
+-rtol_KSP 1e-4
+-atol_PI 1e-10
+-file_P ../data/18000_40_0.005000/P.bin
+-file_g ../data/18000_40_0.005000/g.bin
+-file_stats out/stats.json
