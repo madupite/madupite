@@ -88,7 +88,7 @@ int main(int argc, char** argv)
     if (mdp.rank_ == 0) {
         std::ofstream file("indices.csv");
         for (int i = 0; i < mdp.numStates_; i++) {
-            file << allIndices[i] << ' ';
+            file << allIndices[i] << '\n';
         }
         file.close();
 
