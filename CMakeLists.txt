@@ -44,7 +44,8 @@ FETCHCONTENT_MAKEAVAILABLE(json)
 set_target_properties(nlohmann_json PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:nlohmann_json,INTERFACE_INCLUDE_DIRECTORIES>)
 
 # Add the executable, link libraries
-add_executable(distributed_inexact_policy_iteration main.cpp MDP.cpp utils/Logger.cpp)
+include_directories(MDP/)
+add_executable(distributed_inexact_policy_iteration main.cpp utils/Logger.cpp MDP/MDP_algorithm.cpp MDP/MDP_setup.cpp)
 target_link_libraries(distributed_inexact_policy_iteration PkgConfig::PETSC)
 target_link_libraries(distributed_inexact_policy_iteration nlohmann_json::nlohmann_json)
 #target_link_libraries(distributed_inexact_policy_iteration ${PETSC_LIBRARIES})

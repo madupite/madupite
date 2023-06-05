@@ -9,10 +9,7 @@
 #include <petscmat.h>
 #include <petscksp.h>
 #include <vector>
-#include "utils/JsonWriter.h"
-
-
-// declarations
+#include "../utils/JsonWriter.h"
 
 // custom cvg test for KSP
 PetscErrorCode cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason *reason, void *ctx);
@@ -27,7 +24,6 @@ struct JacobianContext {
     Mat P_pi;
     PetscReal discountFactor;
 };
-
 
 class MDP {
 public:
@@ -57,13 +53,11 @@ public:
     PetscInt    maxIter_KSP_;
     PetscReal   rtol_KSP_;
     PetscReal   atol_PI_;
-
     PetscChar   file_P_     [PETSC_MAX_PATH_LEN]; // input
     PetscChar   file_g_     [PETSC_MAX_PATH_LEN]; // input
     PetscChar   file_policy_[PETSC_MAX_PATH_LEN]; // output
     PetscChar   file_cost_  [PETSC_MAX_PATH_LEN]; // output
     PetscChar   file_stats_ [PETSC_MAX_PATH_LEN]; // output
-
 
     // derived parameters
     PetscInt localNumStates_;           // number of states owned by this rank

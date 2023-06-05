@@ -2,11 +2,7 @@
 // Created by robin on 02.04.23.
 //
 
-#include <petscmat.h>
 #include <petscvec.h>
-#include <petscksp.h>
-#include <petsc.h>
-
 #include <mpi.h>
 #include <iostream>
 #include <random>
@@ -14,7 +10,6 @@
 #include "utils/Timer.h"
 #include "utils/Logger.h"
 #include "MDP.h"
-
 
 int main(int argc, char** argv)
 {
