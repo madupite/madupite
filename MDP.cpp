@@ -58,6 +58,7 @@ PetscErrorCode MDP::extractGreedyPolicy(Vec &V, PetscInt *policy) {
         //LOG("Finished construction of P and g. Calculating g + gamma PV...");
         ierr = MatScale(P, discountFactor_); CHKERRQ(ierr);
         ierr = MatMultAdd(P, V, g, g); CHKERRQ(ierr);
+
         ierr = VecGetArrayRead(g, &costValues); CHKERRQ(ierr);
 
         //LOG("Performing minimization for all local states...");
@@ -72,7 +73,6 @@ PetscErrorCode MDP::extractGreedyPolicy(Vec &V, PetscInt *policy) {
         ierr = MatDestroy(&P); CHKERRQ(ierr);
         ierr = VecDestroy(&g); CHKERRQ(ierr);
     }
-
     ierr = PetscFree(costValues); CHKERRQ(ierr);
 
     return 0;
@@ -118,17 +118,6 @@ PetscErrorCode MDP::constructFromPolicy(const PetscInt actionInd, Mat &transitio
     ISGetIndices(g_pi_rowIndices, &g_pi_rowIndexValues);
     VecSetValues(stageCosts, localNumStates_, g_pi_rowIndexValues, g_pi_values, INSERT_VALUES);
     ISRestoreIndices(g_pi_rowIndices, &g_pi_rowIndexValues);
-
-    //LOG("Assembling transitionProbabilities and stageCosts");
-    MatAssemblyBegin(transitionProbabilities, MAT_FINAL_ASSEMBLY);
-    VecAssemblyBegin(stageCosts);
-    MatAssemblyEnd(transitionProbabilities, MAT_FINAL_ASSEMBLY);
-    VecAssemblyEnd(stageCosts);
-
-    // output dimensions (DEBUG)
-    PetscInt m, n;
-    MatGetSize(transitionProbabilities, &m, &n);
-    //LOG("transitionProbabilities: " + std::to_string(m) + "x" + std::to_string(n));
 
     ISDestroy(&P_rowIndices);
     ISDestroy(&g_pi_rowIndices);
@@ -184,11 +173,6 @@ PetscErrorCode MDP::constructFromPolicy(PetscInt *policy, Mat &transitionProbabi
     VecAssemblyBegin(stageCosts);
     MatAssemblyEnd(transitionProbabilities, MAT_FINAL_ASSEMBLY);
     VecAssemblyEnd(stageCosts);
-
-    // output dimensions (DEBUG)
-    PetscInt m, n;
-    MatGetSize(transitionProbabilities, &m, &n);
-    //LOG("transitionProbabilities: " + std::to_string(m) + "x" + std::to_string(n));
 
     ISDestroy(&P_rowIndices);
     ISDestroy(&g_pi_rowIndices);
