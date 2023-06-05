@@ -44,6 +44,7 @@ public:
     PetscErrorCode inexactPolicyIteration(Vec &V0, IS &policy, Vec &optimalCost);
 
     static PetscErrorCode cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason *reason, void *ctx); // Test if residual norm is smaller than alpha * r0_norm
+    static void jacobianMultiplication(Mat mat, Vec x, Vec y); // defines matrix vector product for jacobian shell
     PetscErrorCode computeResidualNorm(Mat J, Vec V, Vec g, PetscReal *rnorm);
 
     PetscErrorCode loadFromBinaryFile(std::string filename_P, std::string filename_g);

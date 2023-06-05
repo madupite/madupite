@@ -20,27 +20,8 @@ int main(int argc, char** argv)
 {
     // Initialize PETSc
     PetscInitialize(&argc, &argv, PETSC_NULL, PETSC_NULL);
-
-    //MDP mdp(5000, 20, 0.9); // sparsity factor = 0.1
-    //PetscReal sparsityFactor = 0.03;
-    MDP mdp; // sparsity factor = 0.1
-    PetscReal sparsityFactor = 0.005;
-    //MDP mdp(2000, 40, 0.9);
-    //PetscReal sparsityFactor = 0.03;
-    //MDP mdp(500, 50, 0.9); // sparsity factor = 0.01
-    //PetscReal sparsityFactor = 0.05;
-    //MDP mdp(5000, 40, 0.9); // sparsity factor = 0.01
-    //PetscReal sparsityFactor = 0.01;
-    //MDP mdp(3000, 50, 0.9); // sparsity factor = 0.02
-    //PetscPrintf(PETSC_COMM_WORLD, "States: %d, Actions: %d, Sparsity factor: %f\n", mdp.numStates_, mdp.numActions_, sparsityFactor);
-
-    //std::string path = "../data/" + std::to_string(mdp.numStates_) + "_" + std::to_string(mdp.numActions_) + "_" + std::to_string(sparsityFactor) + "/";
-
-
     Timer t;
-    t.start();
-    //mdp.loadFromBinaryFile(path + "P.bin", path + "g.bin");
-    t.stop("Loading took: ");
+    MDP mdp;
 
     Vec V0;
     VecCreateMPI(PETSC_COMM_WORLD, mdp.localNumStates_, mdp.numStates_, &V0);
@@ -48,6 +29,7 @@ int main(int argc, char** argv)
 
     IS optimalPolicy;
     Vec optimalCost;
+
     t.start();
     mdp.inexactPolicyIteration(V0, optimalPolicy, optimalCost);
     t.stop("iPI took: ");
@@ -62,11 +44,11 @@ int main(int argc, char** argv)
     const PetscInt *indices;
     ISGetIndices(optimalPolicy, &indices);
 
-// Get the local size of the index set
+    // Get the local size of the index set
     PetscInt localSize;
     ISGetLocalSize(optimalPolicy, &localSize);
 
-// Gather all indices on process 0
+    // Gather all indices on process 0
     PetscInt *allIndices = NULL;
     PetscInt *recvcounts = NULL;
     PetscInt *displs = NULL;
@@ -84,7 +66,7 @@ int main(int argc, char** argv)
     }
     MPI_Gatherv(indices, localSize, MPI_INT, allIndices, recvcounts, displs, MPI_INT, 0, PETSC_COMM_WORLD);
 
-// Process 0 writes the indices to a CSV file
+    // Process 0 writes the indices to a CSV file
     if (mdp.rank_ == 0) {
         std::ofstream file("indices.csv");
         for (int i = 0; i < mdp.numStates_; i++) {
@@ -97,9 +79,8 @@ int main(int argc, char** argv)
         delete[] displs;
     }
 
-// Restore the indices
+    // Restore the indices
     ISRestoreIndices(optimalPolicy, &indices);
-
 
     VecDestroy(&V0);
     ISDestroy(&optimalPolicy);

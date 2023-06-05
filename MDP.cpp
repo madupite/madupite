@@ -246,8 +246,7 @@ PetscErrorCode MDP::constructFromPolicy(PetscInt *policy, Mat &transitionProbabi
 
 PetscErrorCode MDP::iterativePolicyEvaluation(Mat &jacobian, Vec &stageCosts, Vec &V, KSPContext &ctx) {
     PetscErrorCode ierr;
-    //const PetscReal rtol = 1e-15;
-    PetscInt iter;
+    MatAssemblyBegin(jacobian, MAT_FINAL_ASSEMBLY);
 
     // ksp solver
     KSP ksp;
@@ -257,6 +256,7 @@ PetscErrorCode MDP::iterativePolicyEvaluation(Mat &jacobian, Vec &stageCosts, Ve
     ierr = KSPSetFromOptions(ksp); CHKERRQ(ierr);
     //ierr = KSPSetTolerances(ksp, rtol, PETSC_DEFAULT, PETSC_DEFAULT, PETSC_DEFAULT); CHKERRQ(ierr);
     ierr = KSPSetConvergenceTest(ksp, &MDP::cvgTest, &ctx, NULL); CHKERRQ(ierr);
+    ierr = MatAssemblyEnd(jacobian, MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
     ierr = KSPSolve(ksp, stageCosts, V); CHKERRQ(ierr);
     //ierr = KSPGetIterationNumber(ksp, &iter); CHKERRQ(ierr);
     //LOG("KSP converged after " + std::to_string(iter) + " iterations");
@@ -268,7 +268,7 @@ PetscErrorCode MDP::iterativePolicyEvaluation(Mat &jacobian, Vec &stageCosts, Ve
 }
 
 // defines the matrix-vector product for the jacobian shell
-void jacobianMultiplication(Mat mat, Vec x, Vec y) {
+void MDP::jacobianMultiplication(Mat mat, Vec x, Vec y) {
     JacobianContext *ctx;
     MatShellGetContext(mat, (void **) &ctx); // todo static cast
     MatMult(ctx->P_pi, x, y);
@@ -279,25 +279,12 @@ void jacobianMultiplication(Mat mat, Vec x, Vec y) {
 // creates MPIAIJ matrix and computes jacobian = I - gamma * P_pi
 PetscErrorCode MDP::createJacobian(Mat &jacobian, const Mat &transitionProbabilities, JacobianContext &ctx) {
     PetscErrorCode ierr;
-    /*MatCreate(PETSC_COMM_WORLD, &jacobian);
-    MatSetType(jacobian, MATMPIAIJ);
-    MatSetSizes(jacobian, localNumStates_, PETSC_DECIDE, PETSC_DETERMINE, numStates_);
-    MatMPIAIJSetPreallocation(jacobian, 1, NULL, 0, NULL);
-    ierr = MatZeroEntries(jacobian); CHKERRQ(ierr);
-    MatAssemblyBegin(jacobian, MAT_FINAL_ASSEMBLY);
-    MatAssemblyEnd(jacobian, MAT_FINAL_ASSEMBLY);
-    ierr = MatShift(jacobian, 1.0); CHKERRQ(ierr);
-    ierr = MatAXPY(jacobian, -discountFactor_, transitionProbabilities, DIFFERENT_NONZERO_PATTERN); CHKERRQ(ierr);
-    return 0;*/
-    ierr = MatCreateShell(PETSC_COMM_WORLD, localNumStates_, localNumStates_, numStates_, numStates_, &ctx, &jacobian);
-    CHKERRQ(ierr);
-    ierr = MatShellSetOperation(jacobian, MATOP_MULT, (void (*)(void)) jacobianMultiplication);
-    CHKERRQ(ierr);
-    MatAssemblyBegin(jacobian, MAT_FINAL_ASSEMBLY);
-    MatAssemblyEnd(jacobian, MAT_FINAL_ASSEMBLY);
+    ierr = MatCreateShell(PETSC_COMM_WORLD, localNumStates_, localNumStates_, numStates_, numStates_, &ctx, &jacobian); CHKERRQ(ierr);
+    ierr = MatShellSetOperation(jacobian, MATOP_MULT, (void (*)(void)) jacobianMultiplication); CHKERRQ(ierr);
+    //MatAssemblyBegin(jacobian, MAT_FINAL_ASSEMBLY);
+    //MatAssemblyEnd(jacobian, MAT_FINAL_ASSEMBLY);
     return 0;
 }
-
 
 PetscErrorCode MDP::inexactPolicyIteration(Vec &V0, IS &policy, Vec &optimalCost) {
     LOG("Entering inexactPolicyIteration");
