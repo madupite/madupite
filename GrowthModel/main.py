@@ -1,12 +1,9 @@
-import sys
-sys.path.append("../archive/python-numpy-implementation/")
 from mdp import *
-
 
 z_transitionProbabilityMatrix = np.array([[0.975, 0.025], [0.025, 0.975]])
 z = np.array([0.726, 1.377])
 nz = 2
-nk = 500
+nk = 20
 numActions = nk
 
 gamma = 0.5 # risk aversion parameter, could also be -5.0 (high risk aversion)
@@ -57,10 +54,46 @@ def feasibleActions():
 
 A = feasibleActions()
 
+def constructFromPolicy(actionInd):
+    P = np.zeros((nk*nz, nk*nz))
+    r = np.empty((nk*nz))
 
+    for i in range(nk):
+        for j in range(nz):
+            s = ij2s(i, j)
+            if actionInd <= A[s]: # action must be feasible!
+                P[s, actionInd*nz:(actionInd+1)*nz] = z_transitionProbabilityMatrix[j, :]
+                #print(f"B[{i}, {j}] = {B[i, j]}; k[{actionInd}] = {k[actionInd]}; gamma = {gamma}")
+                r[s] = (B[i, j] - k[actionInd])**gamma / gamma
+            else:
+                P[s, :] = np.zeros((1, nk*nz))
+                r[s] = -np.inf
 
+    return P, r
 
-            
+def generateTransitionTensor():
+    P = np.zeros((numActions, nk*nz, nk*nz))
+    r = np.zeros((nk*nz, numActions))
+    for a in range(numActions):
+        P[a, :, :], r[:, a] = constructFromPolicy(a)
+    return P, r
 
+P, r = generateTransitionTensor()
+mdp = MDP(nk*nz, numActions, beta)
+mdp.transitionTensor_ = P
+mdp.stageCosts_ = r
 
+V0 = np.zeros((nk*nz, 1))
+policy0 = mdp.extractGreedyPolicy(V0)
 
+result, policy = mdp.policyIteration(policy0, V0)
+
+print("Feasible actions:")
+print(A)
+print("Optimal policy:")
+print(policy)
+
+print("Suboptimality gap (inf norm):")
+v_opt = np.array(result[-1][1])
+for i in range(1, len(result)):
+    print(f"{result[i][0]} {np.linalg.norm(np.array(result[i][1]) - v_opt, ord=np.inf)}")
