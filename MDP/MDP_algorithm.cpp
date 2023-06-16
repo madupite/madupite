@@ -195,6 +195,7 @@ PetscErrorCode MDP::createJacobian(Mat &jacobian, const Mat &transitionProbabili
 
 PetscErrorCode MDP::inexactPolicyIteration(Vec &V0, IS &policy, Vec &optimalCost) {
     LOG("Entering inexactPolicyIteration");
+    jsonWriter_->add_solver_run();
 
     PetscErrorCode ierr;
 
@@ -239,10 +240,7 @@ PetscErrorCode MDP::inexactPolicyIteration(Vec &V0, IS &policy, Vec &optimalCost
 
         PetscTime(&endTime);
 
-        if(rank_ == 0) {
-            jsonWriter_->add_data(i, ctx.kspIterations, (endTime-startTime)*1000, residualNorm);
-        }
-
+        jsonWriter_->add_iteration_data(i, ctx.kspIterations, (endTime - startTime) * 1000, residualNorm);
 
         if(residualNorm < atol_PI_) {
             break;

@@ -1,5 +1,4 @@
 -mat_type mpiaij
--vec_type mpi
 -pc_type none
 -states 18000
 -actions 40

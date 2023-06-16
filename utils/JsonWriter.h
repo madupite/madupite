@@ -12,32 +12,39 @@
 
 class JsonWriter {
 public:
-    JsonWriter(int rank, int size) : rank_(rank), size_(size) {}
+    explicit JsonWriter(int rank) : rank_(rank) {}
 
-    void add_data(int pi_iteration, int krylov_iteration, double computation_time, double residual) {
-        nlohmann::json data;
-        data["pi_iteration"] = pi_iteration;
-        data["ksp_iterations"] = krylov_iteration;
-        data["computation_time"] = computation_time;
-        data["residual"] = residual;
+    void add_solver_run() {
+        if(rank_ == 0) solver_runs.emplace_back();
+    }
 
-        all_data.push_back(data);
+    void add_data(const std::string& key, const nlohmann::json& value) {
+        if(rank_ == 0) data[key] = value;
+    }
+
+    void add_iteration_data(int pi_iteration, int krylov_iteration, double computation_time, double residual) {
+        if(rank_ == 0) {
+            nlohmann::json tmp;
+            tmp["pi_iteration"] = pi_iteration;
+            tmp["ksp_iterations"] = krylov_iteration;
+            tmp["computation_time"] = computation_time;
+            tmp["residual"] = residual;
+            solver_runs[solver_runs.size() - 1].push_back(tmp);
+        }
     }
 
     void write_to_file(const std::string& filename) {
         if (rank_ == 0) {
-            nlohmann::json output;
-            output["data"] = all_data;
-
+            data["solver_runs"] = solver_runs;
             std::ofstream file(filename);
-            file << output.dump(4);
+            file << data.dump(4);
         }
     }
 
 private:
-    std::vector<nlohmann::json> all_data;
+    nlohmann::json data;
+    std::vector<nlohmann::json> solver_runs;
     int rank_;
-    int size_;
 };
 
 

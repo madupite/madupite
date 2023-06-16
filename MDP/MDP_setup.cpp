@@ -7,14 +7,19 @@
 #include <mpi.h>
 
 MDP::MDP() {
+    // MPI parallelization initialization
+    MPI_Comm_rank(PETSC_COMM_WORLD, &rank_);
+    MPI_Comm_size(PETSC_COMM_WORLD, &size_);
+
+    jsonWriter_ = new JsonWriter(rank_);
     transitionProbabilityTensor_ = nullptr;
     stageCostMatrix_ = nullptr;
 
     setValuesFromOptions();
 
-    // MPI parallelization initialization
-    MPI_Comm_rank(PETSC_COMM_WORLD, &rank_);
-    MPI_Comm_size(PETSC_COMM_WORLD, &size_);
+    jsonWriter_->add_data("numRanks", size_);
+
+    // distribute states to ranks
     localNumStates_ = (rank_ < numStates_ % size_) ? numStates_ / size_ + 1 : numStates_ / size_; // first numStates_ % size_ ranks get one more state
     Logger::setPrefix("[R" + std::to_string(rank_) + "] ");
     Logger::setFilename("log_R" + std::to_string(rank_) + ".txt"); // remove if all ranks should output to the same file
@@ -23,8 +28,6 @@ MDP::MDP() {
     if(file_P_[0] != '\0' && file_g_[0] != '\0') {
         loadFromBinaryFile(file_P_, file_g_);
     }
-
-    jsonWriter_ = new JsonWriter(rank_, size_);
 }
 
 MDP::~MDP() {
@@ -41,30 +44,37 @@ PetscErrorCode MDP::setValuesFromOptions() {
     if(!flg) {
         SETERRQ(PETSC_COMM_WORLD, 1, "Number of states not specified. Use -states <int>.");
     }
+    jsonWriter_->add_data("numStates", numStates_);
     ierr = PetscOptionsGetInt(NULL, NULL, "-actions", &numActions_, &flg); CHKERRQ(ierr);
     if(!flg) {
         SETERRQ(PETSC_COMM_WORLD, 1, "Number of actions not specified. Use -actions <int>.");
     }
+    jsonWriter_->add_data("numActions", numActions_);
     ierr = PetscOptionsGetReal(NULL, NULL, "-discountFactor", &discountFactor_, &flg); CHKERRQ(ierr);
     if(!flg) {
         SETERRQ(PETSC_COMM_WORLD, 1, "Discount factor not specified. Use -discountFactor <double>.");
     }
+    jsonWriter_->add_data("discountFactor", discountFactor_);
     ierr = PetscOptionsGetInt(NULL, NULL, "-maxIter_PI", &maxIter_PI_, &flg); CHKERRQ(ierr);
     if(!flg) {
         SETERRQ(PETSC_COMM_WORLD, 1, "Maximum number of policy iterations not specified. Use -maxIter_PI <int>.");
     }
+    jsonWriter_->add_data("maxIter_PI", maxIter_PI_);
     ierr = PetscOptionsGetInt(NULL, NULL, "-maxIter_KSP", &maxIter_KSP_, &flg); CHKERRQ(ierr);
     if(!flg) {
         SETERRQ(PETSC_COMM_WORLD, 1, "Maximum number of KSP iterations not specified. Use -maxIter_KSP <int>.");
     }
+    jsonWriter_->add_data("maxIter_KSP", maxIter_KSP_);
     ierr = PetscOptionsGetReal(NULL, NULL, "-rtol_KSP", &rtol_KSP_, &flg); CHKERRQ(ierr);
     if(!flg) {
         SETERRQ(PETSC_COMM_WORLD, 1, "Relative tolerance for KSP not specified. Use -rtol_KSP <double>.");
     }
+    jsonWriter_->add_data("rtol_KSP", rtol_KSP_);
     ierr = PetscOptionsGetReal(NULL, NULL, "-atol_PI", &atol_PI_, &flg); CHKERRQ(ierr);
     if(!flg) {
         SETERRQ(PETSC_COMM_WORLD, 1, "Absolute tolerance for policy iteration not specified. Use -atol_PI <double>.");
     }
+    jsonWriter_->add_data("atol_PI", atol_PI_);
     ierr = PetscOptionsGetString(NULL, NULL, "-file_P", file_P_, PETSC_MAX_PATH_LEN, &flg); CHKERRQ(ierr);
     if(!flg) {
         SETERRQ(PETSC_COMM_WORLD, 1, "Filename for transition probability tensor not specified. Use -file_P <string>. (max length: 4096 chars");
@@ -206,5 +216,4 @@ PetscErrorCode MDP::writeResultPolicy(const IS &optimalPolicy) {
         delete[] recvcounts;
         delete[] displs;
     }
-
 }
