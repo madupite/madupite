@@ -11,3 +11,5 @@
 -file_P ../data/18000_40_0.005000/P.bin
 -file_g ../data/18000_40_0.005000/g.bin
 -file_stats out/stats.json
+-file_policy out/policy.out
+-file_cost out/cost.out

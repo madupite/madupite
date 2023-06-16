@@ -4,6 +4,7 @@
 
 #include "MDP.h"
 #include "../utils/Logger.h"
+#include <mpi.h>
 
 MDP::MDP() {
     transitionProbabilityTensor_ = nullptr;
@@ -126,4 +127,84 @@ PetscErrorCode MDP::loadFromBinaryFile(std::string filename_P, std::string filen
     LOG("owns rows " + std::to_string(g_start_) + " to " + std::to_string(g_end_) + " of g.");
 
     return ierr;
+}
+
+// gathers values on rank 0 and writes to file
+PetscErrorCode MDP::writeResultCost(const Vec &optimalCost) {
+
+    /*if(rank_ == 0) {
+        PetscReal *values = new PetscReal[numStates_];
+    }
+    else {
+        PetscReal *values = new PetscReal[localNumStates_];
+    }*/
+
+    VecScatter ctx;
+    Vec MPIVec;
+    if(rank_ == 0) {
+        VecCreateSeq(PETSC_COMM_SELF, numStates_, &MPIVec);
+    }
+    else {
+        VecCreateSeq(PETSC_COMM_SELF, localNumStates_, &MPIVec);
+    }
+
+    VecScatterCreateToAll(optimalCost, &ctx, &MPIVec);
+    VecScatterBegin(ctx, optimalCost, MPIVec, INSERT_VALUES, SCATTER_FORWARD);
+    VecScatterEnd(ctx, optimalCost, MPIVec, INSERT_VALUES, SCATTER_FORWARD);
+
+    const PetscReal *values;
+    VecGetArrayRead(MPIVec, &values);
+
+    // Rank 0 writes to file
+    if(rank_ == 0) {
+        std::ofstream out(file_cost_);
+        for(PetscInt i = 0; i < numStates_; ++i) {
+            out << values[i] << "\n";
+        }
+        out.close();
+    }
+
+    VecRestoreArrayRead(MPIVec, &values);
+
+    VecScatterDestroy(&ctx);
+    VecDestroy(&MPIVec);
+
+    return 0;
+}
+
+// gathers values on rank 0 and writes to file
+PetscErrorCode MDP::writeResultPolicy(const IS &optimalPolicy) {
+    const PetscInt *indices;
+    ISGetIndices(optimalPolicy, &indices);
+    PetscInt localSize = localNumStates_;
+    PetscInt *allIndices = NULL;
+    PetscInt *recvcounts = NULL;
+    PetscInt *displs = NULL;
+    if(rank_ == 0) {
+        allIndices = new PetscInt[numStates_];
+        recvcounts = new PetscInt[size_];
+        displs = new PetscInt[size_];
+    }
+    MPI_Gather(&localSize, 1, MPI_INT, recvcounts, 1, MPI_INT, 0, PETSC_COMM_WORLD);
+    if(rank_ == 0) {
+        displs[0] = 0;
+        for(PetscInt i = 1; i < size_; ++i) {
+            displs[i] = displs[i-1] + recvcounts[i-1];
+        }
+    }
+    MPI_Gatherv(indices, localSize, MPI_INT, allIndices, recvcounts, displs, MPI_INT, 0, PETSC_COMM_WORLD);
+
+    // Rank 0 writes to file
+    if(rank_ == 0) {
+        std::ofstream out(file_policy_);
+        for(PetscInt i = 0; i < numStates_; ++i) {
+            out << allIndices[i] << "\n";
+        }
+        out.close();
+
+        delete[] allIndices;
+        delete[] recvcounts;
+        delete[] displs;
+    }
+
 }

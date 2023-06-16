@@ -41,6 +41,8 @@ public:
     PetscErrorCode computeResidualNorm(Mat J, Vec V, Vec g, PetscReal *rnorm);
 
     PetscErrorCode loadFromBinaryFile(std::string filename_P, std::string filename_g);
+    PetscErrorCode writeResultCost  (const Vec  &optimalCost);
+    PetscErrorCode writeResultPolicy(const IS &optimalPolicy);
 
     // user specified parameters
     PetscInt    numStates_;       // global
