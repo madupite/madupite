@@ -110,23 +110,16 @@ PetscErrorCode MDP::loadFromBinaryFile(std::string filename_P, std::string filen
     MatSetFromOptions(transitionProbabilityTensor_);
     ierr = MatSetSizes(transitionProbabilityTensor_, localNumStates_*numActions_, PETSC_DECIDE, PETSC_DECIDE, numStates_); CHKERRQ(ierr);
     MatSetUp(transitionProbabilityTensor_);
-    PetscViewerCreate(PETSC_COMM_WORLD, &viewer);
-    PetscViewerSetType(viewer, PETSCVIEWERBINARY);
-    PetscViewerFileSetMode(viewer, FILE_MODE_READ);
-    PetscViewerFileSetName(viewer, filename_P.c_str());
+    PetscViewerBinaryOpen(PETSC_COMM_WORLD, filename_P.c_str(), FILE_MODE_READ, &viewer);
     MatLoad(transitionProbabilityTensor_, viewer);
     PetscViewerDestroy(&viewer);
-    // PetscViewerBinaryOpen?
 
     // load stage cost matrix
     MatCreate(PETSC_COMM_WORLD, &stageCostMatrix_);
     MatSetFromOptions(stageCostMatrix_);
     ierr = MatSetSizes(stageCostMatrix_, localNumStates_, PETSC_DECIDE, PETSC_DECIDE, numActions_); CHKERRQ(ierr);
     MatSetUp(stageCostMatrix_);
-    PetscViewerCreate(PETSC_COMM_WORLD, &viewer);
-    PetscViewerSetType(viewer, PETSCVIEWERBINARY);
-    PetscViewerFileSetMode(viewer, FILE_MODE_READ);
-    PetscViewerFileSetName(viewer, filename_g.c_str());
+    PetscViewerBinaryOpen(PETSC_COMM_WORLD, filename_g.c_str(), FILE_MODE_READ, &viewer);
     MatLoad(stageCostMatrix_, viewer);
     PetscViewerDestroy(&viewer);
 
