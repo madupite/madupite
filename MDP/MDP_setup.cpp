@@ -141,14 +141,6 @@ PetscErrorCode MDP::loadFromBinaryFile(std::string filename_P, std::string filen
 
 // gathers values on rank 0 and writes to file
 PetscErrorCode MDP::writeResultCost(const Vec &optimalCost) {
-
-    /*if(rank_ == 0) {
-        PetscReal *values = new PetscReal[numStates_];
-    }
-    else {
-        PetscReal *values = new PetscReal[localNumStates_];
-    }*/
-
     VecScatter ctx;
     Vec MPIVec;
     if(rank_ == 0) {
@@ -190,30 +182,40 @@ PetscErrorCode MDP::writeResultPolicy(const IS &optimalPolicy) {
     PetscInt *allIndices = NULL;
     PetscInt *recvcounts = NULL;
     PetscInt *displs = NULL;
+
     if(rank_ == 0) {
-        allIndices = new PetscInt[numStates_];
-        recvcounts = new PetscInt[size_];
-        displs = new PetscInt[size_];
-    }
-    MPI_Gather(&localSize, 1, MPI_INT, recvcounts, 1, MPI_INT, 0, PETSC_COMM_WORLD);
-    if(rank_ == 0) {
+        PetscMalloc1(numStates_, &allIndices);
+        PetscMalloc1(size_, &recvcounts);
+        PetscMalloc1(size_, &displs);
+
+        MPI_Gather(&localSize, 1, MPI_INT, recvcounts, 1, MPI_INT, 0, PETSC_COMM_WORLD);
+
         displs[0] = 0;
         for(PetscInt i = 1; i < size_; ++i) {
             displs[i] = displs[i-1] + recvcounts[i-1];
         }
-    }
-    MPI_Gatherv(indices, localSize, MPI_INT, allIndices, recvcounts, displs, MPI_INT, 0, PETSC_COMM_WORLD);
 
-    // Rank 0 writes to file
-    if(rank_ == 0) {
+        MPI_Gatherv(indices, localSize, MPI_INT, allIndices, recvcounts, displs, MPI_INT, 0, PETSC_COMM_WORLD);
+
+        // Rank 0 writes to file
         std::ofstream out(file_policy_);
         for(PetscInt i = 0; i < numStates_; ++i) {
             out << allIndices[i] << "\n";
         }
         out.close();
 
-        delete[] allIndices;
-        delete[] recvcounts;
-        delete[] displs;
+        PetscFree(allIndices);
+        PetscFree(recvcounts);
+        PetscFree(displs);
     }
+    else {
+        MPI_Gather(&localSize, 1, MPI_INT, recvcounts, 1, MPI_INT, 0, PETSC_COMM_WORLD);
+        MPI_Gatherv(indices, localSize, MPI_INT, allIndices, recvcounts, displs, MPI_INT, 0, PETSC_COMM_WORLD);
+    }
+
+    ISRestoreIndices(optimalPolicy, &indices);
+
+    return 0;
 }
+
+
