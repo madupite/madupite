@@ -13,7 +13,7 @@
 // find $\argmin_{\pi} \{ g^\pi + \gamma P^\pi V \}$
 // PRE: policy is a array of size localNumStates_ and must be allocated. Function will write into it but not allocate it.
 // idea: Mult gamma * P*V, reshape, add g, use MatGetRowMin
-PetscErrorCode MDP::extractGreedyPolicy(Vec &V, PetscInt *policy) {
+PetscErrorCode MDP::extractGreedyPolicy(Vec &V, PetscInt *policy, PetscReal &residualNorm) {
     PetscErrorCode ierr;
     Vec costVector;
     VecCreateMPI(PETSC_COMM_WORLD, localNumStates_*numActions_, numStates_*numActions_, &costVector);
@@ -47,15 +47,16 @@ PetscErrorCode MDP::extractGreedyPolicy(Vec &V, PetscInt *policy) {
     // add g to costMatrix
     MatAXPY(costMatrix, 1.0, stageCostMatrix_, DIFFERENT_NONZERO_PATTERN);
 
-    // find minimum for each row
+    // find minimum for each row and compute residual norm
     Vec residual;
     VecCreateMPI(PETSC_COMM_WORLD, localNumStates_, numStates_, &residual);
     ierr = MatGetRowMin(costMatrix, residual, policy); CHKERRQ(ierr);
+    VecAXPY(residual, -1.0, V);
+    VecNorm(residual, NORM_INFINITY, &residualNorm);
     VecDestroy(&residual);
     VecDestroy(&costVector);
     MatDestroy(&costMatrix);
     return 0;
-
 }
 
 
@@ -222,11 +223,11 @@ PetscErrorCode MDP::inexactPolicyIteration(Vec &V0, IS &policy, Vec &optimalCost
     PetscReal residualNorm;
 
     // initialize policy iteration
-    extractGreedyPolicy(V, policyValues);
+    // todo: timer for "setup phase" of iPI?
+    extractGreedyPolicy(V, policyValues, residualNorm);
     constructFromPolicy(policyValues, transitionProbabilities, stageCosts);
     JacobianContext ctxJac = {transitionProbabilities, discountFactor_};
     createJacobian(jacobian, transitionProbabilities, ctxJac);
-    computeResidualNorm(jacobian, V, stageCosts, &residualNorm); // for KSP convergence test
 
     PetscLogDouble startTime, endTime;
     PetscInt i = 1;
@@ -243,11 +244,10 @@ PetscErrorCode MDP::inexactPolicyIteration(Vec &V0, IS &policy, Vec &optimalCost
         VecDestroy(&stageCosts);
 
         // compute jacobian wrt new policy
-        extractGreedyPolicy(V, policyValues);
+        extractGreedyPolicy(V, policyValues, residualNorm);
         constructFromPolicy(policyValues, transitionProbabilities, stageCosts);
         ctxJac = {transitionProbabilities, discountFactor_};
         createJacobian(jacobian, transitionProbabilities, ctxJac);
-        computeResidualNorm(jacobian, V, stageCosts, &residualNorm); // used for outer loop stopping criterion + RHS of KSP stopping criterion
 
         PetscTime(&endTime);
 
@@ -259,7 +259,7 @@ PetscErrorCode MDP::inexactPolicyIteration(Vec &V0, IS &policy, Vec &optimalCost
     }
 
     if(i > maxIter_PI_) {
-        LOG("Warning: maximum number of PI iterations reached");
+        LOG("Warning: maximum number of PI iterations reached. Solution might not be optimal.");
     }
 
     jsonWriter_->write_to_file(file_stats_);
@@ -278,19 +278,6 @@ PetscErrorCode MDP::inexactPolicyIteration(Vec &V0, IS &policy, Vec &optimalCost
 
     return 0;
 }
-
-PetscErrorCode MDP::computeResidualNorm(Mat J, Vec V, Vec g, PetscReal *rnorm) {
-    // compute residual norm ||g - J*V||_\infty
-    PetscErrorCode ierr;
-    Vec res;
-    VecDuplicate(g, &res);
-    MatMult(J, V, res);
-    VecAXPY(res, -1, g);
-    VecNorm(res, NORM_INFINITY, rnorm);
-    VecDestroy(&res);
-    return ierr;
-}
-
 
 PetscErrorCode MDP::cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason *reason, void *ctx) {
     PetscErrorCode ierr;
