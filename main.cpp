@@ -28,7 +28,8 @@ int main(int argc, char** argv)
     Vec optimalCost;
 
     t.start();
-    mdp.inexactPolicyIteration(V0, optimalPolicy, optimalCost);
+    //mdp.inexactPolicyIteration(V0, optimalPolicy, optimalCost);
+    mdp.benchmarkIPI(V0, optimalPolicy, optimalCost, 10);
     t.stop("iPI took: ");
 
     t.start();

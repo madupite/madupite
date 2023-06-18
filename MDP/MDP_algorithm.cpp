@@ -299,3 +299,12 @@ PetscErrorCode MDP::cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedR
 
     return 0;
 }
+
+PetscErrorCode MDP::benchmarkIPI(Vec &V0, IS &policy, Vec &optimalCost, PetscInt numRuns) {
+
+    for(PetscInt i = 0; i < numRuns; ++i) {
+        inexactPolicyIteration(V0, policy, optimalCost);
+    }
+
+    return 0;
+}

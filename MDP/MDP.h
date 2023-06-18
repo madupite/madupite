@@ -35,6 +35,7 @@ public:
     PetscErrorCode iterativePolicyEvaluation(Mat &jacobian, Vec &stageCosts, Vec &V, KSPContext &ctx);
     PetscErrorCode createJacobian(Mat &jacobian, const Mat &transitionProbabilities, JacobianContext &ctx);
     PetscErrorCode inexactPolicyIteration(Vec &V0, IS &policy, Vec &optimalCost);
+    PetscErrorCode benchmarkIPI(Vec &V0, IS &policy, Vec &optimalCost, PetscInt numRuns);
 
     static PetscErrorCode cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason *reason, void *ctx); // Test if residual norm is smaller than alpha * r0_norm
     static void jacobianMultiplication(Mat mat, Vec x, Vec y); // defines matrix vector product for jacobian shell
