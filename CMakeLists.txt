@@ -16,7 +16,7 @@ include_directories($ENV{PETSC_DIR}/$ENV{PETSC_ARCH}/include)
 
 # MPI configuration
 find_package(MPI REQUIRED)
-set(CMAKE_CXX_COMPILER ${MPI_CXX_COMPILER})
+#set(CMAKE_CXX_COMPILER ${MPI_CXX_COMPILER})
 include_directories(${MPI_INCLUDE_PATH})
 
 # nlohmann json configuration

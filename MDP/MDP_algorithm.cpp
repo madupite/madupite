@@ -12,42 +12,93 @@
 
 // find $\argmin_{\pi} \{ g^\pi + \gamma P^\pi V \}$
 // PRE: policy is a array of size localNumStates_ and must be allocated. Function will write into it but not allocate it.
-PetscErrorCode MDP::extractGreedyPolicy(Vec &V, PetscInt *policy) {
-
+// idea: Mult gamma * P*V, reshape, add g, use MatGetRowMin
+PetscErrorCode MDP::extractGreedyPolicy(Vec &V, PetscInt *policy, PetscReal &residualNorm) {
     PetscErrorCode ierr;
-    const PetscReal *costValues; // stores cost (= g + gamma PV) values for each state
-    PetscReal *minCostValues; // stores minimum cost values for each state
-    PetscMalloc1(localNumStates_, &minCostValues);
-    std::fill(minCostValues, minCostValues + localNumStates_, std::numeric_limits<PetscReal>::max());
+    Vec costVector;
+    VecCreateMPI(PETSC_COMM_WORLD, localNumStates_*numActions_, numStates_*numActions_, &costVector);
+    ierr = MatMult(transitionProbabilityTensor_, V, costVector); CHKERRQ(ierr);
+    VecScale(costVector, discountFactor_);
 
-    Mat P;
-    Vec g;
+    // reshape costVector into costMatrix
+    // create + preallocate new matrix
+    Mat costMatrix;
+    MatCreate(PETSC_COMM_WORLD, &costMatrix);
+    MatSetSizes(costMatrix, localNumStates_, PETSC_DECIDE, numStates_, numActions_);
+    MatSetType(costMatrix, MATMPIAIJ);
+    MatSetUp(costMatrix);
+    PetscInt localNumActions, rowStart;
+    MatGetLocalSize(costMatrix, NULL, &localNumActions);
+    MatGetOwnershipRange(costMatrix, &rowStart, NULL);
+    ierr = MatMPIAIJSetPreallocation(costMatrix, localNumActions, NULL, numActions_ - localNumActions, NULL); CHKERRQ(ierr); // preallocate dense matrix
 
-    for (PetscInt actionInd = 0; actionInd < numActions_; ++actionInd) {
-        //LOG("action " + std::to_string(actionInd) + " of " + std::to_string(numActions_) + "...");
-        constructFromPolicy(actionInd, P, g); // creates P and g => need to destroy P and g by ourselves
-        //LOG("Finished construction of P and g. Calculating g + gamma PV...");
-        ierr = MatScale(P, discountFactor_); CHKERRQ(ierr);
-        ierr = MatMultAdd(P, V, g, g); CHKERRQ(ierr);
+    // fill matrix with values
+#if 0
+    const PetscReal *costVectorValues;
+    VecGetArrayRead(costVector, &costVectorValues);
+    IS rows, cols;
+    ISCreateStride(PETSC_COMM_WORLD, localNumStates_, rowStart, 1, &rows);
+    ISCreateStride(PETSC_COMM_WORLD, numActions_, 0, 1, &cols);
+    ierr = MatSetValuesIS(costMatrix, rows, cols, costVectorValues, INSERT_VALUES); CHKERRQ(ierr);
+    MatAssemblyBegin(costMatrix, MAT_FINAL_ASSEMBLY);
+    VecRestoreArrayRead(costVector, &costVectorValues);
+    MatAssemblyEnd(costMatrix, MAT_FINAL_ASSEMBLY);
+    ISDestroy(&rows);
+    ISDestroy(&cols);
+#endif
 
-        ierr = VecGetArrayRead(g, &costValues); CHKERRQ(ierr);
+#if 1
+    const PetscReal *costVectorValues;
+    VecGetArrayRead(costVector, &costVectorValues);
+    IS rows, cols;
+    ISCreateStride(PETSC_COMM_WORLD, localNumStates_, rowStart, 1, &rows);
+    ISCreateStride(PETSC_COMM_WORLD, numActions_, 0, 1, &cols);
+    const PetscInt *rowIndices, *colIndices;
+    ISGetIndices(rows, &rowIndices);
+    ISGetIndices(cols, &colIndices);
+    //ierr = MatSetValuesIS(costMatrix, rows, cols, costVectorValues, INSERT_VALUES); CHKERRQ(ierr);
+    ierr = MatSetValues(costMatrix, localNumStates_, rowIndices, numActions_, colIndices, costVectorValues, INSERT_VALUES); CHKERRQ(ierr);
+    MatAssemblyBegin(costMatrix, MAT_FINAL_ASSEMBLY);
+    VecRestoreArrayRead(costVector, &costVectorValues);
+    ISRestoreIndices(rows, &rowIndices);
+    ISRestoreIndices(cols, &colIndices);
+    MatAssemblyEnd(costMatrix, MAT_FINAL_ASSEMBLY);
+    ISDestroy(&rows);
+    ISDestroy(&cols);
+#endif
 
-        //LOG("Performing minimization for all local states...");
-        for (int localStateInd = 0; localStateInd < localNumStates_; ++localStateInd) {
-            if (costValues[localStateInd] < minCostValues[localStateInd]) {
-                minCostValues[localStateInd] = costValues[localStateInd];
-                policy[localStateInd] = actionInd;
-            }
-        }
-        ierr = VecRestoreArrayRead(g, &costValues); CHKERRQ(ierr);
-        //LOG("Finished minimization for all local states.");
-        ierr = MatDestroy(&P); CHKERRQ(ierr);
-        ierr = VecDestroy(&g); CHKERRQ(ierr);
-    }
-    ierr = PetscFree(costValues); CHKERRQ(ierr);
+#if 0
+    const PetscReal *costVectorValues;
+    VecGetArrayRead(costVector, &costVectorValues);
+    PetscInt *rowIndices, *colIndices;
+    PetscMalloc1(localNumStates_, &rowIndices);
+    PetscMalloc1(numActions_, &colIndices);
+    std::iota(colIndices, colIndices + numActions_, 0);
+    std::iota(rowIndices, rowIndices + localNumStates_, rowStart);
+    ierr = MatSetValues(costMatrix, localNumStates_, rowIndices, numActions_, colIndices, costVectorValues, INSERT_VALUES); CHKERRQ(ierr);
+    MatAssemblyBegin(costMatrix, MAT_FINAL_ASSEMBLY);
+    VecRestoreArrayRead(costVector, &costVectorValues);
+    MatAssemblyEnd(costMatrix, MAT_FINAL_ASSEMBLY);
+    PetscFree(rowIndices);
+    PetscFree(colIndices);
+#endif
 
+    // add g to costMatrix
+    MatAXPY(costMatrix, 1.0, stageCostMatrix_, DIFFERENT_NONZERO_PATTERN);
+
+    // find minimum for each row and compute residual norm
+    Vec residual;
+    VecCreateMPI(PETSC_COMM_WORLD, localNumStates_, numStates_, &residual);
+    ierr = MatGetRowMin(costMatrix, residual, policy); CHKERRQ(ierr);
+    VecAXPY(residual, -1.0, V);
+    VecNorm(residual, NORM_INFINITY, &residualNorm);
+    VecDestroy(&residual);
+    VecDestroy(&costVector);
+    MatDestroy(&costMatrix);
     return 0;
 }
+
+
 
 // user must destroy P and g by himself. Function will create them. [used in extractGreedyPolicy]
 PetscErrorCode MDP::constructFromPolicy(const PetscInt actionInd, Mat &transitionProbabilities, Vec &stageCosts) {
@@ -211,11 +262,11 @@ PetscErrorCode MDP::inexactPolicyIteration(Vec &V0, IS &policy, Vec &optimalCost
     PetscReal residualNorm;
 
     // initialize policy iteration
-    extractGreedyPolicy(V, policyValues);
+    // todo: timer for "setup phase" of iPI?
+    extractGreedyPolicy(V, policyValues, residualNorm);
     constructFromPolicy(policyValues, transitionProbabilities, stageCosts);
     JacobianContext ctxJac = {transitionProbabilities, discountFactor_};
     createJacobian(jacobian, transitionProbabilities, ctxJac);
-    computeResidualNorm(jacobian, V, stageCosts, &residualNorm); // for KSP convergence test
 
     PetscLogDouble startTime, endTime;
     PetscInt i = 1;
@@ -232,11 +283,10 @@ PetscErrorCode MDP::inexactPolicyIteration(Vec &V0, IS &policy, Vec &optimalCost
         VecDestroy(&stageCosts);
 
         // compute jacobian wrt new policy
-        extractGreedyPolicy(V, policyValues);
+        extractGreedyPolicy(V, policyValues, residualNorm);
         constructFromPolicy(policyValues, transitionProbabilities, stageCosts);
         ctxJac = {transitionProbabilities, discountFactor_};
         createJacobian(jacobian, transitionProbabilities, ctxJac);
-        computeResidualNorm(jacobian, V, stageCosts, &residualNorm); // used for outer loop stopping criterion + RHS of KSP stopping criterion
 
         PetscTime(&endTime);
 
@@ -246,8 +296,9 @@ PetscErrorCode MDP::inexactPolicyIteration(Vec &V0, IS &policy, Vec &optimalCost
             break;
         }
     }
+
     if(i > maxIter_PI_) {
-        LOG("Warning: maximum number of PI iterations reached");
+        LOG("Warning: maximum number of PI iterations reached. Solution might not be optimal.");
     }
 
     jsonWriter_->write_to_file(file_stats_);
@@ -267,19 +318,6 @@ PetscErrorCode MDP::inexactPolicyIteration(Vec &V0, IS &policy, Vec &optimalCost
     return 0;
 }
 
-PetscErrorCode MDP::computeResidualNorm(Mat J, Vec V, Vec g, PetscReal *rnorm) {
-    // compute residual norm ||g - J*V||_\infty
-    PetscErrorCode ierr;
-    Vec res;
-    VecDuplicate(g, &res);
-    MatMult(J, V, res);
-    VecAXPY(res, -1, g);
-    VecNorm(res, NORM_INFINITY, rnorm);
-    VecDestroy(&res);
-    return ierr;
-}
-
-
 PetscErrorCode MDP::cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason *reason, void *ctx) {
     PetscErrorCode ierr;
     PetscReal threshold = static_cast<KSPContext*>(ctx)->threshold;
@@ -297,6 +335,15 @@ PetscErrorCode MDP::cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedR
     else if(norm < threshold) *reason = KSP_CONVERGED_RTOL;
     else if(it >= static_cast<KSPContext*>(ctx)->maxIter) *reason = KSP_DIVERGED_ITS;
     else *reason = KSP_CONVERGED_ITERATING;
+
+    return 0;
+}
+
+PetscErrorCode MDP::benchmarkIPI(Vec &V0, IS &policy, Vec &optimalCost, PetscInt numRuns) {
+
+    for(PetscInt i = 0; i < numRuns; ++i) {
+        inexactPolicyIteration(V0, policy, optimalCost);
+    }
 
     return 0;
 }
