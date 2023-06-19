@@ -26,12 +26,14 @@ PetscErrorCode MDP::extractGreedyPolicy(Vec &V, PetscInt *policy, PetscReal &res
     MatCreate(PETSC_COMM_WORLD, &costMatrix);
     MatSetSizes(costMatrix, localNumStates_, PETSC_DECIDE, numStates_, numActions_);
     MatSetType(costMatrix, MATMPIAIJ);
+    MatSetUp(costMatrix);
     PetscInt localNumActions, rowStart;
     MatGetLocalSize(costMatrix, NULL, &localNumActions);
     MatGetOwnershipRange(costMatrix, &rowStart, NULL);
     ierr = MatMPIAIJSetPreallocation(costMatrix, localNumActions, NULL, numActions_ - localNumActions, NULL); CHKERRQ(ierr); // preallocate dense matrix
 
     // fill matrix with values
+#if 0
     const PetscReal *costVectorValues;
     VecGetArrayRead(costVector, &costVectorValues);
     IS rows, cols;
@@ -43,6 +45,43 @@ PetscErrorCode MDP::extractGreedyPolicy(Vec &V, PetscInt *policy, PetscReal &res
     MatAssemblyEnd(costMatrix, MAT_FINAL_ASSEMBLY);
     ISDestroy(&rows);
     ISDestroy(&cols);
+#endif
+
+#if 1
+    const PetscReal *costVectorValues;
+    VecGetArrayRead(costVector, &costVectorValues);
+    IS rows, cols;
+    ISCreateStride(PETSC_COMM_WORLD, localNumStates_, rowStart, 1, &rows);
+    ISCreateStride(PETSC_COMM_WORLD, numActions_, 0, 1, &cols);
+    const PetscInt *rowIndices, *colIndices;
+    ISGetIndices(rows, &rowIndices);
+    ISGetIndices(cols, &colIndices);
+    //ierr = MatSetValuesIS(costMatrix, rows, cols, costVectorValues, INSERT_VALUES); CHKERRQ(ierr);
+    ierr = MatSetValues(costMatrix, localNumStates_, rowIndices, numActions_, colIndices, costVectorValues, INSERT_VALUES); CHKERRQ(ierr);
+    MatAssemblyBegin(costMatrix, MAT_FINAL_ASSEMBLY);
+    VecRestoreArrayRead(costVector, &costVectorValues);
+    ISRestoreIndices(rows, &rowIndices);
+    ISRestoreIndices(cols, &colIndices);
+    MatAssemblyEnd(costMatrix, MAT_FINAL_ASSEMBLY);
+    ISDestroy(&rows);
+    ISDestroy(&cols);
+#endif
+
+#if 0
+    const PetscReal *costVectorValues;
+    VecGetArrayRead(costVector, &costVectorValues);
+    PetscInt *rowIndices, *colIndices;
+    PetscMalloc1(localNumStates_, &rowIndices);
+    PetscMalloc1(numActions_, &colIndices);
+    std::iota(colIndices, colIndices + numActions_, 0);
+    std::iota(rowIndices, rowIndices + localNumStates_, rowStart);
+    ierr = MatSetValues(costMatrix, localNumStates_, rowIndices, numActions_, colIndices, costVectorValues, INSERT_VALUES); CHKERRQ(ierr);
+    MatAssemblyBegin(costMatrix, MAT_FINAL_ASSEMBLY);
+    VecRestoreArrayRead(costVector, &costVectorValues);
+    MatAssemblyEnd(costMatrix, MAT_FINAL_ASSEMBLY);
+    PetscFree(rowIndices);
+    PetscFree(colIndices);
+#endif
 
     // add g to costMatrix
     MatAXPY(costMatrix, 1.0, stageCostMatrix_, DIFFERENT_NONZERO_PATTERN);
