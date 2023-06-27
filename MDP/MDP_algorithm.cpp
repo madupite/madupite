@@ -33,7 +33,7 @@ PetscErrorCode MDP::extractGreedyPolicy(Vec &V, PetscInt *policy, PetscReal &res
     ierr = MatMPIAIJSetPreallocation(costMatrix, localNumActions, NULL, numActions_ - localNumActions, NULL); CHKERRQ(ierr); // preallocate dense matrix
 
     // fill matrix with values
-#if 0
+#if 1
     const PetscReal *costVectorValues;
     VecGetArrayRead(costVector, &costVectorValues);
     IS rows, cols;
@@ -47,7 +47,7 @@ PetscErrorCode MDP::extractGreedyPolicy(Vec &V, PetscInt *policy, PetscReal &res
     ISDestroy(&cols);
 #endif
 
-#if 1
+#if 0
     const PetscReal *costVectorValues;
     VecGetArrayRead(costVector, &costVectorValues);
     IS rows, cols;
@@ -213,6 +213,7 @@ PetscErrorCode MDP::iterativePolicyEvaluation(Mat &jacobian, Vec &stageCosts, Ve
     ierr = KSPCreate(PETSC_COMM_WORLD, &ksp); CHKERRQ(ierr);
     ierr = KSPSetOperators(ksp, jacobian, jacobian); CHKERRQ(ierr);
     ierr = KSPSetType(ksp, KSPGMRES); CHKERRQ(ierr);
+    ierr = KSPSetInitialGuessNonzero(ksp, PETSC_TRUE); CHKERRQ(ierr);
     ierr = KSPSetFromOptions(ksp); CHKERRQ(ierr);
     //ierr = KSPSetTolerances(ksp, rtol, PETSC_DEFAULT, PETSC_DEFAULT, PETSC_DEFAULT); CHKERRQ(ierr);
     ierr = KSPSetConvergenceTest(ksp, &MDP::cvgTest, &ctx, NULL); CHKERRQ(ierr);
@@ -248,8 +249,6 @@ PetscErrorCode MDP::inexactPolicyIteration(Vec &V0, IS &policy, Vec &optimalCost
     LOG("Entering inexactPolicyIteration");
     jsonWriter_->add_solver_run();
 
-    PetscErrorCode ierr;
-
     Vec V;
     VecDuplicate(V0, &V);
     VecCopy(V0, V);
@@ -258,46 +257,37 @@ PetscErrorCode MDP::inexactPolicyIteration(Vec &V0, IS &policy, Vec &optimalCost
     Vec stageCosts;
     PetscInt *policyValues;
     PetscMalloc1(localNumStates_, &policyValues);
-
     PetscReal residualNorm;
-
-    // initialize policy iteration
-    // todo: timer for "setup phase" of iPI?
-    extractGreedyPolicy(V, policyValues, residualNorm);
-    constructFromPolicy(policyValues, transitionProbabilities, stageCosts);
-    JacobianContext ctxJac = {transitionProbabilities, discountFactor_};
-    createJacobian(jacobian, transitionProbabilities, ctxJac);
-
     PetscLogDouble startTime, endTime;
-    PetscInt i = 1;
-    for(; i <= maxIter_PI_; ++i) {
-        LOG("Iteration " + std::to_string(i) + " residual norm: " + std::to_string(residualNorm));
-        PetscTime(&startTime);
 
-        KSPContext ctx = {maxIter_KSP_, residualNorm * rtol_KSP_, -1};
+    PetscInt PI_iteration= 0;
+    for(; PI_iteration < maxIter_PI_; ++PI_iteration) {
+        PetscTime(&startTime);
+        // compute jacobian wrt new policy
+        extractGreedyPolicy(V, policyValues, residualNorm);
+        if(residualNorm < atol_PI_) {
+            PetscTime(&endTime);
+            jsonWriter_->add_iteration_data(PI_iteration, 0, (endTime - startTime) * 1000, residualNorm);
+            LOG("Iteration " + std::to_string(PI_iteration) + " residual norm: " + std::to_string(residualNorm));
+            break;
+        }
+        constructFromPolicy(policyValues, transitionProbabilities, stageCosts);
+        JacobianContext ctxJac = {transitionProbabilities, discountFactor_};
+        createJacobian(jacobian, transitionProbabilities, ctxJac);
 
         // solve linear system
+        KSPContext ctx = {maxIter_KSP_, residualNorm * rtol_KSP_, -1};
         iterativePolicyEvaluation(jacobian, stageCosts, V, ctx);
         MatDestroy(&transitionProbabilities);
         MatDestroy(&jacobian); // avoid memory leak
         VecDestroy(&stageCosts);
 
-        // compute jacobian wrt new policy
-        extractGreedyPolicy(V, policyValues, residualNorm);
-        constructFromPolicy(policyValues, transitionProbabilities, stageCosts);
-        ctxJac = {transitionProbabilities, discountFactor_};
-        createJacobian(jacobian, transitionProbabilities, ctxJac);
-
         PetscTime(&endTime);
-
-        jsonWriter_->add_iteration_data(i, ctx.kspIterations, (endTime - startTime) * 1000, residualNorm);
-
-        if(residualNorm < atol_PI_) {
-            break;
-        }
+        jsonWriter_->add_iteration_data(PI_iteration, ctx.kspIterations, (endTime - startTime) * 1000, residualNorm);
+        LOG("Iteration " + std::to_string(PI_iteration) + " residual norm: " + std::to_string(residualNorm));
     }
 
-    if(i > maxIter_PI_) {
+    if(PI_iteration >= maxIter_PI_) {
         LOG("Warning: maximum number of PI iterations reached. Solution might not be optimal.");
     }
 
