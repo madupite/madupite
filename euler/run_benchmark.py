@@ -10,7 +10,7 @@ parser.add_argument('-s', '--sparsityFactor', type=float, required=True, help='S
 args = parser.parse_args()
 
 # List of CPUs
-cpus = [1, 2, 4, 8, 16]
+cpus = [i for i in range(1, 17)]
 
 # Parameters
 numStates = args.numStates
@@ -33,6 +33,7 @@ flags = [
     "-discountFactor", str(0.9),
     "-maxIter_PI", str(50),
     "-maxIter_KSP", str(10000),
+    "-numPIRuns", str(20),
     "-rtol_KSP", str(1e-4),
     "-atol_PI", str(1e-10),
     "-log_view"
@@ -47,11 +48,11 @@ for cpu in cpus:
     cmd = ["mpirun", "-n", str(cpu), executable, *flags]
 
     cmd += [
-        f"-file_P", f"{dir_scratch}/{dir_data}/P.bin",
-        f"-file_g", f"{dir_scratch}/{dir_data}/g.bin",
-        f"-file_stats", f"{dir_output}/{cpu}/stats.json",
-        f"-file_policy", f"{dir_output}/{cpu}/policy.out",
-        f"-file_cost", f"{dir_output}/{cpu}/cost.out"
+        "-file_P", f"{dir_scratch}/{dir_data}/P.bin",
+        "-file_g", f"{dir_scratch}/{dir_data}/g.bin",
+        "-file_stats", f"{dir_output}/{cpu}/stats.json",
+        "-file_policy", f"{dir_output}/{cpu}/policy.out",
+        "-file_cost", f"{dir_output}/{cpu}/cost.out"
     ]
     
     # Print the command

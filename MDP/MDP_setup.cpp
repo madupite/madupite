@@ -65,6 +65,13 @@ PetscErrorCode MDP::setValuesFromOptions() {
         SETERRQ(PETSC_COMM_WORLD, 1, "Maximum number of KSP iterations not specified. Use -maxIter_KSP <int>.");
     }
     jsonWriter_->add_data("maxIter_KSP", maxIter_KSP_);
+    ierr = PetscOptionsGetInt(NULL, NULL, "-numPIRuns", &numPIRuns_, &flg); CHKERRQ(ierr);
+    if(!flg) {
+        //SETERRQ(PETSC_COMM_WORLD, 1, "Maximum number of KSP iterations not specified. Use -maxIter_KSP <int>.");
+        LOG("Number of PI runs for benchmarking not specified. Use -numPIRuns <int>. Default: 1");
+        numPIRuns_ = 1;
+    }
+    jsonWriter_->add_data("numPIRuns", numPIRuns_);
     ierr = PetscOptionsGetReal(NULL, NULL, "-rtol_KSP", &rtol_KSP_, &flg); CHKERRQ(ierr);
     if(!flg) {
         SETERRQ(PETSC_COMM_WORLD, 1, "Relative tolerance for KSP not specified. Use -rtol_KSP <double>.");

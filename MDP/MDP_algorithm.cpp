@@ -33,7 +33,7 @@ PetscErrorCode MDP::extractGreedyPolicy(Vec &V, PetscInt *policy, PetscReal &res
     ierr = MatMPIAIJSetPreallocation(costMatrix, localNumActions, NULL, numActions_ - localNumActions, NULL); CHKERRQ(ierr); // preallocate dense matrix
 
     // fill matrix with values
-#if 1
+#if 0
     const PetscReal *costVectorValues;
     VecGetArrayRead(costVector, &costVectorValues);
     IS rows, cols;
@@ -47,7 +47,7 @@ PetscErrorCode MDP::extractGreedyPolicy(Vec &V, PetscInt *policy, PetscReal &res
     ISDestroy(&cols);
 #endif
 
-#if 0
+#if 1
     const PetscReal *costVectorValues;
     VecGetArrayRead(costVector, &costVectorValues);
     IS rows, cols;
@@ -329,9 +329,9 @@ PetscErrorCode MDP::cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedR
     return 0;
 }
 
-PetscErrorCode MDP::benchmarkIPI(Vec &V0, IS &policy, Vec &optimalCost, PetscInt numRuns) {
+PetscErrorCode MDP::benchmarkIPI(Vec &V0, IS &policy, Vec &optimalCost) {
 
-    for(PetscInt i = 0; i < numRuns; ++i) {
+    for(PetscInt i = 0; i < numPIRuns_; ++i) {
         inexactPolicyIteration(V0, policy, optimalCost);
     }
 
