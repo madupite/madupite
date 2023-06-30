@@ -7,8 +7,9 @@
 GrowthModel::GrowthModel() {
     numK_ = 20;
     numZ_ = 2;
-    discountFactor_ = 0.9;
+    discountFactor_ = 0.98;
     rho_ = 0.33;
+    riskAversionParameter_ = 0.5;
     P_z_ = nullptr;
     z_ = nullptr;
     numStates_ = numK_ * numZ_;
@@ -22,10 +23,10 @@ PetscErrorCode GrowthModel::generateKInterval() {
     VecGetValues(z_, 2, z_indices, z_vals);
     VecCreateSeq(PETSC_COMM_SELF, numK_, &k_);
     PetscReal *k_vals;
-    VecGetArray(k_, &k_vals);
+    PetscMalloc1(numK_, &k_vals);
 
-    PetscReal k_star_z1 = (discountFactor_ * rho_ * z_vals[0] / std::pow(1 - discountFactor_, 1 / (1 - rho_)));
-    PetscReal k_star_z2 = (discountFactor_ * rho_ * z_vals[1] / std::pow(1 - discountFactor_, 1 / (1 - rho_)));
+    PetscReal k_star_z1 = std::pow(discountFactor_ * rho_ * z_vals[0] / (1 - discountFactor_), 1 / (1 - rho_));
+    PetscReal k_star_z2 = std::pow(discountFactor_ * rho_ * z_vals[1] / (1 - discountFactor_), 1 / (1 - rho_));
     PetscReal k_min = k_star_z1 - 0.1 * (k_star_z2 - k_star_z1);
     PetscReal k_max = k_star_z2 + 0.1 * (k_star_z2 - k_star_z1);
 
@@ -35,22 +36,27 @@ PetscErrorCode GrowthModel::generateKInterval() {
         k_vals[i] = k_min + i * k_incr;
     }
 
-    VecRestoreArray(k_, &k_vals);
+    IS indices;
+    ISCreateStride(PETSC_COMM_SELF, numK_, 0, 1, &indices);
+    const PetscInt *indices_arr;
+    ISGetIndices(indices, &indices_arr);
+    VecSetValues(k_, numK_, indices_arr, k_vals, INSERT_VALUES);
+    ISRestoreIndices(indices, &indices_arr);
+    ISDestroy(&indices);
 
     VecAssemblyBegin(k_);
     VecAssemblyEnd(k_);
-    VecView(k_, PETSC_VIEWER_STDOUT_SELF);
-    // TODO FIX VECSETVALUES, NOT POSSIBLE VIA ARRAY -> CREATE INDEX AND USE VECSETVALUES; same for other function.
 
-    //PetscFree(k_vals);
+    PetscFree(k_vals);
 
     return 0;
 }
 
 PetscErrorCode GrowthModel::calculateAvailableResources() {
     PetscReal *B_vals;
+    PetscMalloc1(numK_ * numZ_, &B_vals);
     VecCreateSeq(PETSC_COMM_SELF, numK_ * numZ_, &B_);
-    VecGetArray(B_, &B_vals);
+
     const PetscReal *k_vals, *z_vals;
     VecGetArrayRead(k_, &k_vals);
     VecGetArrayRead(z_, &z_vals);
@@ -62,7 +68,21 @@ PetscErrorCode GrowthModel::calculateAvailableResources() {
     }
     VecRestoreArrayRead(k_, &k_vals);
     VecRestoreArrayRead(z_, &z_vals);
-    VecRestoreArray(B_, &B_vals);
+
+    IS indices;
+    ISCreateStride(PETSC_COMM_SELF, numK_ * numZ_, 0, 1, &indices);
+    const PetscInt *indices_arr;
+    ISGetIndices(indices, &indices_arr);
+    VecSetValues(B_, numK_ * numZ_, indices_arr, B_vals, INSERT_VALUES);
+    ISRestoreIndices(indices, &indices_arr);
+    ISDestroy(&indices);
+
+    VecAssemblyBegin(B_);
+    VecAssemblyEnd(B_);
+
+    PetscFree(B_vals);
+
+    return 0;
 }
 
 
@@ -78,10 +98,10 @@ PetscErrorCode GrowthModel::calculateFeasibleActions() {
     for(PetscInt i = 0; i < numK_; ++i) {
         for(PetscInt j = 0; j < numZ_; ++j) {
             PetscInt a = 0;
-            while(a < numK_ && B_vals[ij2s(i, j)] - k_vals[a] >= 0) {
+            while(a < numK_ && B_vals[ij2s(i, j)] - k_vals[a] > 0) {
                 ++a;
             }
-            A_vals[ij2s(i, j)] = a;
+            A_vals[ij2s(i, j)] = std::max(a - 1, 0);
         }
     }
 

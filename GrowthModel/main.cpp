@@ -8,14 +8,14 @@
 int main(int argc, char** argv) {
     PetscInitialize(&argc, &argv, PETSC_NULL, PETSC_NULL);
     GrowthModel gm;
-    // create z_ = [0.726, 1.377]
-    // create P_z_ = [0.975, 0.025; 0.025, 0.975]
 
+    /* ======== INIT PAPER EXAMPLE ======== */
+    // create z_ = [0.726, 1.377]
     VecCreateSeq(PETSC_COMM_SELF, gm.numZ_, &gm.z_);
     PetscReal z_vals[2] = {0.726, 1.377};
     PetscInt z_indices[2] = {0, 1};
     VecSetValues(gm.z_, 2, z_indices, z_vals, INSERT_VALUES);
-
+    // create P_z_ = [0.975, 0.025; 0.025, 0.975]
     MatCreateSeqAIJ(PETSC_COMM_SELF, gm.numZ_, gm.numZ_, 2, nullptr, &gm.P_z_);
     PetscReal P_z_vals[4] = {0.975, 0.025, 0.025, 0.975};
     PetscInt P_z_indices[2] = {0, 1};
@@ -25,10 +25,19 @@ int main(int argc, char** argv) {
     MatAssemblyBegin(gm.P_z_, MAT_FINAL_ASSEMBLY);
     VecAssemblyEnd(gm.z_);
     MatAssemblyEnd(gm.P_z_, MAT_FINAL_ASSEMBLY);
+    /* ==================================== */
 
     gm.generateKInterval();
-    // print gm.k_
+    PetscPrintf(PETSC_COMM_WORLD, "Capital stocks (k):\n");
     VecView(gm.k_, PETSC_VIEWER_STDOUT_SELF);
+
+    gm.calculateAvailableResources();
+    PetscPrintf(PETSC_COMM_WORLD, "Available resources (B):\n");
+    VecView(gm.B_, PETSC_VIEWER_STDOUT_SELF);
+
+    gm.calculateFeasibleActions();
+    PetscPrintf(PETSC_COMM_WORLD, "Feasible actions (A):\n");
+    ISView(gm.A_, PETSC_VIEWER_STDOUT_SELF);
 
     PetscFinalize();
 }

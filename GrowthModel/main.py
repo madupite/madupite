@@ -25,6 +25,8 @@ def generate_k_interval():
     return np.linspace(min_k, max_k, nk)
 
 k = generate_k_interval()
+print("Capital stock grid:")
+print(k)
 
 def availableResources():
     """precomputation of Matrix B"""
@@ -35,6 +37,8 @@ def availableResources():
     return B
 
 B = availableResources()
+print("Available resources:")
+print(B)
 
 def feasibleActions():
     """
@@ -45,7 +49,7 @@ def feasibleActions():
     for i in range(nk):
         for j in range(nz):
             for a in range(numActions):
-                if B[i, j] - k[a] >= 0:
+                if B[i, j] - k[a] > 0:
                     A[ij2s(i,j), a] = a
                 else:
                     A[ij2s(i,j), a] = -np.inf
@@ -53,6 +57,8 @@ def feasibleActions():
     return np.argmax(A, axis=1)
 
 A = feasibleActions()
+print("Feasible actions:")
+print(A)
 
 def constructFromPolicy(actionInd):
     P = np.zeros((nk*nz, nk*nz))
