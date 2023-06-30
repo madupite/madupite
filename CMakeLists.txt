@@ -41,3 +41,18 @@ add_executable(distributed_inexact_policy_iteration
 target_link_libraries(distributed_inexact_policy_iteration PkgConfig::PETSC)
 target_link_libraries(distributed_inexact_policy_iteration ${MPI_LIBRARIES})
 target_link_libraries(distributed_inexact_policy_iteration nlohmann_json::nlohmann_json)
+
+# Growth Model
+include_directories(GrowthModel/)
+add_executable(growth_model
+        GrowthModel/main.cpp
+        GrowthModel/GrowthModel.cpp
+        MDP/MDP_algorithm.cpp
+        MDP/MDP_setup.cpp
+        utils/Logger.cpp
+        )
+
+# Linking libraries to the second executable
+target_link_libraries(growth_model PkgConfig::PETSC)
+target_link_libraries(growth_model ${MPI_LIBRARIES})
+target_link_libraries(growth_model nlohmann_json::nlohmann_json)
