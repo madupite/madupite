@@ -29,7 +29,7 @@ int main(int argc, char** argv)
 
     t.start();
     //mdp.inexactPolicyIteration(V0, optimalPolicy, optimalCost);
-    mdp.benchmarkIPI(V0, optimalPolicy, optimalCost, 10);
+    mdp.benchmarkIPI(V0, optimalPolicy, optimalCost);
     t.stop("iPI took: ");
 
     t.start();
