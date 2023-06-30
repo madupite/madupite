@@ -98,6 +98,8 @@ print("Feasible actions:")
 print(A)
 print("Optimal policy:")
 print(policy)
+print("Optimal value function:")
+print(result[-1][1])
 
 print("Suboptimality gap (inf norm):")
 v_opt = np.array(result[-1][1])

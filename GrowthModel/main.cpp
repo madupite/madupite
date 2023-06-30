@@ -39,5 +39,20 @@ int main(int argc, char** argv) {
     PetscPrintf(PETSC_COMM_WORLD, "Feasible actions (A):\n");
     ISView(gm.A_, PETSC_VIEWER_STDOUT_SELF);
 
+    Vec V0;
+    VecCreateSeq(PETSC_COMM_SELF, gm.numStates_, &V0);
+    VecSet(V0, 0.0);
+
+    Vec optimalCost;
+    IS optimalPolicy;
+    gm.inexactPolicyIteration(V0, optimalPolicy, optimalCost);
+
+    VecView(optimalCost, PETSC_VIEWER_STDOUT_SELF);
+    ISView(optimalPolicy, PETSC_VIEWER_STDOUT_SELF);
+
+    VecDestroy(&V0);
+    VecDestroy(&optimalCost);
+    ISDestroy(&optimalPolicy);
+
     PetscFinalize();
 }
