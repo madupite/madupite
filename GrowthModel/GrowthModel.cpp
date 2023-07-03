@@ -6,29 +6,24 @@
 
 
 GrowthModel::GrowthModel() {
-    numK_ = 20;
-    numZ_ = 2;
-    discountFactor_ = 0.98;
-    rho_ = 0.33;
-    riskAversionParameter_ = 0.5;
     P_z_ = nullptr;
     z_ = nullptr;
-    numStates_ = numK_ * numZ_;
-    numActions_ = numK_;
-    jsonWriter_ = new JsonWriter(0);
-    localNumStates_ = numStates_;
-    maxIter_PI_ = 100;
-    maxIter_KSP_ = 10000;
-    numPIRuns_ = 1;
-    rtol_KSP_ = 1e-12;
-    atol_PI_ = 1e-10;
+}
+
+GrowthModel::~GrowthModel() {
+    MatDestroy(&P_z_);
+    VecDestroy(&z_);
+    VecDestroy(&k_);
+    VecDestroy(&B_);
+    ISDestroy(&A_);
 }
 
 PetscErrorCode GrowthModel::generateKInterval() {
     PetscReal z_vals[2];
     PetscInt z_indices[2] = {0, numZ_ - 1};
     VecGetValues(z_, 2, z_indices, z_vals);
-    VecCreateSeq(PETSC_COMM_SELF, numK_, &k_);
+    //VecCreateSeq(PETSC_COMM_SELF, numK_, &k_);
+    VecCreateMPI(PETSC_COMM_WORLD, PETSC_DECIDE, numK_, &k_);
     PetscReal *k_vals;
     PetscMalloc1(numK_, &k_vals);
 
@@ -62,7 +57,8 @@ PetscErrorCode GrowthModel::generateKInterval() {
 PetscErrorCode GrowthModel::calculateAvailableResources() {
     PetscReal *B_vals;
     PetscMalloc1(numK_ * numZ_, &B_vals);
-    VecCreateSeq(PETSC_COMM_SELF, numK_ * numZ_, &B_);
+    //VecCreateSeq(PETSC_COMM_SELF, numK_ * numZ_, &B_);
+    VecCreateMPI(PETSC_COMM_WORLD, PETSC_DECIDE, numK_ * numZ_, &B_);
 
     const PetscReal *k_vals, *z_vals;
     VecGetArrayRead(k_, &k_vals);
@@ -92,8 +88,6 @@ PetscErrorCode GrowthModel::calculateAvailableResources() {
     return 0;
 }
 
-
-
 PetscErrorCode GrowthModel::calculateFeasibleActions() {
     // find max_a {a | 0 <= a < nk, B[i,j] - k[a] >= 0}
     PetscInt *A_vals;
@@ -119,6 +113,237 @@ PetscErrorCode GrowthModel::calculateFeasibleActions() {
 
     return 0;
 }
+
+
+PetscErrorCode GrowthModel::constructTransitionProbabilitiesRewards() {
+    MatCreate(PETSC_COMM_WORLD, &transitionProbabilityTensor_);
+    MatSetFromOptions(transitionProbabilityTensor_);
+    MatSetSizes(transitionProbabilityTensor_, localNumStates_ * numActions_, PETSC_DECIDE, numStates_ * numActions_, numStates_);
+    PetscInt numLocalCols;
+    MatGetLocalSize(transitionProbabilityTensor_, NULL, &numLocalCols);
+    MatMPIAIJSetPreallocation(transitionProbabilityTensor_, std::min(numZ_, numLocalCols), NULL, numZ_, NULL); // allocate numZ_ entries both in diagonal and off-diagonal blocks
+    MatGetOwnershipRange(transitionProbabilityTensor_, &P_start_, &P_end_);
+
+    MatCreateDense(PETSC_COMM_WORLD, localNumStates_, PETSC_DECIDE, numStates_, numActions_, NULL, &stageCostMatrix_);
+
+    PetscInt *srcIndices;
+    PetscMalloc1(numZ_, &srcIndices);
+    std::iota(srcIndices, srcIndices + numZ_, 0); // destIndices for extracting values from P_z_
+    PetscInt *destIndices;
+    PetscMalloc1(numZ_, &destIndices);
+    PetscReal *zValues;
+    PetscMalloc1(numZ_, &zValues);
+
+    const PetscInt *AValues;
+    ISGetIndices(A_, &AValues);
+    const PetscReal *BValues, *kValues;
+    VecGetArrayRead(B_, &BValues);
+    VecGetArrayRead(k_, &kValues);
+
+    // fill values
+    //PetscInt k_start = P_start_ / numZ_;
+    PetscInt P_pi_start = P_start_ / numActions_;
+    //PetscInt i, j, a;
+    for(PetscInt stateInd = P_pi_start; stateInd < P_pi_start + localNumStates_; ++stateInd) {
+        //i = stateInd / numZ_; // k index
+        //j = stateInd % numZ_; // z index
+        for(PetscInt actionInd = 0; actionInd < numActions_; ++actionInd) {
+            PetscInt localStateIndex = stateInd - P_pi_start;
+            PetscInt srcRow = stateInd % numZ_; // z index
+            if(actionInd <= AValues[localStateIndex]) { // action must be feasible
+                // transition probabilities
+                std::iota(destIndices, destIndices + numZ_, actionInd * numZ_);
+                MatGetValues(P_z_, 1, &srcRow, numZ_, srcIndices, zValues);
+                PetscInt destRow = stateInd * numActions_ + actionInd;
+                MatSetValues(transitionProbabilityTensor_, 1, &destRow, numZ_, destIndices, zValues, INSERT_VALUES);
+                // reward
+                PetscReal reward = std::pow(BValues[localStateIndex] - kValues[actionInd], riskAversionParameter_) / riskAversionParameter_;
+                MatSetValue(stageCostMatrix_, stateInd, actionInd, reward, INSERT_VALUES);
+            }
+            else {
+                // set reward to -inf for infeasible actions
+                MatSetValue(stageCostMatrix_, stateInd, actionInd, std::numeric_limits<PetscReal>::lowest(), INSERT_VALUES);
+            }
+        }
+    }
+
+    MatAssemblyBegin(transitionProbabilityTensor_, MAT_FINAL_ASSEMBLY);
+    MatAssemblyBegin(stageCostMatrix_, MAT_FINAL_ASSEMBLY);
+    MatAssemblyEnd(transitionProbabilityTensor_, MAT_FINAL_ASSEMBLY);
+    MatAssemblyEnd(stageCostMatrix_, MAT_FINAL_ASSEMBLY);
+
+    ISRestoreIndices(A_, &AValues);
+    VecRestoreArrayRead(B_, &BValues);
+    VecRestoreArrayRead(k_, &kValues);
+
+    PetscFree(srcIndices);
+    PetscFree(destIndices);
+    PetscFree(zValues);
+
+
+    return 0;
+}
+
+PetscErrorCode GrowthModel::setValuesFromOptions() {
+    PetscErrorCode ierr;
+    PetscBool flg;
+
+    ierr = PetscOptionsGetInt(NULL, NULL, "-numK", &numK_, &flg); CHKERRQ(ierr);
+    if(!flg) {
+        SETERRQ(PETSC_COMM_WORLD, 1, "Number of capital stock states not specified. Use -numK <int>.");
+    }
+    jsonWriter_->add_data("numK", numK_);
+
+    ierr = PetscOptionsGetInt(NULL, NULL, "-numZ", &numZ_, &flg); CHKERRQ(ierr);
+    if(!flg) {
+        SETERRQ(PETSC_COMM_WORLD, 1, "Number of productivity states not specified. Use -numZ <int>.");
+    }
+    jsonWriter_->add_data("numZ", numZ_);
+
+    ierr = PetscOptionsGetReal(NULL, NULL, "-discountFactor", &discountFactor_, &flg); CHKERRQ(ierr);
+    if(!flg) {
+        SETERRQ(PETSC_COMM_WORLD, 1, "Discount factor not specified. Use -discountFactor <double>.");
+    }
+    jsonWriter_->add_data("discountFactor", discountFactor_);
+
+    ierr = PetscOptionsGetReal(NULL, NULL, "-riskAversion", &riskAversionParameter_, &flg); CHKERRQ(ierr);
+    if(!flg) {
+        SETERRQ(PETSC_COMM_WORLD, 1, "Risk aversion parameter not specified. Use -riskAversion <double>.");
+    }
+    jsonWriter_->add_data("riskAversionParameter", riskAversionParameter_);
+
+    ierr = PetscOptionsGetInt(NULL, NULL, "-maxIter_PI", &maxIter_PI_, &flg); CHKERRQ(ierr);
+    if(!flg) {
+        SETERRQ(PETSC_COMM_WORLD, 1, "Maximum number of policy iterations not specified. Use -maxIter_PI <int>.");
+    }
+    jsonWriter_->add_data("maxIter_PI", maxIter_PI_);
+
+    ierr = PetscOptionsGetInt(NULL, NULL, "-maxIter_KSP", &maxIter_KSP_, &flg); CHKERRQ(ierr);
+    if(!flg) {
+        SETERRQ(PETSC_COMM_WORLD, 1, "Maximum number of KSP iterations not specified. Use -maxIter_KSP <int>.");
+    }
+    jsonWriter_->add_data("maxIter_KSP", maxIter_KSP_);
+
+    ierr = PetscOptionsGetInt(NULL, NULL, "-numPIRuns", &numPIRuns_, &flg); CHKERRQ(ierr);
+    if(!flg) {
+        //SETERRQ(PETSC_COMM_WORLD, 1, "Maximum number of KSP iterations not specified. Use -maxIter_KSP <int>.");
+        LOG("Number of PI runs for benchmarking not specified. Use -numPIRuns <int>. Default: 1");
+        numPIRuns_ = 1;
+    }
+    jsonWriter_->add_data("numPIRuns", numPIRuns_);
+
+    ierr = PetscOptionsGetReal(NULL, NULL, "-rtol_KSP", &rtol_KSP_, &flg); CHKERRQ(ierr);
+    if(!flg) {
+        SETERRQ(PETSC_COMM_WORLD, 1, "Relative tolerance for KSP not specified. Use -rtol_KSP <double>.");
+    }
+    jsonWriter_->add_data("rtol_KSP", rtol_KSP_);
+
+    ierr = PetscOptionsGetReal(NULL, NULL, "-atol_PI", &atol_PI_, &flg); CHKERRQ(ierr);
+    if(!flg) {
+        SETERRQ(PETSC_COMM_WORLD, 1, "Absolute tolerance for policy iteration not specified. Use -atol_PI <double>.");
+    }
+    jsonWriter_->add_data("atol_PI", atol_PI_);
+
+    ierr = PetscOptionsGetString(NULL, NULL, "-file_policy", file_policy_, PETSC_MAX_PATH_LEN, &flg); CHKERRQ(ierr);
+    if(!flg) {
+        LOG("Filename for policy not specified. Optimal policy will not be written to file.");
+        file_policy_[0] = '\0';
+    }
+
+    ierr = PetscOptionsGetString(NULL, NULL, "-file_cost", file_cost_, PETSC_MAX_PATH_LEN, &flg); CHKERRQ(ierr);
+    if(!flg) {
+        LOG("Filename for cost not specified. Optimal cost will not be written to file.");
+        file_cost_[0] = '\0';
+    }
+
+    ierr = PetscOptionsGetString(NULL, NULL, "-file_stats", file_stats_, PETSC_MAX_PATH_LEN, &flg); CHKERRQ(ierr);
+    if(!flg) {
+        SETERRQ(PETSC_COMM_WORLD, 1, "Filename for statistics not specified. Use -file_stats <string>. (max length: 4096 chars");
+    }
+
+    PetscChar inputMode[20];
+    ierr = PetscOptionsGetString(NULL, NULL, "-mode", inputMode, 20, &flg); CHKERRQ(ierr);
+    if(!flg) {
+        SETERRQ(PETSC_COMM_WORLD, 1, "Input mode not specified. Use -mode MINCOST or MAXREWARD.");
+    }
+    if (strcmp(inputMode, "MINCOST") == 0) {
+        mode_ = MINCOST;
+        jsonWriter_->add_data("mode", "MINCOST");
+    } else if (strcmp(inputMode, "MAXREWARD") == 0) {
+        mode_ = MAXREWARD;
+        jsonWriter_->add_data("mode", "MAXREWARD");
+    } else {
+        SETERRQ(PETSC_COMM_WORLD, 1, "Input mode not recognized. Use -mode MINCOST or MAXREWARD.");
+    }
+
+
+    // set derived parameters
+    numStates_ = numK_ * numZ_;
+    numActions_ = numK_;
+    localNumStates_ = (rank_ < numStates_ % size_) ? numStates_ / size_ + 1 : numStates_ / size_; // first numStates_ % size_ ranks get one more state
+    LOG("owns " + std::to_string(localNumStates_) + " states.");
+
+    return 0;
+}
+
+
+#if 0
+// user must destroy P and g by himself. Function will create them. [used in inexactPolicyIteration]
+PetscErrorCode GrowthModel::constructFromPolicy(PetscInt *policy, Mat &transitionProbabilities, Vec &stageCosts) {
+    // compute where local ownership of new P_pi matrix starts
+    PetscInt P_pi_start; // start of ownership of new matrix (to be created)
+    MatGetOwnershipRange(transitionProbabilityTensor_, &P_pi_start, NULL);
+    P_pi_start /= numActions_;
+
+    // allocate memory for values
+    PetscInt *P_rowIndexValues;
+    PetscMalloc1(localNumStates_, &P_rowIndexValues);
+    PetscReal *g_pi_values;
+    PetscMalloc1(localNumStates_, &g_pi_values);
+    const PetscReal *kValues;
+    VecGetArrayRead(k_, &kValues);
+
+
+    // compute global row indices for P and get values for g_pi
+    PetscInt g_srcRow, actionInd;
+    for(PetscInt localStateInd = 0; localStateInd < localNumStates_; ++localStateInd) {
+        actionInd = policy[localStateInd];
+        // compute values for row index set
+        P_rowIndexValues[localStateInd] = P_start_ + localStateInd * numActions_ + actionInd;
+        // get values for stageCosts
+        g_srcRow  = g_start_ + localStateInd;
+        //MatGetValue(stageCostMatrix_, g_srcRow, actionInd, &g_pi_values[localStateInd]);
+    }
+
+    // generate index sets
+    IS P_rowIndices;
+    ISCreateGeneral(PETSC_COMM_WORLD, localNumStates_, P_rowIndexValues, PETSC_COPY_VALUES, &P_rowIndices);
+    IS g_pi_rowIndices;
+    ISCreateStride(PETSC_COMM_WORLD, localNumStates_, g_start_, 1, &g_pi_rowIndices);
+
+    //LOG("Creating transitionProbabilities submatrix");
+    MatCreateSubMatrix(transitionProbabilityTensor_, P_rowIndices, NULL, MAT_INITIAL_MATRIX, &transitionProbabilities);
+
+    //LOG("Creating stageCosts vector");
+    VecCreateMPI(PETSC_COMM_WORLD, localNumStates_, numStates_, &stageCosts);
+    const PetscInt *g_pi_rowIndexValues; // global indices
+    ISGetIndices(g_pi_rowIndices, &g_pi_rowIndexValues);
+    VecSetValues(stageCosts, localNumStates_, g_pi_rowIndexValues, g_pi_values, INSERT_VALUES);
+    ISRestoreIndices(g_pi_rowIndices, &g_pi_rowIndexValues);
+
+    //LOG("Assembling transitionProbabilities and stageCosts");
+    MatAssemblyBegin(transitionProbabilities, MAT_FINAL_ASSEMBLY);
+    VecAssemblyBegin(stageCosts);
+    MatAssemblyEnd(transitionProbabilities, MAT_FINAL_ASSEMBLY);
+    VecAssemblyEnd(stageCosts);
+
+    ISDestroy(&P_rowIndices);
+    ISDestroy(&g_pi_rowIndices);
+    PetscFree(P_rowIndexValues);
+    PetscFree(g_pi_values);
+    return 0;
+}
+
 
 PetscErrorCode GrowthModel::constructFromPolicy(PetscInt *policy, Mat &transitionProbabilities, Vec &stageCosts) {
     MatCreate(PETSC_COMM_SELF, &transitionProbabilities);
@@ -180,6 +405,7 @@ PetscErrorCode GrowthModel::constructFromPolicy(PetscInt *policy, Mat &transitio
     return 0;
 }
 
+
 PetscErrorCode GrowthModel::constructFromPolicy(PetscInt actionInd, Mat &transitionProbabilities, Vec &stageCosts) {
     MatCreate(PETSC_COMM_SELF, &transitionProbabilities);
     MatSetType(transitionProbabilities, MATSEQAIJ);
@@ -240,6 +466,7 @@ PetscErrorCode GrowthModel::constructFromPolicy(PetscInt actionInd, Mat &transit
     return 0;
 }
 
+
 PetscErrorCode GrowthModel::extractGreedyPolicy(Vec &V, PetscInt *policy, PetscReal &residualNorm) {
 
     PetscErrorCode ierr;
@@ -299,130 +526,6 @@ PetscErrorCode GrowthModel::extractGreedyPolicy(Vec &V, PetscInt *policy, PetscR
 
 }
 
+#endif
 
 
-
-PetscErrorCode GrowthModel::iterativePolicyEvaluation(Mat &jacobian, Vec &stageCosts, Vec &V, KSPContext &ctx) {
-    PetscErrorCode ierr;
-    MatAssemblyBegin(jacobian, MAT_FINAL_ASSEMBLY);
-
-    // ksp solver
-    KSP ksp;
-    ierr = KSPCreate(PETSC_COMM_WORLD, &ksp); CHKERRQ(ierr);
-    ierr = KSPSetOperators(ksp, jacobian, jacobian); CHKERRQ(ierr);
-    ierr = KSPSetType(ksp, KSPGMRES); CHKERRQ(ierr);
-    ierr = KSPSetInitialGuessNonzero(ksp, PETSC_TRUE); CHKERRQ(ierr);
-    ierr = KSPSetFromOptions(ksp); CHKERRQ(ierr);
-    //ierr = KSPSetTolerances(ksp, rtol, PETSC_DEFAULT, PETSC_DEFAULT, PETSC_DEFAULT); CHKERRQ(ierr);
-    ierr = KSPSetConvergenceTest(ksp, &GrowthModel::cvgTest, &ctx, NULL); CHKERRQ(ierr);
-    ierr = MatAssemblyEnd(jacobian, MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
-    ierr = KSPSolve(ksp, stageCosts, V); CHKERRQ(ierr);
-    //ierr = KSPGetIterationNumber(ksp, &iter); CHKERRQ(ierr);
-    //LOG("KSP converged after " + std::to_string(iter) + " iterations");
-
-    ierr = KSPGetIterationNumber(ksp, &ctx.kspIterations); CHKERRQ(ierr);
-    //LOG("KSP iterations: " + std::to_string(ctx.kspIterations) + " (max: " + std::to_string(ctx.maxIter) + ")");
-    ierr = KSPDestroy(&ksp); CHKERRQ(ierr);
-    return ierr;
-}
-
-// defines the matrix-vector product for the jacobian shell
-void GrowthModel::jacobianMultiplication(Mat mat, Vec x, Vec y) {
-    JacobianContext *ctx;
-    MatShellGetContext(mat, (void **) &ctx); // todo static cast
-    MatMult(ctx->P_pi, x, y);
-    VecScale(y, -ctx->discountFactor);
-    VecAXPY(y, 1.0, x);
-}
-
-// creates MPIAIJ matrix and computes jacobian = I - gamma * P_pi
-PetscErrorCode GrowthModel::createJacobian(Mat &jacobian, const Mat &transitionProbabilities, JacobianContext &ctx) {
-    PetscErrorCode ierr;
-    ierr = MatCreateShell(PETSC_COMM_WORLD, localNumStates_, localNumStates_, numStates_, numStates_, &ctx, &jacobian); CHKERRQ(ierr);
-    ierr = MatShellSetOperation(jacobian, MATOP_MULT, (void (*)(void)) jacobianMultiplication); CHKERRQ(ierr);
-    return 0;
-}
-
-PetscErrorCode GrowthModel::inexactPolicyIteration(Vec &V0, IS &policy, Vec &optimalCost) {
-    LOG("Entering inexactPolicyIteration");
-    jsonWriter_->add_solver_run();
-
-    Vec V;
-    VecDuplicate(V0, &V);
-    VecCopy(V0, V);
-
-    Mat transitionProbabilities, jacobian;
-    Vec stageCosts;
-    PetscInt *policyValues;
-    PetscMalloc1(localNumStates_, &policyValues);
-    PetscReal residualNorm;
-    PetscLogDouble startTime, endTime;
-
-    PetscInt PI_iteration= 0;
-    for(; PI_iteration < maxIter_PI_; ++PI_iteration) {
-        PetscTime(&startTime);
-        // compute jacobian wrt new policy
-        extractGreedyPolicy(V, policyValues, residualNorm);
-        if(residualNorm < atol_PI_) {
-            PetscTime(&endTime);
-            jsonWriter_->add_iteration_data(PI_iteration, 0, (endTime - startTime) * 1000, residualNorm);
-            LOG("Iteration " + std::to_string(PI_iteration) + " residual norm: " + std::to_string(residualNorm));
-            break;
-        }
-        constructFromPolicy(policyValues, transitionProbabilities, stageCosts);
-        JacobianContext ctxJac = {transitionProbabilities, discountFactor_};
-        createJacobian(jacobian, transitionProbabilities, ctxJac);
-
-        // solve linear system
-        KSPContext ctx = {maxIter_KSP_, residualNorm * rtol_KSP_, -1};
-        iterativePolicyEvaluation(jacobian, stageCosts, V, ctx);
-        MatDestroy(&transitionProbabilities);
-        MatDestroy(&jacobian); // avoid memory leak
-        VecDestroy(&stageCosts);
-
-        PetscTime(&endTime);
-        jsonWriter_->add_iteration_data(PI_iteration, ctx.kspIterations, (endTime - startTime) * 1000, residualNorm);
-        LOG("Iteration " + std::to_string(PI_iteration) + " residual norm: " + std::to_string(residualNorm));
-    }
-
-    if(PI_iteration >= maxIter_PI_) {
-        LOG("Warning: maximum number of PI iterations reached. Solution might not be optimal.");
-    }
-
-    jsonWriter_->write_to_file("gm_stats.json");
-
-    MatDestroy(&transitionProbabilities);
-    MatDestroy(&jacobian);
-    VecDestroy(&stageCosts);
-
-    // output results
-    VecDuplicate(V, &optimalCost);
-    VecCopy(V, optimalCost);
-    ISCreateGeneral(PETSC_COMM_WORLD, localNumStates_, policyValues, PETSC_COPY_VALUES, &policy);
-
-    VecDestroy(&V);
-    PetscFree(policyValues);
-
-    return 0;
-}
-
-PetscErrorCode GrowthModel::cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason *reason, void *ctx) {
-    PetscErrorCode ierr;
-    PetscReal threshold = static_cast<KSPContext*>(ctx)->threshold;
-    PetscReal norm;
-
-    Vec res;
-    //ierr = VecDuplicate(ksp->vec_rhs, &res); CHKERRQ(ierr);
-    ierr = KSPBuildResidual(ksp, NULL, NULL, &res); CHKERRQ(ierr);
-    ierr = VecNorm(res, NORM_INFINITY, &norm); CHKERRQ(ierr);
-    ierr = VecDestroy(&res); CHKERRQ(ierr);
-
-    //PetscPrintf(PETSC_COMM_WORLD, "it = %d: residual norm = %f\n", it, norm);
-
-    if(it == 0) *reason = KSP_CONVERGED_ITERATING;
-    else if(norm < threshold) *reason = KSP_CONVERGED_RTOL;
-    else if(it >= static_cast<KSPContext*>(ctx)->maxIter) *reason = KSP_DIVERGED_ITS;
-    else *reason = KSP_CONVERGED_ITERATING;
-
-    return 0;
-}

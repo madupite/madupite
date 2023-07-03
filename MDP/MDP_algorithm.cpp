@@ -32,22 +32,7 @@ PetscErrorCode MDP::extractGreedyPolicy(Vec &V, PetscInt *policy, PetscReal &res
     MatGetOwnershipRange(costMatrix, &rowStart, NULL);
     ierr = MatMPIAIJSetPreallocation(costMatrix, localNumActions, NULL, numActions_ - localNumActions, NULL); CHKERRQ(ierr); // preallocate dense matrix
 
-    // fill matrix with values
-#if 0
-    const PetscReal *costVectorValues;
-    VecGetArrayRead(costVector, &costVectorValues);
-    IS rows, cols;
-    ISCreateStride(PETSC_COMM_WORLD, localNumStates_, rowStart, 1, &rows);
-    ISCreateStride(PETSC_COMM_WORLD, numActions_, 0, 1, &cols);
-    ierr = MatSetValuesIS(costMatrix, rows, cols, costVectorValues, INSERT_VALUES); CHKERRQ(ierr);
-    MatAssemblyBegin(costMatrix, MAT_FINAL_ASSEMBLY);
-    VecRestoreArrayRead(costVector, &costVectorValues);
-    MatAssemblyEnd(costMatrix, MAT_FINAL_ASSEMBLY);
-    ISDestroy(&rows);
-    ISDestroy(&cols);
-#endif
-
-#if 1
+    // reshape costVector into costMatrix (fill matrix with values)
     const PetscReal *costVectorValues;
     VecGetArrayRead(costVector, &costVectorValues);
     IS rows, cols;
@@ -65,31 +50,19 @@ PetscErrorCode MDP::extractGreedyPolicy(Vec &V, PetscInt *policy, PetscReal &res
     MatAssemblyEnd(costMatrix, MAT_FINAL_ASSEMBLY);
     ISDestroy(&rows);
     ISDestroy(&cols);
-#endif
-
-#if 0
-    const PetscReal *costVectorValues;
-    VecGetArrayRead(costVector, &costVectorValues);
-    PetscInt *rowIndices, *colIndices;
-    PetscMalloc1(localNumStates_, &rowIndices);
-    PetscMalloc1(numActions_, &colIndices);
-    std::iota(colIndices, colIndices + numActions_, 0);
-    std::iota(rowIndices, rowIndices + localNumStates_, rowStart);
-    ierr = MatSetValues(costMatrix, localNumStates_, rowIndices, numActions_, colIndices, costVectorValues, INSERT_VALUES); CHKERRQ(ierr);
-    MatAssemblyBegin(costMatrix, MAT_FINAL_ASSEMBLY);
-    VecRestoreArrayRead(costVector, &costVectorValues);
-    MatAssemblyEnd(costMatrix, MAT_FINAL_ASSEMBLY);
-    PetscFree(rowIndices);
-    PetscFree(colIndices);
-#endif
 
     // add g to costMatrix
-    MatAXPY(costMatrix, 1.0, stageCostMatrix_, DIFFERENT_NONZERO_PATTERN);
+    ierr = MatAXPY(costMatrix, 1.0, stageCostMatrix_, DIFFERENT_NONZERO_PATTERN); CHKERRQ(ierr);
 
     // find minimum for each row and compute residual norm
     Vec residual;
     VecCreateMPI(PETSC_COMM_WORLD, localNumStates_, numStates_, &residual);
-    ierr = MatGetRowMin(costMatrix, residual, policy); CHKERRQ(ierr);
+    if(mode_ == mode::MINCOST) {
+        ierr = MatGetRowMin(costMatrix, residual, policy); CHKERRQ(ierr);
+    }
+    else if(mode_ == mode::MAXREWARD) {
+        ierr = MatGetRowMax(costMatrix, residual, policy); CHKERRQ(ierr);
+    }
     VecAXPY(residual, -1.0, V);
     VecNorm(residual, NORM_INFINITY, &residualNorm);
     VecDestroy(&residual);

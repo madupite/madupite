@@ -12,22 +12,12 @@ MDP::MDP() {
     MPI_Comm_size(PETSC_COMM_WORLD, &size_);
 
     jsonWriter_ = new JsonWriter(rank_);
+    jsonWriter_->add_data("numRanks", size_);
     transitionProbabilityTensor_ = nullptr;
     stageCostMatrix_ = nullptr;
 
-    setValuesFromOptions();
-
-    jsonWriter_->add_data("numRanks", size_);
-
-    // distribute states to ranks
-    localNumStates_ = (rank_ < numStates_ % size_) ? numStates_ / size_ + 1 : numStates_ / size_; // first numStates_ % size_ ranks get one more state
     Logger::setPrefix("[R" + std::to_string(rank_) + "] ");
     Logger::setFilename("log_R" + std::to_string(rank_) + ".txt"); // remove if all ranks should output to the same file
-    LOG("owns " + std::to_string(localNumStates_) + " states.");
-
-    if(file_P_[0] != '\0' && file_g_[0] != '\0') {
-        loadFromBinaryFile(file_P_, file_g_);
-    }
 }
 
 MDP::~MDP() {
@@ -84,11 +74,15 @@ PetscErrorCode MDP::setValuesFromOptions() {
     jsonWriter_->add_data("atol_PI", atol_PI_);
     ierr = PetscOptionsGetString(NULL, NULL, "-file_P", file_P_, PETSC_MAX_PATH_LEN, &flg); CHKERRQ(ierr);
     if(!flg) {
-        SETERRQ(PETSC_COMM_WORLD, 1, "Filename for transition probability tensor not specified. Use -file_P <string>. (max length: 4096 chars");
+        //SETERRQ(PETSC_COMM_WORLD, 1, "Filename for transition probability tensor not specified. Use -file_P <string>. (max length: 4096 chars");
+        LOG("Warning: Filename for transition probability tensor not specified. Use -file_P <string>. (max length: 4096 chars");
+        file_P_[0] = '\0';
     }
     ierr = PetscOptionsGetString(NULL, NULL, "-file_g", file_g_, PETSC_MAX_PATH_LEN, &flg); CHKERRQ(ierr);
     if(!flg) {
-        SETERRQ(PETSC_COMM_WORLD, 1, "Filename for stage cost matrix not specified. Use -file_g <string>. (max length: 4096 chars");
+        //SETERRQ(PETSC_COMM_WORLD, 1, "Filename for stage cost matrix not specified. Use -file_g <string>. (max length: 4096 chars");
+        LOG("Warning: Filename for stage cost matrix not specified. Use -file_g <string>. (max length: 4096 chars");
+        file_g_[0] = '\0';
     }
     ierr = PetscOptionsGetString(NULL, NULL, "-file_policy", file_policy_, PETSC_MAX_PATH_LEN, &flg); CHKERRQ(ierr);
     if(!flg) {
@@ -104,6 +98,25 @@ PetscErrorCode MDP::setValuesFromOptions() {
     if(!flg) {
         SETERRQ(PETSC_COMM_WORLD, 1, "Filename for statistics not specified. Use -file_stats <string>. (max length: 4096 chars");
     }
+    PetscChar inputMode[20];
+    ierr = PetscOptionsGetString(NULL, NULL, "-mode", inputMode, 20, &flg); CHKERRQ(ierr);
+    if(!flg) {
+        SETERRQ(PETSC_COMM_WORLD, 1, "Input mode not specified. Use -mode MINCOST or MAXREWARD.");
+    }
+    if (strcmp(inputMode, "MINCOST") == 0) {
+        mode_ = MINCOST;
+        jsonWriter_->add_data("mode", "MINCOST");
+    } else if (strcmp(inputMode, "MAXREWARD") == 0) {
+        mode_ = MAXREWARD;
+        jsonWriter_->add_data("mode", "MAXREWARD");
+    } else {
+        SETERRQ(PETSC_COMM_WORLD, 1, "Input mode not recognized. Use -mode MINCOST or MAXREWARD.");
+    }
+
+    // set local number of states (for this rank)
+    localNumStates_ = (rank_ < numStates_ % size_) ? numStates_ / size_ + 1 : numStates_ / size_; // first numStates_ % size_ ranks get one more state
+    LOG("owns " + std::to_string(localNumStates_) + " states.");
+
     return 0;
 }
 

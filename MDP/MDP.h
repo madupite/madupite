@@ -27,24 +27,26 @@ public:
 
     MDP();
     ~MDP();
-    PetscErrorCode setValuesFromOptions();
+    virtual PetscErrorCode setValuesFromOptions();
 
-    PetscErrorCode extractGreedyPolicy(Vec &V, PetscInt *policy, PetscReal &residualNorm);
-    PetscErrorCode constructFromPolicy(PetscInt   *policy, Mat &transitionProbabilities, Vec &stageCosts);
-    PetscErrorCode constructFromPolicy(PetscInt actionInd, Mat &transitionProbabilities, Vec &stageCosts);
-    PetscErrorCode iterativePolicyEvaluation(Mat &jacobian, Vec &stageCosts, Vec &V, KSPContext &ctx);
-    PetscErrorCode createJacobian(Mat &jacobian, const Mat &transitionProbabilities, JacobianContext &ctx);
-    PetscErrorCode inexactPolicyIteration(Vec &V0, IS &policy, Vec &optimalCost);
-    PetscErrorCode benchmarkIPI(Vec &V0, IS &policy, Vec &optimalCost);
+    virtual PetscErrorCode extractGreedyPolicy(Vec &V, PetscInt *policy, PetscReal &residualNorm);
+    virtual PetscErrorCode constructFromPolicy(PetscInt   *policy, Mat &transitionProbabilities, Vec &stageCosts);
+    virtual PetscErrorCode constructFromPolicy(PetscInt actionInd, Mat &transitionProbabilities, Vec &stageCosts);
+    virtual PetscErrorCode iterativePolicyEvaluation(Mat &jacobian, Vec &stageCosts, Vec &V, KSPContext &ctx);
+    virtual PetscErrorCode createJacobian(Mat &jacobian, const Mat &transitionProbabilities, JacobianContext &ctx);
+    virtual PetscErrorCode inexactPolicyIteration(Vec &V0, IS &policy, Vec &optimalCost);
+    virtual PetscErrorCode benchmarkIPI(Vec &V0, IS &policy, Vec &optimalCost);
 
     static PetscErrorCode cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason *reason, void *ctx); // Test if residual norm is smaller than alpha * r0_norm
     static void jacobianMultiplication(Mat mat, Vec x, Vec y); // defines matrix vector product for jacobian shell
 
-    PetscErrorCode loadFromBinaryFile(std::string filename_P, std::string filename_g);
-    PetscErrorCode writeResultCost  (const Vec  &optimalCost);
-    PetscErrorCode writeResultPolicy(const IS &optimalPolicy);
+    virtual PetscErrorCode loadFromBinaryFile(std::string filename_P, std::string filename_g);
+    virtual PetscErrorCode writeResultCost  (const Vec  &optimalCost);
+    virtual PetscErrorCode writeResultPolicy(const IS &optimalPolicy);
 
-    // user specified parameters
+    // user specified options
+    enum mode {MINCOST, MAXREWARD};
+    mode        mode_;
     PetscInt    numStates_;       // global
     PetscInt    numActions_;      // global
     PetscReal   discountFactor_;
@@ -67,7 +69,7 @@ public:
     PetscInt g_start_, g_end_;          // local row range of stageCostMatrix_
 
     Mat transitionProbabilityTensor_;   // transition probability tensor
-    Mat stageCostMatrix_;               // stage cost matrix
+    Mat stageCostMatrix_;               // stage cost matrix (also rewards possible)
 
     JsonWriter *jsonWriter_;
 };

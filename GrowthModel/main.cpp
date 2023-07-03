@@ -4,10 +4,12 @@
 
 #include "GrowthModel.h"
 #include <petsc.h>
+#include "../utils/Timer.h"
 
 int main(int argc, char** argv) {
     PetscInitialize(&argc, &argv, PETSC_NULL, PETSC_NULL);
     GrowthModel gm;
+    gm.setValuesFromOptions();
 
     /* ======== INIT PAPER EXAMPLE ======== */
     // create z_ = [0.726, 1.377]
@@ -27,32 +29,50 @@ int main(int argc, char** argv) {
     MatAssemblyEnd(gm.P_z_, MAT_FINAL_ASSEMBLY);
     /* ==================================== */
 
+    Timer t;
+
+    t.start();
     gm.generateKInterval();
-    PetscPrintf(PETSC_COMM_WORLD, "Capital stocks (k):\n");
-    VecView(gm.k_, PETSC_VIEWER_STDOUT_SELF);
+    //PetscPrintf(PETSC_COMM_WORLD, "Capital stocks (k):\n");
+    //VecView(gm.k_, PETSC_VIEWER_STDOUT_SELF);
 
     gm.calculateAvailableResources();
-    PetscPrintf(PETSC_COMM_WORLD, "Available resources (B):\n");
-    VecView(gm.B_, PETSC_VIEWER_STDOUT_SELF);
+    //PetscPrintf(PETSC_COMM_WORLD, "Available resources (B):\n");
+    //VecView(gm.B_, PETSC_VIEWER_STDOUT_SELF);
 
     gm.calculateFeasibleActions();
-    PetscPrintf(PETSC_COMM_WORLD, "Feasible actions (A):\n");
-    ISView(gm.A_, PETSC_VIEWER_STDOUT_SELF);
+    //PetscPrintf(PETSC_COMM_WORLD, "Feasible actions (A):\n");
+    //ISView(gm.A_, PETSC_VIEWER_STDOUT_SELF);
+    t.stop("Precomputation took: ");
 
+    t.start();
+    gm.constructTransitionProbabilitiesRewards();
+    t.stop("Construction of transition probabilities and rewards took: ");
+
+#if 1
     Vec V0;
     VecCreateSeq(PETSC_COMM_SELF, gm.numStates_, &V0);
     VecSet(V0, 0.0);
 
+
     Vec optimalCost;
     IS optimalPolicy;
+    t.start();
     gm.inexactPolicyIteration(V0, optimalPolicy, optimalCost);
+    t.stop("iPI took: ");
 
-    VecView(optimalCost, PETSC_VIEWER_STDOUT_SELF);
-    ISView(optimalPolicy, PETSC_VIEWER_STDOUT_SELF);
+    t.start();
+    gm.writeResultCost(optimalCost);
+    gm.writeResultPolicy(optimalPolicy);
+    t.stop("Writing took: ");
+
+    //VecView(optimalCost, PETSC_VIEWER_STDOUT_SELF);
+    //ISView(optimalPolicy, PETSC_VIEWER_STDOUT_SELF);
 
     VecDestroy(&V0);
     VecDestroy(&optimalCost);
     ISDestroy(&optimalPolicy);
-
+#endif
+    gm.~GrowthModel();
     PetscFinalize();
 }
