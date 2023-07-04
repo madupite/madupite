@@ -41,8 +41,8 @@ public:
     static void jacobianMultiplication(Mat mat, Vec x, Vec y); // defines matrix vector product for jacobian shell
 
     virtual PetscErrorCode loadFromBinaryFile(std::string filename_P, std::string filename_g);
-    virtual PetscErrorCode writeResultCost  (const Vec  &optimalCost);
-    virtual PetscErrorCode writeResultPolicy(const IS &optimalPolicy);
+    PetscErrorCode writeVec  (const Vec  &vec, const PetscChar *filename);
+    PetscErrorCode writeIS(const IS &is, const PetscChar *filename);
 
     // user specified options
     enum mode {MINCOST, MAXREWARD};

@@ -37,8 +37,8 @@ int main(int argc, char** argv)
     t.stop("iPI took: ");
 
     t.start();
-    mdp.writeResultCost(optimalCost);
-    mdp.writeResultPolicy(optimalPolicy);
+    mdp.writeVec(optimalCost, mdp.file_cost_);
+    mdp.writeIS(optimalPolicy, mdp.file_policy_);
     t.stop("Writing took: ");
 
     mdp.~MDP();
