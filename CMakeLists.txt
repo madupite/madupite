@@ -56,3 +56,18 @@ add_executable(growth_model
 target_link_libraries(growth_model PkgConfig::PETSC)
 target_link_libraries(growth_model ${MPI_LIBRARIES})
 target_link_libraries(growth_model nlohmann_json::nlohmann_json)
+
+# Growth Model
+include_directories(InfectiousDiseaseModel/)
+add_executable(infectious_disease_model
+        InfectiousDiseaseModel/main.cpp
+#        InfectiousDiseaseModel/GrowthModel.cpp
+        MDP/MDP_algorithm.cpp
+        MDP/MDP_setup.cpp
+        utils/Logger.cpp
+        )
+
+# Linking libraries to the second executable
+target_link_libraries(infectious_disease_model PkgConfig::PETSC)
+target_link_libraries(infectious_disease_model ${MPI_LIBRARIES})
+target_link_libraries(infectious_disease_model nlohmann_json::nlohmann_json)
