@@ -1,7 +1,7 @@
 -mat_type mpiaij
 -pc_type none
 -populationSize 100
--discountFactor 0.98
+-discountFactor 0.7
 -HM 0.25,0.125,0.08,0.05,0.03
 -SD 20,16,10,1
 -HM-cf 0,1,5,6,9
@@ -13,8 +13,8 @@
 -maxIter_PI 100
 -maxIter_KSP 1000
 -numPIRuns 1
--rtol_KSP 1e-4
+-rtol_KSP 1e-8
 -atol_PI 1e-10
--file_stats out/stats.json
--file_policy out/policy.out
--file_cost out/cost.out
+-file_stats IDM_out/stats.json
+-file_policy IDM_out/policy.out
+-file_cost IDM_out/cost.out

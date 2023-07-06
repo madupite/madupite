@@ -4,6 +4,7 @@
 
 #include "InfectiousDiseaseModel.h"
 #include "../utils/Logger.h"
+#include <boost/math/distributions/binomial.hpp>
 
 InfectiousDiseaseModel::InfectiousDiseaseModel() {}
 
@@ -16,7 +17,7 @@ std::pair<PetscInt, PetscInt> InfectiousDiseaseModel::a2ij(PetscInt a) const {
 
 
 PetscReal InfectiousDiseaseModel::ch(PetscInt state) const {
-    return std::pow(populationSize_ - state, 1.1); // #infections^1.1
+    return std::pow(static_cast<double>(populationSize_ - state), 1.1); // #infections^1.1
 }
 
 
@@ -29,7 +30,7 @@ PetscReal InfectiousDiseaseModel::g(PetscInt state, PetscInt action) const {
 
 PetscReal InfectiousDiseaseModel::q(PetscInt state, PetscInt action) const {
     auto [a1, a2] = a2ij(action);
-    PetscReal beta = 1.0 - state / populationSize_;
+    PetscReal beta = 1.0 - 1.0 * state / populationSize_;
     return 1 - std::exp(-beta * r_[a1] * lambda_[a2]);
 }
 
@@ -51,6 +52,42 @@ PetscErrorCode InfectiousDiseaseModel::generateStageCosts() {
     }
     MatAssemblyBegin(stageCostMatrix_, MAT_FINAL_ASSEMBLY);
     MatAssemblyEnd(stageCostMatrix_, MAT_FINAL_ASSEMBLY);
+
+    return 0;
+}
+
+PetscErrorCode InfectiousDiseaseModel::generateTransitionProbabilities() {
+    PetscErrorCode ierr;
+    MatCreate(PETSC_COMM_WORLD, &transitionProbabilityTensor_);
+    MatSetType(transitionProbabilityTensor_, MATMPIAIJ);
+    MatSetSizes(transitionProbabilityTensor_, localNumStates_*numActions_, PETSC_DECIDE, numStates_*numActions_, numStates_);
+    MatSetOption(transitionProbabilityTensor_, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_TRUE);
+    MatSetUp(transitionProbabilityTensor_); // todo preallocation
+
+    PetscInt start, end;
+    MatGetOwnershipRange(transitionProbabilityTensor_, &start, &end);
+    start /= numActions_;
+    end /= numActions_;
+    PetscInt nextState;
+    for(PetscInt stateInd = 0; stateInd < end; ++stateInd) {
+        //PetscInt stateInd = startState + stateInd;
+        for(PetscInt actionInd = 0; actionInd < numActions_; ++actionInd) {
+            if(stateInd == populationSize_) {
+                ierr = MatSetValue(transitionProbabilityTensor_, stateInd*numActions_ + actionInd, populationSize_, 1.0, INSERT_VALUES); CHKERRQ(ierr); // absorbing state
+                continue;
+            }
+            boost::math::binomial_distribution<PetscReal> binom(stateInd, q(stateInd, actionInd));
+            PetscPrintf(PETSC_COMM_WORLD, "  q(%d, %d) = %f\n", stateInd, actionInd, q(stateInd, actionInd));
+            for(PetscInt i = 0; i <= stateInd; ++i) {
+                nextState = populationSize_ - i;
+                PetscReal prob = boost::math::pdf(binom, i);
+                ierr = MatSetValue(transitionProbabilityTensor_, stateInd*numActions_ + actionInd, nextState, prob, INSERT_VALUES); CHKERRQ(ierr);
+            }
+        }
+    }
+    MatAssemblyBegin(transitionProbabilityTensor_, MAT_FINAL_ASSEMBLY);
+    MatAssemblyEnd(transitionProbabilityTensor_, MAT_FINAL_ASSEMBLY);
+
 
     return 0;
 }

@@ -8,7 +8,7 @@ from mdp import *
 # SIS model for infectious diseases
 
 # parameters
-N = 300 # population size
+N = 100 # population size
 discountFactor = 0.7 # no clue, nothing in the paper?
 numStates = N + 1
 numA1 = 5 # hygienic measures
@@ -40,7 +40,9 @@ cq_a1 = [1, 0.7, 0.5, 0.4, 0.05]
 cq_a2 = [1, 0.9, 0.5, 0.1]
 
 # health costs (ch) [dependent on state]
-ch = lambda s: (N - s)**1.1
+#ch = lambda s: (N - s)**1.1
+def ch(s):
+    return (N - s)**1.1
 
 # total costs (ct) [dependent on action and state]
 wf = 2
@@ -73,7 +75,8 @@ plt.savefig("stageCostMatrix.png")
 
 #r_ = [0.115, 0.0575, 0.03, 0.02, 0.012]
 r_ = [0.25, 0.125, 0.08, 0.05, 0.03]
-lambda_ = [lambda0, 0.8*lambda0, 0.5*lambda0, 0.05*lambda0]
+#lambda_ = [lambda0, 0.8*lambda0, 0.5*lambda0, 0.05*lambda0]
+lambda_ = [20, 16, 10, 1]
 def q(s, a):
     a1 = a2ij(a)[0]
     a2 = a2ij(a)[1]
@@ -84,7 +87,7 @@ def q(s, a):
 transitionProbabilityTensor = np.zeros((numActions, numStates, numStates))
 # P(
 max_err = 0
-"""
+
 for a in range(numActions):
     for s in range(numStates - 1):
         for i in range(numStates):
@@ -98,8 +101,8 @@ for a in range(numActions):
 
         max_err = max(np.sum(transitionProbabilityTensor[a, s, :]) - 1, max_err)
     transitionProbabilityTensor[a, numStates - 1, numStates - 1] = 1
-"""
 
+"""
 for a in range(numActions):
     for s in range(numStates - 1):
         for x in range(numStates):
@@ -109,9 +112,30 @@ for a in range(numActions):
                 transitionProbabilityTensor[a, s, x] = 0
         max_err = max(np.sum(transitionProbabilityTensor[a, s, :]) - 1, max_err)
     transitionProbabilityTensor[a, numStates - 1, numStates - 1] = 1
+"""
+#np.savetxt("transitionProbabilityTensor.csv", transitionProbabilityTensor[0, :, :], delimiter=",", fmt='%1.2f')
+
+"""
+# c++ version: P is numStates*numActions x numStates matrix
+transitionProbabilityTensor = np.zeros((numStates * numActions, numStates))
+
+for s in range(numStates):
+    for a in range(numActions):
+        if s == N:
+            transitionProbabilityTensor[s * numActions + a, s] = 1
+            continue
+        print(f"  q({s}, {a}) = {q(s, a)}")
+        for i in range(s+1):
+            s_ = N - i
+            transitionProbabilityTensor[s * numActions + a, s_] = binom.pmf(i, s, q(s, a))
 
 
-np.savetxt("transitionProbabilityTensor.csv", transitionProbabilityTensor[0, :, :], delimiter=",", fmt='%1.2f')
+P = np.zeros((numStates, numStates))
+for s in range(numStates):
+    P[s, :] = transitionProbabilityTensor[s * numActions, :]
+np.savetxt("P.csv", P, delimiter=",")
+"""
+
 #print(transitionProbabilityTensor)
 print("max row stochasticity error: ", max_err)
 
@@ -120,7 +144,7 @@ fig, axs = plt.subplots(4, 5, figsize=(20, 20))
 for a in range(numActions):
     ax = axs[a // numA1, a % numA1]
     ax.set_title(f"(a1, a2) = {a2ij(a)}")
-    im = ax.imshow(transitionProbabilityTensor[a, :, :], cmap='hot', interpolation='nearest', origin='lower')
+    im = ax.imshow(transitionProbabilityTensor[a, :, :], cmap='hot', interpolation='nearest')
     ax.set_xlabel("S'")
     ax.set_ylabel("S")
 

@@ -14,6 +14,7 @@ public:
     ~InfectiousDiseaseModel();
     PetscErrorCode setValuesFromOptions() override;
     PetscErrorCode generateStageCosts();
+    PetscErrorCode generateTransitionProbabilities();
 
     std::pair<PetscInt, PetscInt> a2ij(PetscInt a) const; // 1d action index to 2d action index
     PetscReal g(PetscInt state, PetscInt action) const; // stage cost

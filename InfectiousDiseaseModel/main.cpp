@@ -5,6 +5,7 @@
 #include <iostream>
 #include <boost/math/distributions/binomial.hpp>
 #include "InfectiousDiseaseModel.h"
+#include "../utils/Timer.h"
 
 int main(int argc, char **argv) {
 #if 0
@@ -21,38 +22,52 @@ int main(int argc, char **argv) {
     }
 #endif
 
+
     PetscInitialize(&argc, &argv, nullptr, nullptr);
+
+    Timer t;
 
     InfectiousDiseaseModel idm;
     idm.setValuesFromOptions();
 
+    t.start();
     idm.generateStageCosts();
-
-    MatView(idm.stageCostMatrix_, PETSC_VIEWER_STDOUT_WORLD);
-
+    t.stop("Generating stage costs took: ");
+    //MatView(idm.stageCostMatrix_, PETSC_VIEWER_STDOUT_WORLD);
+    t.start();
+    idm.generateTransitionProbabilities();
+    t.stop("Generating transition probabilities took: ");
 #if 0
-    for(int i = 0; i < idm.numA1_; ++i) {
-        std::cout << "r[" << i << "] = " << idm.r_[i] << std::endl;
+    // save to csv file
+    std::ofstream file("transition_probabilities.csv");
+    PetscReal value;
+    for(int i = 0; i < idm.numStates_; ++i) {
+        const PetscInt row = i * idm.numActions_;
+        for(int j = 0; j < idm.numStates_; ++j) {
+            MatGetValues(idm.transitionProbabilityTensor_, 1, &row, 1, &j, &value);
+            file << value << ",";
+        }
+        file << std::endl;
     }
-    for(int i = 0; i < idm.numA2_; ++i) {
-        std::cout << "lambda[" << i << "] = " << idm.lambda_[i] << std::endl;
-    }
-    for(int i = 0; i < idm.numA1_; ++i) {
-        std::cout << "cf_a1[" << i << "] = " << idm.cf_a1_[i] << std::endl;
-    }
-    for(int i = 0; i < idm.numA2_; ++i) {
-        std::cout << "cf_a2[" << i << "] = " << idm.cf_a2_[i] << std::endl;
-    }
-    for(int i = 0; i < idm.numA1_; ++i) {
-        std::cout << "cq_a1[" << i << "] = " << idm.cq_a1_[i] << std::endl;
-    }
-    for(int i = 0; i < idm.numA2_; ++i) {
-        std::cout << "cq_a2[" << i << "] = " << idm.cq_a2_[i] << std::endl;
-    }
-    for(int i = 0; i < 3; ++i) {
-        std::cout << "weights[" << i << "] = " << idm.weights_[i] << std::endl;
-    }
+    file.close();
 #endif
+
+    Vec V0;
+    VecCreateMPI(PETSC_COMM_WORLD, idm.localNumStates_, idm.numStates_, &V0);
+    VecSet(V0, 1.0);
+
+    Vec optimalCost;
+    IS optimalPolicy;
+    t.start();
+    idm.inexactPolicyIteration(V0, optimalPolicy, optimalCost);
+    t.stop("Inexact policy iteration took: ");
+    PetscPrintf(PETSC_COMM_WORLD, "Optimal cost:\n");
+    VecView(optimalCost, PETSC_VIEWER_STDOUT_WORLD);
+    PetscPrintf(PETSC_COMM_WORLD, "Optimal policy:\n");
+    ISView(optimalPolicy, PETSC_VIEWER_STDOUT_WORLD);
+
+    idm.writeResultCost(optimalCost);
+    idm.writeResultPolicy(optimalPolicy);
 
     idm.~InfectiousDiseaseModel();
     PetscFinalize();
