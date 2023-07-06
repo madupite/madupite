@@ -19,6 +19,10 @@ find_package(MPI REQUIRED)
 #set(CMAKE_CXX_COMPILER ${MPI_CXX_COMPILER})
 include_directories(${MPI_INCLUDE_PATH})
 
+# Boost configuration
+find_package(Boost REQUIRED)
+include_directories(${Boost_INCLUDE_DIRS})
+
 # nlohmann json configuration
 include(FetchContent)
 FetchContent_Declare(json
@@ -57,17 +61,18 @@ target_link_libraries(growth_model PkgConfig::PETSC)
 target_link_libraries(growth_model ${MPI_LIBRARIES})
 target_link_libraries(growth_model nlohmann_json::nlohmann_json)
 
-# Growth Model
+# Infectious Disease Model
 include_directories(InfectiousDiseaseModel/)
 add_executable(infectious_disease_model
         InfectiousDiseaseModel/main.cpp
-#        InfectiousDiseaseModel/GrowthModel.cpp
+        InfectiousDiseaseModel/InfectiousDiseaseModel.cpp
         MDP/MDP_algorithm.cpp
         MDP/MDP_setup.cpp
         utils/Logger.cpp
         )
 
-# Linking libraries to the second executable
+# Linking libraries to the third executable
 target_link_libraries(infectious_disease_model PkgConfig::PETSC)
 target_link_libraries(infectious_disease_model ${MPI_LIBRARIES})
 target_link_libraries(infectious_disease_model nlohmann_json::nlohmann_json)
+target_link_libraries(infectious_disease_model PRIVATE ${Boost_LIBRARIES})
