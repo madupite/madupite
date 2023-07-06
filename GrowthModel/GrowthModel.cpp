@@ -13,9 +13,9 @@ GrowthModel::GrowthModel() {
 GrowthModel::~GrowthModel() {
     MatDestroy(&P_z_);
     VecDestroy(&z_);
-    VecDestroy(&k_);
-    VecDestroy(&B_);
-    ISDestroy(&A_);
+    //VecDestroy(&k_);
+    //VecDestroy(&B_);
+    //ISDestroy(&A_);
 }
 
 PetscErrorCode GrowthModel::generateKInterval() {
@@ -23,26 +23,30 @@ PetscErrorCode GrowthModel::generateKInterval() {
     PetscInt z_indices[2] = {0, numZ_ - 1};
     VecGetValues(z_, 2, z_indices, z_vals);
     //VecCreateSeq(PETSC_COMM_SELF, numK_, &k_);
-    VecCreateMPI(PETSC_COMM_WORLD, PETSC_DECIDE, numK_, &k_);
+    VecCreateMPI(PETSC_COMM_WORLD, localNumK_, numK_, &k_);
     PetscReal *k_vals;
-    PetscMalloc1(numK_, &k_vals);
+    PetscMalloc1(localNumK_, &k_vals);
+    PetscInt k_start, k_end;
+    VecGetOwnershipRange(k_, &k_start, &k_end);
 
     PetscReal k_star_z1 = std::pow(discountFactor_ * rho_ * z_vals[0] / (1 - discountFactor_), 1 / (1 - rho_));
     PetscReal k_star_z2 = std::pow(discountFactor_ * rho_ * z_vals[1] / (1 - discountFactor_), 1 / (1 - rho_));
     PetscReal k_min = k_star_z1 - 0.1 * (k_star_z2 - k_star_z1);
     PetscReal k_max = k_star_z2 + 0.1 * (k_star_z2 - k_star_z1);
 
-    PetscMalloc1(numK_, &k_vals);
+    PetscMalloc1(localNumK_, &k_vals);
+
+    PetscReal offset = k_start * (k_max - k_min) / (numK_ - 1);
     PetscReal k_incr = (k_max - k_min) / (numK_ - 1);
-    for(PetscInt i = 0; i < numK_; ++i) {
-        k_vals[i] = k_min + i * k_incr;
+    for(PetscInt i = 0; i < localNumK_; ++i) {
+        k_vals[i] = k_min + i * k_incr + offset;
     }
 
     IS indices;
-    ISCreateStride(PETSC_COMM_SELF, numK_, 0, 1, &indices);
+    ISCreateStride(PETSC_COMM_SELF, numK_, k_start, 1, &indices);
     const PetscInt *indices_arr;
     ISGetIndices(indices, &indices_arr);
-    VecSetValues(k_, numK_, indices_arr, k_vals, INSERT_VALUES);
+    VecSetValues(k_, localNumK_, indices_arr, k_vals, INSERT_VALUES);
     ISRestoreIndices(indices, &indices_arr);
     ISDestroy(&indices);
 
@@ -56,14 +60,14 @@ PetscErrorCode GrowthModel::generateKInterval() {
 
 PetscErrorCode GrowthModel::calculateAvailableResources() {
     PetscReal *B_vals;
-    PetscMalloc1(numK_ * numZ_, &B_vals);
+    PetscMalloc1(localNumStates_, &B_vals);
     //VecCreateSeq(PETSC_COMM_SELF, numK_ * numZ_, &B_);
-    VecCreateMPI(PETSC_COMM_WORLD, PETSC_DECIDE, numK_ * numZ_, &B_);
+    VecCreateMPI(PETSC_COMM_WORLD, localNumStates_, numStates_, &B_);
 
     const PetscReal *k_vals, *z_vals;
     VecGetArrayRead(k_, &k_vals);
     VecGetArrayRead(z_, &z_vals);
-    for(PetscInt i = 0; i < numK_; ++i) {
+    for(PetscInt i = 0; i < localNumK_; ++i) {
         for(PetscInt j = 0; j < numZ_; ++j) {
             // B[i,j] = z[j] * (k[i]^rho) + k[i]
             B_vals[ij2s(i, j)] = z_vals[j] * std::pow(k_vals[i], rho_) + k_vals[i];
@@ -73,10 +77,12 @@ PetscErrorCode GrowthModel::calculateAvailableResources() {
     VecRestoreArrayRead(z_, &z_vals);
 
     IS indices;
-    ISCreateStride(PETSC_COMM_SELF, numK_ * numZ_, 0, 1, &indices);
+    PetscInt start;
+    VecGetOwnershipRange(B_, &start, NULL);
+    ISCreateStride(PETSC_COMM_SELF, localNumStates_, start, 1, &indices);
     const PetscInt *indices_arr;
     ISGetIndices(indices, &indices_arr);
-    VecSetValues(B_, numK_ * numZ_, indices_arr, B_vals, INSERT_VALUES);
+    VecSetValues(B_, localNumStates_, indices_arr, B_vals, INSERT_VALUES);
     ISRestoreIndices(indices, &indices_arr);
     ISDestroy(&indices);
 
@@ -88,15 +94,33 @@ PetscErrorCode GrowthModel::calculateAvailableResources() {
     return 0;
 }
 
+// very inefficient!
+PetscReal getVectorValue(Vec x, PetscInt index) {
+    // Create a temporary sequential vector with all values of x
+    Vec y;
+    VecScatter ctx;
+    VecScatterCreateToAll(x, &ctx, &y);
+
+    // Now you can access any element of x through y, even if it's stored on another process
+    PetscReal value;
+    VecGetValues(y, 1, &index, &value);
+
+    // Cleanup
+    VecScatterDestroy(&ctx);
+    VecDestroy(&y);
+    return value;
+}
+
+
 PetscErrorCode GrowthModel::calculateFeasibleActions() {
     // find max_a {a | 0 <= a < nk, B[i,j] - k[a] >= 0}
     PetscInt *A_vals;
-    PetscMalloc1(numK_ * numZ_, &A_vals);
+    PetscMalloc1(localNumStates_, &A_vals);
     const PetscReal *k_vals, *B_vals;
-    VecGetArrayRead(k_, &k_vals);
+   // VecGetArrayRead(k_, &k_vals);
     VecGetArrayRead(B_, &B_vals);
 
-    for(PetscInt i = 0; i < numK_; ++i) {
+    /*for(PetscInt i = 0; i < localNumK_; ++i) {
         for(PetscInt j = 0; j < numZ_; ++j) {
             PetscInt a = 0;
             while(a < numK_ && B_vals[ij2s(i, j)] - k_vals[a] > 0) {
@@ -104,9 +128,21 @@ PetscErrorCode GrowthModel::calculateFeasibleActions() {
             }
             A_vals[ij2s(i, j)] = std::max(a - 1, 0);
         }
+    }*/
+
+    PetscInt start, end;
+    PetscReal k_a;
+    VecGetOwnershipRange(B_, &start, &end);
+    for(PetscInt stateInd = start; stateInd < end; ++stateInd) {
+        PetscInt localStateInd = stateInd - start;
+        PetscInt a = 0;
+        while(a < numK_ && B_vals[localStateInd] - getVectorValue(k_, a) > 0) {
+            ++a;
+        }
+        A_vals[localStateInd] = std::max(a - 1, 0);
     }
 
-    VecRestoreArrayRead(k_, &k_vals);
+    //VecRestoreArrayRead(k_, &k_vals);
     VecRestoreArrayRead(B_, &B_vals);
     ISCreateGeneral(PETSC_COMM_SELF, numK_ * numZ_, A_vals, PETSC_COPY_VALUES, &A_);
     PetscFree(A_vals);
@@ -280,7 +316,10 @@ PetscErrorCode GrowthModel::setValuesFromOptions() {
     // set derived parameters
     numStates_ = numK_ * numZ_;
     numActions_ = numK_;
-    localNumStates_ = (rank_ < numStates_ % size_) ? numStates_ / size_ + 1 : numStates_ / size_; // first numStates_ % size_ ranks get one more state
+    localNumK_ = (rank_ < numK_ % size_) ? numK_ / size_ + 1 : numK_ / size_; // first numK_ % size_ ranks get one more state
+    LOG("owns " + std::to_string(localNumK_) + " capital values.");
+    localNumStates_ = localNumK_ * numZ_;
+    //localNumStates_ = (rank_ < numStates_ % size_) ? numStates_ / size_ + 1 : numStates_ / size_; // first numStates_ % size_ ranks get one more state
     LOG("owns " + std::to_string(localNumStates_) + " states.");
 
     return 0;

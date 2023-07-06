@@ -29,6 +29,7 @@ public:
 
     PetscInt numK_;
     PetscInt numZ_;
+    PetscInt localNumK_;
     Mat P_z_;
     IS A_; // nk * nz (feasible actions)
     Vec B_; // nk * nz (available resources)
