@@ -26,6 +26,11 @@ int main(int argc, char **argv) {
     InfectiousDiseaseModel idm;
     idm.setValuesFromOptions();
 
+    idm.generateStageCosts();
+
+    MatView(idm.stageCostMatrix_, PETSC_VIEWER_STDOUT_WORLD);
+
+#if 0
     for(int i = 0; i < idm.numA1_; ++i) {
         std::cout << "r[" << i << "] = " << idm.r_[i] << std::endl;
     }
@@ -44,7 +49,12 @@ int main(int argc, char **argv) {
     for(int i = 0; i < idm.numA2_; ++i) {
         std::cout << "cq_a2[" << i << "] = " << idm.cq_a2_[i] << std::endl;
     }
+    for(int i = 0; i < 3; ++i) {
+        std::cout << "weights[" << i << "] = " << idm.weights_[i] << std::endl;
+    }
+#endif
 
+    idm.~InfectiousDiseaseModel();
     PetscFinalize();
 
     return 0;

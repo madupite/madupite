@@ -3,12 +3,59 @@
 //
 
 #include "InfectiousDiseaseModel.h"
-#include "../utils/JsonWriter.h"
 #include "../utils/Logger.h"
 
 InfectiousDiseaseModel::InfectiousDiseaseModel() {}
 
 InfectiousDiseaseModel::~InfectiousDiseaseModel() {}
+
+// 1d action index to 2d action index
+std::pair<PetscInt, PetscInt> InfectiousDiseaseModel::a2ij(PetscInt a) const {
+    return std::make_pair(a % numA1_, a / numA1_);
+}
+
+
+PetscReal InfectiousDiseaseModel::ch(PetscInt state) const {
+    return std::pow(populationSize_ - state, 1.1); // #infections^1.1
+}
+
+
+PetscReal InfectiousDiseaseModel::g(PetscInt state, PetscInt action) const {
+    auto [a1, a2] = a2ij(action);
+    PetscReal cf = cf_a1_[a1] + cf_a2_[a2];
+    PetscReal cq = cq_a1_[a1] * cq_a2_[a2];
+    return weights_[0] * cf - weights_[1] * cq + weights_[2] * ch(state);
+}
+
+PetscReal InfectiousDiseaseModel::q(PetscInt state, PetscInt action) const {
+    auto [a1, a2] = a2ij(action);
+    PetscReal beta = 1.0 - state / populationSize_;
+    return 1 - std::exp(-beta * r_[a1] * lambda_[a2]);
+}
+
+
+PetscErrorCode InfectiousDiseaseModel::generateStageCosts() {
+
+    MatCreate(PETSC_COMM_WORLD, &stageCostMatrix_);
+    MatSetType(stageCostMatrix_, MATDENSE);
+    MatSetSizes(stageCostMatrix_, localNumStates_, PETSC_DECIDE, numStates_, numActions_);
+    //MatMPIAIJSetPreallocation(stageCostMatrix_, PETSC_DECIDE, NULL, PETSC_DECIDE, NULL);
+    MatSetUp(stageCostMatrix_);
+
+    PetscInt start, end;
+    MatGetOwnershipRange(stageCostMatrix_, &start, &end);
+    for(PetscInt state = start; state < end; ++state) {
+        for(PetscInt action = 0; action < numActions_; ++action) {
+            MatSetValue(stageCostMatrix_, state, action, g(state, action), INSERT_VALUES);
+        }
+    }
+    MatAssemblyBegin(stageCostMatrix_, MAT_FINAL_ASSEMBLY);
+    MatAssemblyEnd(stageCostMatrix_, MAT_FINAL_ASSEMBLY);
+
+    return 0;
+}
+
+
 
 PetscErrorCode InfectiousDiseaseModel::setValuesFromOptions() {
     PetscErrorCode ierr;
@@ -75,6 +122,13 @@ PetscErrorCode InfectiousDiseaseModel::setValuesFromOptions() {
         SETERRQ(PETSC_COMM_WORLD, 1, "quality of life of social distancing not specified. Use -SD-cq <double> <double> <double> <double>.");
     }
     jsonWriter_->add_data("SD-cq", std::vector<PetscReal>(cq_a2_, cq_a2_ + numA2_));
+
+    // weights, 3 values
+    count = 3;
+    ierr = PetscOptionsGetRealArray(NULL, NULL, "-weights", weights_, &count, &flg); CHKERRQ(ierr);
+    if(count != 3 || !flg) {
+        SETERRQ(PETSC_COMM_WORLD, 1, "weights not specified. Use -weights <financial cost> <quality of life cost> <health cost>. (doubles)");
+    }
 
     ierr = PetscOptionsGetInt(NULL, NULL, "-maxIter_PI", &maxIter_PI_, &flg); CHKERRQ(ierr);
     if(!flg) {
