@@ -62,8 +62,8 @@ PetscErrorCode InfectiousDiseaseModel::generateTransitionProbabilities() {
     MatCreate(PETSC_COMM_WORLD, &transitionProbabilityTensor_);
     MatSetType(transitionProbabilityTensor_, MATMPIAIJ);
     MatSetSizes(transitionProbabilityTensor_, localNumStates_*numActions_, PETSC_DECIDE, numStates_*numActions_, numStates_);
-    MatSetOption(transitionProbabilityTensor_, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_TRUE);
-    MatSetUp(transitionProbabilityTensor_); // todo preallocation
+    MatSetUp(transitionProbabilityTensor_);
+    MatSetOption(transitionProbabilityTensor_, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE); // inefficient, but don't know how to preallocate binomial distribution
 
     PetscInt start, end;
     MatGetOwnershipRange(transitionProbabilityTensor_, &start, &end);
