@@ -66,8 +66,8 @@ int main(int argc, char **argv) {
     PetscPrintf(PETSC_COMM_WORLD, "Optimal policy:\n");
     ISView(optimalPolicy, PETSC_VIEWER_STDOUT_WORLD);
 
-    idm.writeResultCost(optimalCost);
-    idm.writeResultPolicy(optimalPolicy);
+    idm.writeVec(optimalCost, idm.file_cost_);
+    idm.writeIS(optimalPolicy, idm.file_policy_);
 
     idm.~InfectiousDiseaseModel();
     PetscFinalize();
