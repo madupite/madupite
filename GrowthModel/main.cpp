@@ -33,23 +33,30 @@ int main(int argc, char** argv) {
 
     t.start();
     gm.generateKInterval();
+    gm.writeVec(gm.k_, "GM/k.out");
     //PetscPrintf(PETSC_COMM_WORLD, "Capital stocks (k):\n");
     //VecView(gm.k_, PETSC_VIEWER_STDOUT_SELF);
 
     gm.calculateAvailableResources();
+    gm.writeVec(gm.B_, "GM/B.out");
     //PetscPrintf(PETSC_COMM_WORLD, "Available resources (B):\n");
     //VecView(gm.B_, PETSC_VIEWER_STDOUT_SELF);
 
+
     gm.calculateFeasibleActions();
+    //gm.writeIS(gm.A_, "GM/A.out");
+    ISView(gm.A_, PETSC_VIEWER_STDOUT_SELF);
     //PetscPrintf(PETSC_COMM_WORLD, "Feasible actions (A):\n");
     //ISView(gm.A_, PETSC_VIEWER_STDOUT_SELF);
     t.stop("Precomputation took: ");
+
+#if 0
 
     t.start();
     gm.constructTransitionProbabilitiesRewards();
     t.stop("Construction of transition probabilities and rewards took: ");
 
-#if 1
+
     Vec V0;
     VecCreateSeq(PETSC_COMM_SELF, gm.numStates_, &V0);
     VecSet(V0, 0.0);
@@ -62,8 +69,8 @@ int main(int argc, char** argv) {
     t.stop("iPI took: ");
 
     t.start();
-    gm.writeResultCost(optimalCost);
-    gm.writeResultPolicy(optimalPolicy);
+    gm.writeVec(optimalCost, gm.file_cost_);
+    gm.writeIS(optimalPolicy, gm.file_policy_);
     t.stop("Writing took: ");
 
     //VecView(optimalCost, PETSC_VIEWER_STDOUT_SELF);

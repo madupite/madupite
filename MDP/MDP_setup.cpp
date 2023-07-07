@@ -152,83 +152,91 @@ PetscErrorCode MDP::loadFromBinaryFile(std::string filename_P, std::string filen
     return ierr;
 }
 
-// gathers values on rank 0 and writes to file
-PetscErrorCode MDP::writeResultCost(const Vec &optimalCost) {
+PetscErrorCode MDP::writeVec(const Vec &vec, const char *filename) {
+    PetscErrorCode ierr;
     VecScatter ctx;
     Vec MPIVec;
-    if(rank_ == 0) {
-        VecCreateSeq(PETSC_COMM_SELF, numStates_, &MPIVec);
-    }
-    else {
-        VecCreateSeq(PETSC_COMM_SELF, localNumStates_, &MPIVec);
-    }
+    PetscInt size;
 
-    VecScatterCreateToAll(optimalCost, &ctx, &MPIVec);
-    VecScatterBegin(ctx, optimalCost, MPIVec, INSERT_VALUES, SCATTER_FORWARD);
-    VecScatterEnd(ctx, optimalCost, MPIVec, INSERT_VALUES, SCATTER_FORWARD);
+    ierr = VecGetSize(vec, &size); CHKERRQ(ierr);
 
-    const PetscReal *values;
-    VecGetArrayRead(MPIVec, &values);
+    ierr = VecCreateSeq(PETSC_COMM_SELF, size, &MPIVec); CHKERRQ(ierr);
+
+    ierr = VecScatterCreateToAll(vec, &ctx, &MPIVec); CHKERRQ(ierr);
+    ierr = VecScatterBegin(ctx, vec, MPIVec, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+    ierr = VecScatterEnd(ctx, vec, MPIVec, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+
+    const PetscScalar *values;
+    ierr = VecGetArrayRead(MPIVec, &values); CHKERRQ(ierr);
+
+    PetscMPIInt rank;
+    ierr = MPI_Comm_rank(PETSC_COMM_WORLD, &rank); CHKERRQ(ierr);
 
     // Rank 0 writes to file
-    if(rank_ == 0) {
-        std::ofstream out(file_cost_);
-        for(PetscInt i = 0; i < numStates_; ++i) {
+    if(rank == 0) {
+        std::ofstream out(filename);
+        for(PetscInt i = 0; i < size; ++i) {
             out << values[i] << "\n";
         }
         out.close();
     }
 
-    VecRestoreArrayRead(MPIVec, &values);
+    ierr = VecRestoreArrayRead(MPIVec, &values); CHKERRQ(ierr);
 
-    VecScatterDestroy(&ctx);
-    VecDestroy(&MPIVec);
+    ierr = VecScatterDestroy(&ctx); CHKERRQ(ierr);
+    ierr = VecDestroy(&MPIVec); CHKERRQ(ierr);
 
     return 0;
 }
 
-// gathers values on rank 0 and writes to file
-PetscErrorCode MDP::writeResultPolicy(const IS &optimalPolicy) {
+PetscErrorCode MDP::writeIS(const IS &is, const char *filename) {
+    PetscErrorCode ierr;
     const PetscInt *indices;
-    ISGetIndices(optimalPolicy, &indices);
-    PetscInt localSize = localNumStates_;
+    PetscInt localSize;
+    PetscInt size;
     PetscInt *allIndices = NULL;
     PetscInt *recvcounts = NULL;
     PetscInt *displs = NULL;
 
-    if(rank_ == 0) {
-        PetscMalloc1(numStates_, &allIndices);
-        PetscMalloc1(size_, &recvcounts);
-        PetscMalloc1(size_, &displs);
+    ierr = ISGetLocalSize(is, &localSize); CHKERRQ(ierr);
+    ierr = ISGetSize(is, &size); CHKERRQ(ierr);
 
-        MPI_Gather(&localSize, 1, MPI_INT, recvcounts, 1, MPI_INT, 0, PETSC_COMM_WORLD);
+    ierr = ISGetIndices(is, &indices); CHKERRQ(ierr);
+
+    PetscMPIInt rank;
+    ierr = MPI_Comm_rank(PETSC_COMM_WORLD, &rank); CHKERRQ(ierr);
+
+    if(rank == 0) {
+        ierr = PetscMalloc1(size, &allIndices); CHKERRQ(ierr);
+        ierr = PetscMalloc1(size, &recvcounts); CHKERRQ(ierr);
+        ierr = PetscMalloc1(size, &displs); CHKERRQ(ierr);
+
+        ierr = MPI_Gather(&localSize, 1, MPI_INT, recvcounts, 1, MPI_INT, 0, PETSC_COMM_WORLD); CHKERRQ(ierr);
 
         displs[0] = 0;
-        for(PetscInt i = 1; i < size_; ++i) {
+        for(PetscInt i = 1; i < size; ++i) {
             displs[i] = displs[i-1] + recvcounts[i-1];
         }
 
-        MPI_Gatherv(indices, localSize, MPI_INT, allIndices, recvcounts, displs, MPI_INT, 0, PETSC_COMM_WORLD);
+        ierr = MPI_Gatherv(indices, localSize, MPI_INT, allIndices, recvcounts, displs, MPI_INT, 0, PETSC_COMM_WORLD); CHKERRQ(ierr);
 
         // Rank 0 writes to file
-        std::ofstream out(file_policy_);
-        for(PetscInt i = 0; i < numStates_; ++i) {
+        std::ofstream out(filename);
+        for(PetscInt i = 0; i < size; ++i) {
             out << allIndices[i] << "\n";
         }
         out.close();
 
-        PetscFree(allIndices);
-        PetscFree(recvcounts);
-        PetscFree(displs);
+        ierr = PetscFree(allIndices); CHKERRQ(ierr);
+        ierr = PetscFree(recvcounts); CHKERRQ(ierr);
+        ierr = PetscFree(displs); CHKERRQ(ierr);
     }
     else {
-        MPI_Gather(&localSize, 1, MPI_INT, recvcounts, 1, MPI_INT, 0, PETSC_COMM_WORLD);
-        MPI_Gatherv(indices, localSize, MPI_INT, allIndices, recvcounts, displs, MPI_INT, 0, PETSC_COMM_WORLD);
+        ierr = MPI_Gather(&localSize, 1, MPI_INT, NULL, 0, MPI_INT, 0, PETSC_COMM_WORLD); CHKERRQ(ierr);
+        ierr = MPI_Gatherv(indices, localSize, MPI_INT, NULL, NULL, NULL, MPI_INT, 0, PETSC_COMM_WORLD); CHKERRQ(ierr);
     }
 
-    ISRestoreIndices(optimalPolicy, &indices);
+    ierr = ISRestoreIndices(is, &indices); CHKERRQ(ierr);
 
     return 0;
 }
-
-
