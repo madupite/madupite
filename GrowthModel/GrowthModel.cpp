@@ -22,10 +22,10 @@ PetscErrorCode GrowthModel::generateKInterval() {
     PetscReal z_vals[2];
     PetscInt z_indices[2] = {0, numZ_ - 1};
     VecGetValues(z_, 2, z_indices, z_vals);
-    //VecCreateSeq(PETSC_COMM_SELF, numK_, &k_);
-    VecCreateMPI(PETSC_COMM_WORLD, localNumK_, numK_, &k_);
+    VecCreateSeq(PETSC_COMM_SELF, numK_, &k_);
+    //VecCreateMPI(PETSC_COMM_WORLD, localNumK_, numK_, &k_);
     PetscReal *k_vals;
-    PetscMalloc1(localNumK_, &k_vals);
+    PetscMalloc1(numK_, &k_vals);
     PetscInt k_start, k_end;
     VecGetOwnershipRange(k_, &k_start, &k_end);
 
@@ -34,11 +34,11 @@ PetscErrorCode GrowthModel::generateKInterval() {
     PetscReal k_min = k_star_z1 - 0.1 * (k_star_z2 - k_star_z1);
     PetscReal k_max = k_star_z2 + 0.1 * (k_star_z2 - k_star_z1);
 
-    PetscMalloc1(localNumK_, &k_vals);
+    PetscMalloc1(numK_, &k_vals);
 
     PetscReal offset = k_start * (k_max - k_min) / (numK_ - 1);
     PetscReal k_incr = (k_max - k_min) / (numK_ - 1);
-    for(PetscInt i = 0; i < localNumK_; ++i) {
+    for(PetscInt i = 0; i < numK_; ++i) {
         k_vals[i] = k_min + i * k_incr + offset;
     }
 
@@ -96,6 +96,7 @@ PetscErrorCode GrowthModel::calculateAvailableResources() {
 
 // very inefficient!
 PetscReal getVectorValue(Vec x, PetscInt index) {
+#if 0
     // Create a temporary sequential vector with all values of x
     Vec y;
     VecScatter ctx;
@@ -108,6 +109,13 @@ PetscReal getVectorValue(Vec x, PetscInt index) {
     // Cleanup
     VecScatterDestroy(&ctx);
     VecDestroy(&y);
+#endif
+
+    PetscErrorCode ierr;
+    PetscReal value;
+
+    ierr = VecGetValues(x, 1, &index, &value); CHKERRQ(ierr);
+
     return value;
 }
 
@@ -153,14 +161,22 @@ PetscErrorCode GrowthModel::calculateFeasibleActions() {
 
 PetscErrorCode GrowthModel::constructTransitionProbabilitiesRewards() {
     MatCreate(PETSC_COMM_WORLD, &transitionProbabilityTensor_);
-    MatSetFromOptions(transitionProbabilityTensor_);
-    MatSetSizes(transitionProbabilityTensor_, localNumStates_ * numActions_, PETSC_DECIDE, numStates_ * numActions_, numStates_);
+    //MatSetFromOptions(transitionProbabilityTensor_);
+    MatSetType(transitionProbabilityTensor_, MATMPIAIJ);
+    MatSetSizes(transitionProbabilityTensor_, localNumStates_ * numActions_, localNumStates_, numStates_ * numActions_, numStates_);
     PetscInt numLocalCols;
     MatGetLocalSize(transitionProbabilityTensor_, NULL, &numLocalCols);
     MatMPIAIJSetPreallocation(transitionProbabilityTensor_, std::min(numZ_, numLocalCols), NULL, numZ_, NULL); // allocate numZ_ entries both in diagonal and off-diagonal blocks
     MatGetOwnershipRange(transitionProbabilityTensor_, &P_start_, &P_end_);
 
-    MatCreateDense(PETSC_COMM_WORLD, localNumStates_, PETSC_DECIDE, numStates_, numActions_, NULL, &stageCostMatrix_);
+    //MatCreateDense(PETSC_COMM_WORLD, localNumStates_, PETSC_DECIDE, numStates_, numActions_, NULL, &stageCostMatrix_);
+    MatCreate(PETSC_COMM_WORLD, &stageCostMatrix_);
+    MatSetType(stageCostMatrix_, MATDENSE);
+    MatSetSizes(stageCostMatrix_, localNumStates_, PETSC_DECIDE, numStates_, numActions_);
+    MatGetOwnershipRange(stageCostMatrix_, &g_start_, &g_end_);
+
+    LOG("P start: " + std::to_string(P_start_) + ", P end: " + std::to_string(P_end_));
+    LOG("g start: " + std::to_string(g_start_) + ", g end: " + std::to_string(g_end_));
 
     PetscInt *srcIndices;
     PetscMalloc1(numZ_, &srcIndices);
@@ -179,7 +195,10 @@ PetscErrorCode GrowthModel::constructTransitionProbabilitiesRewards() {
     // fill values
     //PetscInt k_start = P_start_ / numZ_;
     PetscInt P_pi_start = P_start_ / numActions_;
+    PetscInt P_pi_end = P_end_ / numActions_;
     //PetscInt i, j, a;
+
+#if 0
     for(PetscInt stateInd = P_pi_start; stateInd < P_pi_start + localNumStates_; ++stateInd) {
         //i = stateInd / numZ_; // k index
         //j = stateInd % numZ_; // z index
@@ -202,11 +221,44 @@ PetscErrorCode GrowthModel::constructTransitionProbabilitiesRewards() {
             }
         }
     }
+#endif
+
+    for(PetscInt stateInd = P_pi_start; stateInd < P_pi_end; ++stateInd) {
+        PetscInt localStateInd = stateInd - P_pi_start;
+        PetscInt srcRow = stateInd % numZ_; // z index
+        for(PetscInt actionInd = 0; actionInd < numActions_; ++actionInd) {
+            if(actionInd <= AValues[localStateInd]) {
+                // transition probabilities
+                std::iota(destIndices, destIndices + numZ_, actionInd * numZ_);
+                MatGetValues(P_z_, 1, &srcRow, numZ_, srcIndices, zValues);
+                PetscInt destRow = stateInd * numActions_ + actionInd;
+                MatSetValues(transitionProbabilityTensor_, 1, &destRow, numZ_, destIndices, zValues, INSERT_VALUES);
+                // reward
+                PetscReal reward = 1.0 * std::pow(BValues[localStateInd] - kValues[actionInd], riskAversionParameter_) / riskAversionParameter_;
+                MatSetValue(stageCostMatrix_, stateInd, actionInd, reward, INSERT_VALUES);
+            }
+            else {
+                // set reward to -inf for infeasible actions
+                MatSetValue(stageCostMatrix_, stateInd, actionInd, std::numeric_limits<PetscReal>::lowest(), INSERT_VALUES);
+            }
+
+
+        }
+
+
+    }
+
+
+
 
     MatAssemblyBegin(transitionProbabilityTensor_, MAT_FINAL_ASSEMBLY);
     MatAssemblyBegin(stageCostMatrix_, MAT_FINAL_ASSEMBLY);
     MatAssemblyEnd(transitionProbabilityTensor_, MAT_FINAL_ASSEMBLY);
     MatAssemblyEnd(stageCostMatrix_, MAT_FINAL_ASSEMBLY);
+
+    //MatGetOwnershipRange(transitionProbabilityTensor_, &P_start_, &P_end_);
+    //MatGetOwnershipRange(stageCostMatrix_, &g_start_, &g_end_);
+
 
     ISRestoreIndices(A_, &AValues);
     VecRestoreArrayRead(B_, &BValues);
@@ -317,10 +369,11 @@ PetscErrorCode GrowthModel::setValuesFromOptions() {
     numStates_ = numK_ * numZ_;
     numActions_ = numK_;
     localNumK_ = (rank_ < numK_ % size_) ? numK_ / size_ + 1 : numK_ / size_; // first numK_ % size_ ranks get one more state
-    LOG("owns " + std::to_string(localNumK_) + " capital values.");
+    //LOG("owns " + std::to_string(localNumK_) + " capital values.");
     localNumStates_ = localNumK_ * numZ_;
     //localNumStates_ = (rank_ < numStates_ % size_) ? numStates_ / size_ + 1 : numStates_ / size_; // first numStates_ % size_ ranks get one more state
-    LOG("owns " + std::to_string(localNumStates_) + " states.");
+    LOG("owns " + std::to_string(localNumK_) + "/" + std::to_string(numK_) + " capital values.");
+    LOG("owns " + std::to_string(localNumStates_) + "/" + std::to_string(numStates_) + "states.");
 
     return 0;
 }
