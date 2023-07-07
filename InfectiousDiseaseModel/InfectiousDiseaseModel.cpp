@@ -36,22 +36,23 @@ PetscReal InfectiousDiseaseModel::q(PetscInt state, PetscInt action) const {
 
 
 PetscErrorCode InfectiousDiseaseModel::generateStageCosts() {
-
+    PetscErrorCode ierr;
     MatCreate(PETSC_COMM_WORLD, &stageCostMatrix_);
     MatSetType(stageCostMatrix_, MATDENSE);
     MatSetSizes(stageCostMatrix_, localNumStates_, PETSC_DECIDE, numStates_, numActions_);
-    //MatMPIAIJSetPreallocation(stageCostMatrix_, PETSC_DECIDE, NULL, PETSC_DECIDE, NULL);
-    MatSetUp(stageCostMatrix_);
+    ierr = MatSetUp(stageCostMatrix_); CHKERRQ(ierr);
 
     PetscInt start, end;
     MatGetOwnershipRange(stageCostMatrix_, &start, &end);
     for(PetscInt state = start; state < end; ++state) {
         for(PetscInt action = 0; action < numActions_; ++action) {
-            MatSetValue(stageCostMatrix_, state, action, g(state, action), INSERT_VALUES);
+            ierr = MatSetValue(stageCostMatrix_, state, action, g(state, action), INSERT_VALUES); CHKERRQ(ierr);
         }
     }
     MatAssemblyBegin(stageCostMatrix_, MAT_FINAL_ASSEMBLY);
     MatAssemblyEnd(stageCostMatrix_, MAT_FINAL_ASSEMBLY);
+
+    MatGetOwnershipRange(stageCostMatrix_, &g_start_, &g_end_);
 
     return 0;
 }
@@ -77,7 +78,7 @@ PetscErrorCode InfectiousDiseaseModel::generateTransitionProbabilities() {
                 continue;
             }
             boost::math::binomial_distribution<PetscReal> binom(stateInd, q(stateInd, actionInd));
-            PetscPrintf(PETSC_COMM_WORLD, "  q(%d, %d) = %f\n", stateInd, actionInd, q(stateInd, actionInd));
+            //PetscPrintf(PETSC_COMM_WORLD, "  q(%d, %d) = %f\n", stateInd, actionInd, q(stateInd, actionInd));
             for(PetscInt i = 0; i <= stateInd; ++i) {
                 nextState = populationSize_ - i;
                 PetscReal prob = boost::math::pdf(binom, i);
@@ -88,6 +89,7 @@ PetscErrorCode InfectiousDiseaseModel::generateTransitionProbabilities() {
     MatAssemblyBegin(transitionProbabilityTensor_, MAT_FINAL_ASSEMBLY);
     MatAssemblyEnd(transitionProbabilityTensor_, MAT_FINAL_ASSEMBLY);
 
+    MatGetOwnershipRange(transitionProbabilityTensor_, &P_start_, &P_end_);
 
     return 0;
 }

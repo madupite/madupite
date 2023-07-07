@@ -76,7 +76,7 @@ PetscErrorCode MDP::extractGreedyPolicy(Vec &V, PetscInt *policy, PetscReal &res
 // user must destroy P and g by himself. Function will create them. [used in extractGreedyPolicy]
 PetscErrorCode MDP::constructFromPolicy(const PetscInt actionInd, Mat &transitionProbabilities, Vec &stageCosts) {
     //LOG("Entering constructFromPolicy [actionInd]");
-
+    PetscErrorCode ierr;
     // compute where local ownership of new P_pi matrix starts
     PetscInt P_pi_start; // start of ownership of new matrix (to be created)
     MatGetOwnershipRange(transitionProbabilityTensor_, &P_pi_start, NULL);
@@ -95,7 +95,7 @@ PetscErrorCode MDP::constructFromPolicy(const PetscInt actionInd, Mat &transitio
         P_rowIndexValues[localStateInd] = P_start_ + localStateInd * numActions_ + actionInd;
         // get values for stageCosts
         g_srcRow  = g_start_ + localStateInd;
-        MatGetValue(stageCostMatrix_, g_srcRow, actionInd, &g_pi_values[localStateInd]);
+        ierr = MatGetValue(stageCostMatrix_, g_srcRow, actionInd, &g_pi_values[localStateInd]); CHKERRQ(ierr);
     }
 
     // generate index sets
@@ -105,7 +105,7 @@ PetscErrorCode MDP::constructFromPolicy(const PetscInt actionInd, Mat &transitio
     ISCreateStride(PETSC_COMM_WORLD, localNumStates_, g_start_, 1, &g_pi_rowIndices);
 
     //LOG("Creating transitionProbabilities submatrix");
-    MatCreateSubMatrix(transitionProbabilityTensor_, P_rowIndices, NULL, MAT_INITIAL_MATRIX, &transitionProbabilities);
+    ierr = MatCreateSubMatrix(transitionProbabilityTensor_, P_rowIndices, NULL, MAT_INITIAL_MATRIX, &transitionProbabilities); CHKERRQ(ierr);
 
     //LOG("Creating stageCosts vector");
     VecCreateMPI(PETSC_COMM_WORLD, localNumStates_, numStates_, &stageCosts);
@@ -124,7 +124,7 @@ PetscErrorCode MDP::constructFromPolicy(const PetscInt actionInd, Mat &transitio
 // user must destroy P and g by himself. Function will create them. [used in inexactPolicyIteration]
 PetscErrorCode MDP::constructFromPolicy(PetscInt *policy, Mat &transitionProbabilities, Vec &stageCosts) {
     //LOG("Entering constructFromPolicy [policy]");
-
+    PetscErrorCode ierr;
     // compute where local ownership of new P_pi matrix starts
     PetscInt P_pi_start; // start of ownership of new matrix (to be created)
     MatGetOwnershipRange(transitionProbabilityTensor_, &P_pi_start, NULL);
@@ -144,7 +144,7 @@ PetscErrorCode MDP::constructFromPolicy(PetscInt *policy, Mat &transitionProbabi
         P_rowIndexValues[localStateInd] = P_start_ + localStateInd * numActions_ + actionInd;
         // get values for stageCosts
         g_srcRow  = g_start_ + localStateInd;
-        MatGetValue(stageCostMatrix_, g_srcRow, actionInd, &g_pi_values[localStateInd]);
+        ierr = MatGetValue(stageCostMatrix_, g_srcRow, actionInd, &g_pi_values[localStateInd]); CHKERRQ(ierr);
     }
 
     // generate index sets
@@ -154,7 +154,7 @@ PetscErrorCode MDP::constructFromPolicy(PetscInt *policy, Mat &transitionProbabi
     ISCreateStride(PETSC_COMM_WORLD, localNumStates_, g_start_, 1, &g_pi_rowIndices);
 
     //LOG("Creating transitionProbabilities submatrix");
-    MatCreateSubMatrix(transitionProbabilityTensor_, P_rowIndices, NULL, MAT_INITIAL_MATRIX, &transitionProbabilities);
+    ierr = MatCreateSubMatrix(transitionProbabilityTensor_, P_rowIndices, NULL, MAT_INITIAL_MATRIX, &transitionProbabilities); CHKERRQ(ierr);
 
     //LOG("Creating stageCosts vector");
     VecCreateMPI(PETSC_COMM_WORLD, localNumStates_, numStates_, &stageCosts);
