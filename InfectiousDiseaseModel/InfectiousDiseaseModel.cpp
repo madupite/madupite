@@ -70,7 +70,7 @@ PetscErrorCode InfectiousDiseaseModel::generateTransitionProbabilities() {
     start /= numActions_;
     end /= numActions_;
     PetscInt nextState;
-    for(PetscInt stateInd = 0; stateInd < end; ++stateInd) {
+    for(PetscInt stateInd = start; stateInd < end; ++stateInd) {
         //PetscInt stateInd = startState + stateInd;
         for(PetscInt actionInd = 0; actionInd < numActions_; ++actionInd) {
             if(stateInd == populationSize_) {
