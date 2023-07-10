@@ -82,5 +82,10 @@ labels = [l.get_label() for l in lines]
 fig.legend(lines, labels, loc='upper center', bbox_to_anchor=(0.5, 0.92), ncol=3, fontsize='small')
 fig.tight_layout()
 slurm_id = os.path.basename(os.path.normpath(main_dir))
-plt.savefig(os.path.join(main_dir, f'strong_scaling_{slurm_id}.png'), dpi=300)
-print(f"Plot saved to {os.path.join(main_dir, f'strong_scaling_{slurm_id}.png')}")
+# save to parent directory of main_dir
+path = os.path.dirname(main_dir)
+plt.savefig(os.path.join(path, f'strong_scaling_{slurm_id}.png'), dpi=300)
+print(f"Plot saved to {os.path.join(path, f'strong_scaling_{slurm_id}.png')}")
+
+# plt.savefig(os.path.join(main_dir, f'strong_scaling_{slurm_id}.png'), dpi=300)
+# print(f"Plot saved to {os.path.join(main_dir, f'strong_scaling_{slurm_id}.png')}")
