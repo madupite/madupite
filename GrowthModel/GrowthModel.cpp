@@ -55,7 +55,7 @@ PetscErrorCode GrowthModel::constructTransitionProbabilitiesRewards() {
     // create transition probabilities tensor
     MatCreate(PETSC_COMM_WORLD, &transitionProbabilityTensor_);
     MatSetType(transitionProbabilityTensor_, MATMPIAIJ);
-    MatSetSizes(transitionProbabilityTensor_, localNumStates_*numActions_, PETSC_DECIDE, numStates_*numActions_, numStates_);
+    MatSetSizes(transitionProbabilityTensor_, localNumStates_*numActions_, localNumStates_, numStates_*numActions_, numStates_);
     PetscInt numLocalCols;
     MatGetLocalSize(transitionProbabilityTensor_, NULL, &numLocalCols);
     MatMPIAIJSetPreallocation(transitionProbabilityTensor_, std::min(numZ_, numLocalCols), NULL, numZ_, NULL); // allocate numZ_ entries both in diagonal and off-diagonal blocks

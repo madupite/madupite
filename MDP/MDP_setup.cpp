@@ -128,7 +128,7 @@ PetscErrorCode MDP::loadFromBinaryFile(std::string filename_P, std::string filen
     // load transition probability tensor
     MatCreate(PETSC_COMM_WORLD, &transitionProbabilityTensor_);
     MatSetFromOptions(transitionProbabilityTensor_);
-    ierr = MatSetSizes(transitionProbabilityTensor_, localNumStates_*numActions_, PETSC_DECIDE, PETSC_DECIDE, numStates_); CHKERRQ(ierr);
+    ierr = MatSetSizes(transitionProbabilityTensor_, localNumStates_*numActions_, localNumStates_, numStates_*numActions_, numStates_); CHKERRQ(ierr);
     MatSetUp(transitionProbabilityTensor_);
     PetscViewerBinaryOpen(PETSC_COMM_WORLD, filename_P.c_str(), FILE_MODE_READ, &viewer);
     MatLoad(transitionProbabilityTensor_, viewer);
@@ -137,7 +137,7 @@ PetscErrorCode MDP::loadFromBinaryFile(std::string filename_P, std::string filen
     // load stage cost matrix
     MatCreate(PETSC_COMM_WORLD, &stageCostMatrix_);
     MatSetFromOptions(stageCostMatrix_);
-    ierr = MatSetSizes(stageCostMatrix_, localNumStates_, PETSC_DECIDE, PETSC_DECIDE, numActions_); CHKERRQ(ierr);
+    ierr = MatSetSizes(stageCostMatrix_, localNumStates_, PETSC_DECIDE, numStates_, numActions_); CHKERRQ(ierr);
     MatSetUp(stageCostMatrix_);
     PetscViewerBinaryOpen(PETSC_COMM_WORLD, filename_g.c_str(), FILE_MODE_READ, &viewer);
     MatLoad(stageCostMatrix_, viewer);

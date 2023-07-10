@@ -57,11 +57,11 @@ PetscErrorCode InfectiousDiseaseModel::generateStageCosts() {
     return 0;
 }
 
-PetscErrorCode InfectiousDiseaseModel::generateTransitionProbabilities() {
+PetscErrorCode InfectiousDiseaseModel::generateTransitionProbabilities() { // todo: cut off binomial distribution at some point
     PetscErrorCode ierr;
     MatCreate(PETSC_COMM_WORLD, &transitionProbabilityTensor_);
     MatSetType(transitionProbabilityTensor_, MATMPIAIJ);
-    MatSetSizes(transitionProbabilityTensor_, localNumStates_*numActions_, PETSC_DECIDE, numStates_*numActions_, numStates_);
+    MatSetSizes(transitionProbabilityTensor_, localNumStates_*numActions_, localNumStates_, numStates_*numActions_, numStates_);
     MatSetUp(transitionProbabilityTensor_);
     MatSetOption(transitionProbabilityTensor_, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE); // inefficient, but don't know how to preallocate binomial distribution
 
