@@ -34,25 +34,7 @@ int main(int argc, char** argv) {
     t.start();
     gm.generateKInterval();
     gm.writeVec(gm.k_, "GM/k.out");
-    //PetscPrintf(PETSC_COMM_WORLD, "Capital stocks (k):\n");
-    //VecView(gm.k_, PETSC_VIEWER_STDOUT_SELF);
-
-    gm.calculateAvailableResources();
-    gm.writeVec(gm.B_, "GM/B.out");
-    //PetscPrintf(PETSC_COMM_WORLD, "Available resources (B):\n");
-    //VecView(gm.B_, PETSC_VIEWER_STDOUT_SELF);
-
-
-    gm.calculateFeasibleActions();
-    //gm.writeIS(gm.A_, "GM/A.out");
-    ISView(gm.A_, PETSC_VIEWER_STDOUT_SELF);
-    //PetscPrintf(PETSC_COMM_WORLD, "Feasible actions (A):\n");
-    //ISView(gm.A_, PETSC_VIEWER_STDOUT_SELF);
-    t.stop("Precomputation took: ");
-
-
-
-
+    t.stop("Generating k took: ");
 
     t.start();
     gm.constructTransitionProbabilitiesRewards();
