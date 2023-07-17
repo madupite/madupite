@@ -57,11 +57,14 @@ PetscErrorCode InfectiousDiseaseModel::generateStageCosts() {
     return 0;
 }
 
-PetscErrorCode InfectiousDiseaseModel::generateTransitionProbabilities() { // todo: cut off binomial distribution at some point
+PetscErrorCode InfectiousDiseaseModel::generateTransitionProbabilities() {
     PetscErrorCode ierr;
+    PetscInt numTransitions = 100;
     MatCreate(PETSC_COMM_WORLD, &transitionProbabilityTensor_);
-    MatSetType(transitionProbabilityTensor_, MATMPIAIJ);
+    //MatSetType(transitionProbabilityTensor_, MATMPIAIJ);
+    MatSetType(transitionProbabilityTensor_, MATDENSE);
     MatSetSizes(transitionProbabilityTensor_, localNumStates_*numActions_, localNumStates_, numStates_*numActions_, numStates_);
+    MatMPIAIJSetPreallocation(transitionProbabilityTensor_, std::min(numTransitions, localNumStates_), PETSC_NULL, numTransitions, PETSC_NULL); // allocate diag dense if numTransitions > localNumStates_ (localColSize)
     MatSetUp(transitionProbabilityTensor_);
     MatSetOption(transitionProbabilityTensor_, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE); // inefficient, but don't know how to preallocate binomial distribution
 
@@ -70,6 +73,12 @@ PetscErrorCode InfectiousDiseaseModel::generateTransitionProbabilities() { // to
     start /= numActions_;
     end /= numActions_;
     PetscInt nextState;
+
+    // sample binomial distribution numTransitions times around expected value (n*p), then normalize and set values
+    PetscReal *binomValues;
+    PetscMalloc1(numTransitions+1, &binomValues);
+
+
     for(PetscInt stateInd = start; stateInd < end; ++stateInd) {
         //PetscInt stateInd = startState + stateInd;
         for(PetscInt actionInd = 0; actionInd < numActions_; ++actionInd) {
@@ -77,11 +86,25 @@ PetscErrorCode InfectiousDiseaseModel::generateTransitionProbabilities() { // to
                 ierr = MatSetValue(transitionProbabilityTensor_, stateInd*numActions_ + actionInd, populationSize_, 1.0, INSERT_VALUES); CHKERRQ(ierr); // absorbing state
                 continue;
             }
-            boost::math::binomial_distribution<PetscReal> binom(stateInd, q(stateInd, actionInd));
-            //PetscPrintf(PETSC_COMM_WORLD, "  q(%d, %d) = %f\n", stateInd, actionInd, q(stateInd, actionInd));
-            for(PetscInt i = 0; i <= stateInd; ++i) {
+            PetscReal qProb = q(stateInd, actionInd);
+            boost::math::binomial_distribution<PetscReal> binom(stateInd, qProb);
+            PetscInt ev = stateInd * qProb; // highest probability in binomial distribution
+            PetscInt start = std::max(0, ev - numTransitions/2);
+            PetscInt end = std::min(stateInd, ev + numTransitions/2); // past the end
+
+            PetscReal sum = 0.0;
+            for(PetscInt i = start; i <= end; ++i) {
+                binomValues[i-start] = boost::math::pdf(binom, i);
+                sum += binomValues[i-start];
+            }
+            for(PetscInt i = start; i <= end; ++i) {
                 nextState = populationSize_ - i;
-                PetscReal prob = boost::math::pdf(binom, i);
+                PetscReal prob = binomValues[i-start] / sum;
+                // throw error if prob is nan
+                if(prob == std::numeric_limits<PetscReal>::quiet_NaN()) {
+                    PetscPrintf(PETSC_COMM_WORLD, "NaN in transition probability at %d, %d, %d\n", stateInd, actionInd, nextState);
+                    SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_FP, "NaN in transition probability");
+                }
                 ierr = MatSetValue(transitionProbabilityTensor_, stateInd*numActions_ + actionInd, nextState, prob, INSERT_VALUES); CHKERRQ(ierr);
             }
         }
@@ -90,6 +113,7 @@ PetscErrorCode InfectiousDiseaseModel::generateTransitionProbabilities() { // to
     MatAssemblyEnd(transitionProbabilityTensor_, MAT_FINAL_ASSEMBLY);
 
     MatGetOwnershipRange(transitionProbabilityTensor_, &P_start_, &P_end_);
+    PetscFree(binomValues);
 
     return 0;
 }
