@@ -1,7 +1,7 @@
 #!/bin/bash
 
-#SBATCH -n 8
-#SBATCH --time=00:30:00
+#SBATCH -n 16
+#SBATCH --time=10:00:00
 #SBATCH --job-name="iPI Benchmark"
 #SBATCH --mem-per-cpu=8192
 #SBATCH --mail-type=BEGIN,END
@@ -20,16 +20,16 @@ module list
 
 lscpu
 
-cd ../build
+cd ../../release
 make
 
 # Variables
-e=IDM
+e=GM
 
 if [ "$e" == "MDP" ]; then
-    n=18000
-    m=80
-    s=0.005
+    n=15000
+    m=100
+    s=0.003
     python ../euler/run_benchmark_MDP.py -n $n -m $m -s $s
     python ../plot/strong_scaling.py --path ../output/MDP/$SLURM_JOB_ID/
 
@@ -37,17 +37,17 @@ if [ "$e" == "MDP" ]; then
 elif [ "$e" == "GM" ]; then
     k=10000
     r=0.5
-    python ../euler/run_benchmark_GM.py --numK $k --riskAversion $r
-    python ../plot/strong_scaling.py --path ../output/GM/$SLURM_JOB_ID/
+    python ../euler/DiscountFactor/run_benchmark_GM.py --riskAversion $r --numK $k
+    #python ../plot/strong_scaling.py --path ../output/GM/$SLURM_JOB_ID/
 
 
 elif [ "$e" == "IDM" ]; then
-    n=10000
+    n=25000
     c=0.7
     wf=2
     wq=10
-    wh=0.5
-    python ../euler/run_benchmark_IDM.py -n $n --discountFactor $c --wf $wf --wq $wq --wh $wh
+    wh=0.02
+    python ../euler/run_benchmark_IDM2.py -n $n --discountFactor $c --wf $wf --wq $wq --wh $wh
     python ../plot/strong_scaling.py --path ../output/IDM/$SLURM_JOB_ID/
 
 

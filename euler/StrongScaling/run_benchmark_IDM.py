@@ -13,7 +13,8 @@ parser.add_argument('--wh', type=float, required=True, help='weight for health c
 args = parser.parse_args()
 
 # List of CPUs
-cpus = [i for i in range(1, 9)]
+#cpus = [i for i in range(1, 17)]
+cpus = [1, 2, 4, 8, 16]
 
 # Parameters
 population = args.populationSize
@@ -27,7 +28,10 @@ HM = "0.25,0.125,0.08,0.05,0.03"            # r(a) (hygiene measures)
 HM_cf = "0,1,5,6,9"                         # financial cost of hygiene measures
 HM_cq = "1,0.7,0.5,0.4,0.05"                # quality of life cost of hygiene measures
 
-SD = "20,16,10,1"                           # lambda[a] (social distancing)
+#lambdas = [800, 700, 400, 50]
+lambdas = [300, 250, 140, 40]
+# SD = "20,16,10,1"                         # lambda[a] (social distancing)
+SD = f"{lambdas[0]},{lambdas[1]},{lambdas[2]},{lambdas[3]}"
 SD_cf = "0,1,10,30"
 SD_cq = "1,0.9,0.5,0.1"
 
@@ -54,8 +58,8 @@ flags = [
     "-SD-cq", SD_cq,
     "-maxIter_PI", str(50),
     "-maxIter_KSP", str(10000),
-    "-numPIRuns", str(20),
-    "-rtol_KSP", str(1e-4),
+    "-numPIRuns", str(5),
+    "-rtol_KSP", str(1e-5),
     "-atol_PI", str(1e-10),
     "-log_view"
 ]

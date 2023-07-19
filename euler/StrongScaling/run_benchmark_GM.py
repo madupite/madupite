@@ -9,7 +9,8 @@ parser.add_argument('-r', '--riskAversion', type=float, required=True, help='ris
 args = parser.parse_args()
 
 # List of CPUs
-cpus = [i for i in range(1, 9)]
+#cpus = [i for i in range(1, 17)]
+cpus = [1, 2, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48]
 
 # Parameters
 numK = args.numK
@@ -34,7 +35,7 @@ flags = [
     "-discountFactor", str(discountFactor),
     "-maxIter_PI", str(200),
     "-maxIter_KSP", str(10000),
-    "-numPIRuns", str(20),
+    "-numPIRuns", str(10),
     "-rtol_KSP", str(1e-4),
     "-atol_PI", str(1e-10),
     "-log_view"
@@ -46,7 +47,7 @@ for cpu in cpus:
     os.makedirs(dir_output+f"/{cpu}/", exist_ok=True)
 
     # Create a command with options appended
-    cmd = ["mpirun", "-n", str(cpu), executable, *flags]
+    cmd = ["mpirun", "-n", str(cpu), "--report-bindings", executable, *flags]
 
     cmd += [
         "-file_stats", f"{dir_output}/{cpu}/stats.json",

@@ -22,7 +22,7 @@ executable = "./distributed_inexact_policy_iteration"
 
 # Define the directory structure
 slurm_id = os.environ["SLURM_JOB_ID"]
-dir_scratch = "/cluster/scratch/rosieber/data"
+dir_scratch = "/cluster/scratch/rosieber/BA_DATA"
 dir_data = f"{numStates}_{numActions}_{sparsityFactor:.6f}"
 dir_output = f"/cluster/home/rosieber/distributed-inexact-policy-iteration/output/MDP/{slurm_id}"
 
