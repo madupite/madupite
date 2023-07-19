@@ -71,56 +71,6 @@ PetscErrorCode MDP::extractGreedyPolicy(Vec &V, PetscInt *policy, PetscReal &res
     return 0;
 }
 
-
-
-// user must destroy P and g by himself. Function will create them. [used in extractGreedyPolicy]
-PetscErrorCode MDP::constructFromPolicy(const PetscInt actionInd, Mat &transitionProbabilities, Vec &stageCosts) {
-    //LOG("Entering constructFromPolicy [actionInd]");
-    PetscErrorCode ierr;
-    // compute where local ownership of new P_pi matrix starts
-    PetscInt P_pi_start; // start of ownership of new matrix (to be created)
-    MatGetOwnershipRange(transitionProbabilityTensor_, &P_pi_start, NULL);
-    P_pi_start /= numActions_;
-
-    // allocate memory for values
-    PetscInt *P_rowIndexValues;
-    PetscMalloc1(localNumStates_, &P_rowIndexValues);
-    PetscReal *g_pi_values;
-    PetscMalloc1(localNumStates_, &g_pi_values);
-
-    // compute global row indices for P and get values for g_pi
-    PetscInt g_srcRow;
-    for(PetscInt localStateInd = 0; localStateInd < localNumStates_; ++localStateInd) {
-        // compute values for row index set
-        P_rowIndexValues[localStateInd] = P_start_ + localStateInd * numActions_ + actionInd;
-        // get values for stageCosts
-        g_srcRow  = g_start_ + localStateInd;
-        ierr = MatGetValue(stageCostMatrix_, g_srcRow, actionInd, &g_pi_values[localStateInd]); CHKERRQ(ierr);
-    }
-
-    // generate index sets
-    IS P_rowIndices;
-    ISCreateGeneral(PETSC_COMM_WORLD, localNumStates_, P_rowIndexValues, PETSC_COPY_VALUES, &P_rowIndices);
-    IS g_pi_rowIndices;
-    ISCreateStride(PETSC_COMM_WORLD, localNumStates_, g_start_, 1, &g_pi_rowIndices);
-
-    //LOG("Creating transitionProbabilities submatrix");
-    ierr = MatCreateSubMatrix(transitionProbabilityTensor_, P_rowIndices, NULL, MAT_INITIAL_MATRIX, &transitionProbabilities); CHKERRQ(ierr);
-
-    //LOG("Creating stageCosts vector");
-    VecCreateMPI(PETSC_COMM_WORLD, localNumStates_, numStates_, &stageCosts);
-    const PetscInt *g_pi_rowIndexValues; // global indices
-    ISGetIndices(g_pi_rowIndices, &g_pi_rowIndexValues);
-    VecSetValues(stageCosts, localNumStates_, g_pi_rowIndexValues, g_pi_values, INSERT_VALUES);
-    ISRestoreIndices(g_pi_rowIndices, &g_pi_rowIndexValues);
-
-    ISDestroy(&P_rowIndices);
-    ISDestroy(&g_pi_rowIndices);
-    PetscFree(P_rowIndexValues);
-    PetscFree(g_pi_values);
-    return 0;
-}
-
 // user must destroy P and g by himself. Function will create them. [used in inexactPolicyIteration]
 PetscErrorCode MDP::constructFromPolicy(PetscInt *policy, Mat &transitionProbabilities, Vec &stageCosts) {
     //LOG("Entering constructFromPolicy [policy]");
@@ -185,9 +135,8 @@ PetscErrorCode MDP::iterativePolicyEvaluation(Mat &jacobian, Vec &stageCosts, Ve
     KSP ksp;
     ierr = KSPCreate(PETSC_COMM_WORLD, &ksp); CHKERRQ(ierr);
     ierr = KSPSetOperators(ksp, jacobian, jacobian); CHKERRQ(ierr);
-    ierr = KSPSetType(ksp, KSPGMRES); CHKERRQ(ierr);
-    ierr = KSPSetInitialGuessNonzero(ksp, PETSC_TRUE); CHKERRQ(ierr);
     ierr = KSPSetFromOptions(ksp); CHKERRQ(ierr);
+    ierr = KSPSetInitialGuessNonzero(ksp, PETSC_TRUE); CHKERRQ(ierr);
     //ierr = KSPSetTolerances(ksp, rtol, PETSC_DEFAULT, PETSC_DEFAULT, PETSC_DEFAULT); CHKERRQ(ierr);
     ierr = KSPSetConvergenceTest(ksp, &MDP::cvgTest, &ctx, NULL); CHKERRQ(ierr);
     ierr = MatAssemblyEnd(jacobian, MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
@@ -197,6 +146,11 @@ PetscErrorCode MDP::iterativePolicyEvaluation(Mat &jacobian, Vec &stageCosts, Ve
 
     ierr = KSPGetIterationNumber(ksp, &ctx.kspIterations); CHKERRQ(ierr);
     //LOG("KSP iterations: " + std::to_string(ctx.kspIterations) + " (max: " + std::to_string(ctx.maxIter) + ")");
+
+    KSPType type;
+    KSPGetType(ksp, &type);
+    jsonWriter_->add_data("KSPType", type);
+
     ierr = KSPDestroy(&ksp); CHKERRQ(ierr);
     return ierr;
 }
@@ -204,7 +158,8 @@ PetscErrorCode MDP::iterativePolicyEvaluation(Mat &jacobian, Vec &stageCosts, Ve
 // defines the matrix-vector product for the jacobian shell
 void MDP::jacobianMultiplication(Mat mat, Vec x, Vec y) {
     JacobianContext *ctx;
-    MatShellGetContext(mat, (void **) &ctx); // todo static cast
+    MatShellGetContext(mat, (void **) &ctx);
+    // (I - gamma * P_pi) * x == -gamma * P_pi * x + x
     MatMult(ctx->P_pi, x, y);
     VecScale(y, -ctx->discountFactor);
     VecAXPY(y, 1.0, x);
@@ -236,7 +191,7 @@ PetscErrorCode MDP::inexactPolicyIteration(Vec &V0, IS &policy, Vec &optimalCost
     PetscInt PI_iteration= 0;
     for(; PI_iteration < maxIter_PI_; ++PI_iteration) {
         PetscTime(&startTime);
-        // compute jacobian wrt new policy
+
         extractGreedyPolicy(V, policyValues, residualNorm);
         if(residualNorm < atol_PI_) {
             PetscTime(&endTime);
