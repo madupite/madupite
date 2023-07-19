@@ -29,13 +29,14 @@ int main(int argc, char **argv) {
     Vec optimalCost;
     IS optimalPolicy;
     t.start();
-    idm.inexactPolicyIteration(V0, optimalPolicy, optimalCost);
+    //idm.inexactPolicyIteration(V0, optimalPolicy, optimalCost);
+    idm.benchmarkIPI(V0, optimalPolicy, optimalCost);
     t.stop("Inexact policy iteration took: ");
 
-    PetscPrintf(PETSC_COMM_WORLD, "Optimal cost:\n");
-    VecView(optimalCost, PETSC_VIEWER_STDOUT_WORLD);
-    PetscPrintf(PETSC_COMM_WORLD, "Optimal policy:\n");
-    ISView(optimalPolicy, PETSC_VIEWER_STDOUT_WORLD);
+    // PetscPrintf(PETSC_COMM_WORLD, "Optimal cost:\n");
+    // VecView(optimalCost, PETSC_VIEWER_STDOUT_WORLD);
+    // PetscPrintf(PETSC_COMM_WORLD, "Optimal policy:\n");
+    // ISView(optimalPolicy, PETSC_VIEWER_STDOUT_WORLD);
 
     idm.writeVec(optimalCost, idm.file_cost_);
     idm.writeIS(optimalPolicy, idm.file_policy_);

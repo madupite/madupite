@@ -39,7 +39,7 @@ PetscErrorCode InfectiousDiseaseModel::generateStageCosts() {
     PetscErrorCode ierr;
     MatCreate(PETSC_COMM_WORLD, &stageCostMatrix_);
     MatSetType(stageCostMatrix_, MATDENSE);
-    MatSetSizes(stageCostMatrix_, localNumStates_, PETSC_DECIDE, numStates_, numActions_);
+    ierr = MatSetSizes(stageCostMatrix_, localNumStates_, PETSC_DECIDE, numStates_, numActions_); CHKERRQ(ierr);
     ierr = MatSetUp(stageCostMatrix_); CHKERRQ(ierr);
 
     PetscInt start, end;
@@ -59,12 +59,11 @@ PetscErrorCode InfectiousDiseaseModel::generateStageCosts() {
 
 PetscErrorCode InfectiousDiseaseModel::generateTransitionProbabilities() {
     PetscErrorCode ierr;
-    PetscInt numTransitions = 100;
+    PetscInt numTransitions = 100; // will actually be numTranitions+1 because of closed interval
     MatCreate(PETSC_COMM_WORLD, &transitionProbabilityTensor_);
-    //MatSetType(transitionProbabilityTensor_, MATMPIAIJ);
-    MatSetType(transitionProbabilityTensor_, MATDENSE);
-    MatSetSizes(transitionProbabilityTensor_, localNumStates_*numActions_, localNumStates_, numStates_*numActions_, numStates_);
-    MatMPIAIJSetPreallocation(transitionProbabilityTensor_, std::min(numTransitions, localNumStates_), PETSC_NULL, numTransitions, PETSC_NULL); // allocate diag dense if numTransitions > localNumStates_ (localColSize)
+    MatSetType(transitionProbabilityTensor_, MATMPIAIJ);
+    ierr = MatSetSizes(transitionProbabilityTensor_, localNumStates_*numActions_, localNumStates_, numStates_*numActions_, numStates_); CHKERRQ(ierr);
+    MatMPIAIJSetPreallocation(transitionProbabilityTensor_, std::min(numTransitions+1, localNumStates_), PETSC_NULL, numTransitions+1, PETSC_NULL); // allocate diag dense if numTransitions > localNumStates_ (localColSize)
     MatSetUp(transitionProbabilityTensor_);
     MatSetOption(transitionProbabilityTensor_, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE); // inefficient, but don't know how to preallocate binomial distribution
 
