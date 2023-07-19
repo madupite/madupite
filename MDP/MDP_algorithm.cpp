@@ -165,11 +165,22 @@ void MDP::jacobianMultiplication(Mat mat, Vec x, Vec y) {
     VecAXPY(y, 1.0, x);
 }
 
+void MDP::jacobianMultiplicationTranspose(Mat mat, Vec x, Vec y) {
+    JacobianContext *ctx;
+    MatShellGetContext(mat, (void **) &ctx);
+    // (I - gamma * P_pi)^T * x == -gamma * P_pi^T * x + x; since transposition distributes over subtraction
+    MatMultTranspose(ctx->P_pi, x, y);
+    VecScale(y, -ctx->discountFactor);
+    VecAXPY(y, 1.0, x);
+}
+
+
 // creates MPIAIJ matrix and computes jacobian = I - gamma * P_pi
 PetscErrorCode MDP::createJacobian(Mat &jacobian, const Mat &transitionProbabilities, JacobianContext &ctx) {
     PetscErrorCode ierr;
     ierr = MatCreateShell(PETSC_COMM_WORLD, localNumStates_, localNumStates_, numStates_, numStates_, &ctx, &jacobian); CHKERRQ(ierr);
     ierr = MatShellSetOperation(jacobian, MATOP_MULT, (void (*)(void)) jacobianMultiplication); CHKERRQ(ierr);
+    ierr = MatShellSetOperation(jacobian, MATOP_MULT_TRANSPOSE, (void (*)(void)) jacobianMultiplicationTranspose); CHKERRQ(ierr);
     return 0;
 }
 

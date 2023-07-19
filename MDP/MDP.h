@@ -38,6 +38,7 @@ public:
 
     static PetscErrorCode cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason *reason, void *ctx); // Test if residual norm is smaller than alpha * r0_norm
     static void jacobianMultiplication(Mat mat, Vec x, Vec y); // defines matrix vector product for jacobian shell
+    static void jacobianMultiplicationTranspose(Mat mat, Vec x, Vec y); // defines matrix vector product for jacobian shell (needed for some KSP methods)
 
     virtual PetscErrorCode loadFromBinaryFile(std::string filename_P, std::string filename_g);
     PetscErrorCode writeVec  (const Vec  &vec, const PetscChar *filename);
