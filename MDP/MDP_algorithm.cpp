@@ -185,7 +185,7 @@ PetscErrorCode MDP::createJacobian(Mat &jacobian, const Mat &transitionProbabili
 }
 
 PetscErrorCode MDP::inexactPolicyIteration(Vec &V0, IS &policy, Vec &optimalCost) {
-    LOG("Entering inexactPolicyIteration");
+    if(rank_ == 0) LOG("Entering inexactPolicyIteration");
     jsonWriter_->add_solver_run();
 
     Vec V;
@@ -207,7 +207,7 @@ PetscErrorCode MDP::inexactPolicyIteration(Vec &V0, IS &policy, Vec &optimalCost
         if(residualNorm < atol_PI_) {
             PetscTime(&endTime);
             jsonWriter_->add_iteration_data(PI_iteration, 0, (endTime - startTime) * 1000, residualNorm);
-            LOG("Iteration " + std::to_string(PI_iteration) + " residual norm: " + std::to_string(residualNorm));
+            if(rank_ == 0) LOG("Iteration " + std::to_string(PI_iteration) + " residual norm: " + std::to_string(residualNorm));
             break;
         }
         constructFromPolicy(policyValues, transitionProbabilities, stageCosts);
@@ -223,7 +223,7 @@ PetscErrorCode MDP::inexactPolicyIteration(Vec &V0, IS &policy, Vec &optimalCost
 
         PetscTime(&endTime);
         jsonWriter_->add_iteration_data(PI_iteration, ctx.kspIterations, (endTime - startTime) * 1000, residualNorm);
-        LOG("Iteration " + std::to_string(PI_iteration) + " residual norm: " + std::to_string(residualNorm));
+        if(rank_ == 0) LOG("Iteration " + std::to_string(PI_iteration) + " residual norm: " + std::to_string(residualNorm));
     }
 
     if(PI_iteration >= maxIter_PI_) {
