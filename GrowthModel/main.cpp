@@ -41,15 +41,14 @@ int main(int argc, char** argv) {
     t.stop("Construction of transition probabilities and rewards took: ");
     LOG("localNumStates: " + std::to_string(gm.localNumStates_) + ", numStates: " + std::to_string(gm.numStates_));
 
-#if 1
     Vec V0;
-    VecCreateMPI(PETSC_COMM_WORLD, gm.localNumStates_, gm.numStates_, &V0); // error here
+    VecCreateMPI(PETSC_COMM_WORLD, gm.localNumStates_, gm.numStates_, &V0);
     VecSet(V0, 1.0);
 
     Vec optimalCost;
     IS optimalPolicy;
     t.start();
-    gm.inexactPolicyIteration(V0, optimalPolicy, optimalCost);
+    gm.benchmarkIPI(V0, optimalPolicy, optimalCost);
     t.stop("iPI took: ");
 
     t.start();
@@ -57,13 +56,13 @@ int main(int argc, char** argv) {
     gm.writeIS(optimalPolicy, gm.file_policy_);
     t.stop("Writing took: ");
 
-    VecView(optimalCost, PETSC_VIEWER_STDOUT_WORLD);
-    ISView(optimalPolicy, PETSC_VIEWER_STDOUT_WORLD);
+    //VecView(optimalCost, PETSC_VIEWER_STDOUT_WORLD);
+    //ISView(optimalPolicy, PETSC_VIEWER_STDOUT_WORLD);
 
     VecDestroy(&V0);
     VecDestroy(&optimalCost);
     ISDestroy(&optimalPolicy);
-#endif
+
     gm.~GrowthModel();
     PetscFinalize();
 }
