@@ -5,3 +5,4 @@ build
 release
 output
 slurm-*
+data/
