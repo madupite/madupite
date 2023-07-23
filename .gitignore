@@ -6,3 +6,4 @@ release
 output
 slurm-*
 data/
+out/
