@@ -41,18 +41,15 @@ PetscErrorCode InfectiousDiseaseModel::generateStageCosts() {
     MatSetType(stageCostMatrix_, MATDENSE);
     ierr = MatSetSizes(stageCostMatrix_, localNumStates_, PETSC_DECIDE, numStates_, numActions_); CHKERRQ(ierr);
     ierr = MatSetUp(stageCostMatrix_); CHKERRQ(ierr);
+    ierr = MatGetOwnershipRange(stageCostMatrix_, &g_start_, &g_end_); CHKERRQ(ierr);
 
-    PetscInt start, end;
-    MatGetOwnershipRange(stageCostMatrix_, &start, &end);
-    for(PetscInt state = start; state < end; ++state) {
+    for(PetscInt state = g_start_; state < g_end_; ++state) {
         for(PetscInt action = 0; action < numActions_; ++action) {
             ierr = MatSetValue(stageCostMatrix_, state, action, g(state, action), INSERT_VALUES); CHKERRQ(ierr);
         }
     }
     MatAssemblyBegin(stageCostMatrix_, MAT_FINAL_ASSEMBLY);
     MatAssemblyEnd(stageCostMatrix_, MAT_FINAL_ASSEMBLY);
-
-    MatGetOwnershipRange(stageCostMatrix_, &g_start_, &g_end_);
 
     return 0;
 }
@@ -66,20 +63,14 @@ PetscErrorCode InfectiousDiseaseModel::generateTransitionProbabilities() {
     MatMPIAIJSetPreallocation(transitionProbabilityTensor_, std::min(numTransitions+1, localNumStates_), PETSC_NULL, numTransitions+1, PETSC_NULL); // allocate diag dense if numTransitions > localNumStates_ (localColSize)
     MatSetUp(transitionProbabilityTensor_);
     MatSetOption(transitionProbabilityTensor_, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE); // inefficient, but don't know how to preallocate binomial distribution
-
-    PetscInt start, end;
-    MatGetOwnershipRange(transitionProbabilityTensor_, &start, &end);
-    start /= numActions_;
-    end /= numActions_;
+    MatGetOwnershipRange(transitionProbabilityTensor_, &P_start_, &P_end_);
     PetscInt nextState;
 
     // sample binomial distribution numTransitions times around expected value (n*p), then normalize and set values
     PetscReal *binomValues;
     PetscMalloc1(numTransitions+1, &binomValues);
 
-
-    for(PetscInt stateInd = start; stateInd < end; ++stateInd) {
-        //PetscInt stateInd = startState + stateInd;
+    for(PetscInt stateInd = P_start_ / numActions_; stateInd < P_end_ / numActions_; ++stateInd) {
         for(PetscInt actionInd = 0; actionInd < numActions_; ++actionInd) {
             if(stateInd == populationSize_) {
                 ierr = MatSetValue(transitionProbabilityTensor_, stateInd*numActions_ + actionInd, populationSize_, 1.0, INSERT_VALUES); CHKERRQ(ierr); // absorbing state
@@ -94,16 +85,16 @@ PetscErrorCode InfectiousDiseaseModel::generateTransitionProbabilities() {
             PetscReal sum = 0.0;
             for(PetscInt i = start; i <= end; ++i) {
                 binomValues[i-start] = boost::math::pdf(binom, i);
+                // Check for overflow
+                if(std::isinf(binomValues[i-start]) || std::isnan(binomValues[i-start])) {
+                    PetscPrintf(PETSC_COMM_WORLD, "Overflow in binomial calculation at %d\n", i);
+                    SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_FP, "Overflow in binomial calculation");
+                }
                 sum += binomValues[i-start];
             }
             for(PetscInt i = start; i <= end; ++i) {
                 nextState = populationSize_ - i;
                 PetscReal prob = binomValues[i-start] / sum;
-                // throw error if prob is nan
-                if(prob == std::numeric_limits<PetscReal>::quiet_NaN()) {
-                    PetscPrintf(PETSC_COMM_WORLD, "NaN in transition probability at %d, %d, %d\n", stateInd, actionInd, nextState);
-                    SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_FP, "NaN in transition probability");
-                }
                 ierr = MatSetValue(transitionProbabilityTensor_, stateInd*numActions_ + actionInd, nextState, prob, INSERT_VALUES); CHKERRQ(ierr);
             }
         }
@@ -111,7 +102,6 @@ PetscErrorCode InfectiousDiseaseModel::generateTransitionProbabilities() {
     MatAssemblyBegin(transitionProbabilityTensor_, MAT_FINAL_ASSEMBLY);
     MatAssemblyEnd(transitionProbabilityTensor_, MAT_FINAL_ASSEMBLY);
 
-    MatGetOwnershipRange(transitionProbabilityTensor_, &P_start_, &P_end_);
     PetscFree(binomValues);
 
     return 0;
