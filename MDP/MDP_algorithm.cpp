@@ -52,7 +52,7 @@ PetscErrorCode MDP::extractGreedyPolicy(Vec &V, PetscInt *policy, PetscReal &res
     ISDestroy(&cols);
 
     // add g to costMatrix
-    ierr = MatAXPY(costMatrix, 1.0, stageCostMatrix_, DIFFERENT_NONZERO_PATTERN); CHKERRQ(ierr);
+    ierr = MatAXPY(costMatrix, 1.0, stageCostMatrix_, SAME_NONZERO_PATTERN); CHKERRQ(ierr);
 
     // find minimum for each row and compute residual norm
     Vec residual;
