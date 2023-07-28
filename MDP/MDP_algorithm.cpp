@@ -129,24 +129,23 @@ PetscErrorCode MDP::constructFromPolicy(PetscInt *policy, Mat &transitionProbabi
 
 PetscErrorCode MDP::iterativePolicyEvaluation(Mat &jacobian, Vec &stageCosts, Vec &V, KSPContext &ctx) {
     PetscErrorCode ierr;
-    MatAssemblyBegin(jacobian, MAT_FINAL_ASSEMBLY);
+    MatAssemblyBegin(jacobian, MAT_FINAL_ASSEMBLY); // overlap communication with KSP setup
 
-    // ksp solver
+    // KSP setup
     KSP ksp;
     ierr = KSPCreate(PETSC_COMM_WORLD, &ksp); CHKERRQ(ierr);
     ierr = KSPSetOperators(ksp, jacobian, jacobian); CHKERRQ(ierr);
     ierr = KSPSetFromOptions(ksp); CHKERRQ(ierr);
     ierr = KSPSetInitialGuessNonzero(ksp, PETSC_TRUE); CHKERRQ(ierr);
-    //ierr = KSPSetTolerances(ksp, rtol, PETSC_DEFAULT, PETSC_DEFAULT, PETSC_DEFAULT); CHKERRQ(ierr);
-    ierr = KSPSetConvergenceTest(ksp, &MDP::cvgTest, &ctx, NULL); CHKERRQ(ierr);
+    ierr = KSPSetTolerances(ksp, 1e-20, ctx.threshold, PETSC_DEFAULT, ctx.maxIter); CHKERRQ(ierr); // use L2 norm of residual to compare. This works since ||x||_2 >= ||x||_inf. Much faster than infinity norm.
+    //ierr = KSPSetConvergenceTest(ksp, &MDP::cvgTest, &ctx, NULL); CHKERRQ(ierr); // custom convergence test using infinity norm
+    
     ierr = MatAssemblyEnd(jacobian, MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
+
     ierr = KSPSolve(ksp, stageCosts, V); CHKERRQ(ierr);
-    //ierr = KSPGetIterationNumber(ksp, &iter); CHKERRQ(ierr);
-    //LOG("KSP converged after " + std::to_string(iter) + " iterations");
 
+    // output
     ierr = KSPGetIterationNumber(ksp, &ctx.kspIterations); CHKERRQ(ierr);
-    //LOG("KSP iterations: " + std::to_string(ctx.kspIterations) + " (max: " + std::to_string(ctx.maxIter) + ")");
-
     KSPType type;
     KSPGetType(ksp, &type);
     jsonWriter_->add_data("KSPType", type);
