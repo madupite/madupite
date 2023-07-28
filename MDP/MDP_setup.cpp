@@ -143,6 +143,9 @@ PetscErrorCode MDP::loadFromBinaryFile(std::string filename_P, std::string filen
     MatLoad(stageCostMatrix_, viewer);
     PetscViewerDestroy(&viewer);
 
+    // convert stage cost matrix to dense matrix
+    MatConvert(stageCostMatrix_, MATDENSE, MAT_INPLACE_MATRIX, &stageCostMatrix_);
+
     // Information about distribution on processes
     MatGetOwnershipRange(transitionProbabilityTensor_, &P_start_, &P_end_);
     MatGetOwnershipRange(stageCostMatrix_, &g_start_, &g_end_);

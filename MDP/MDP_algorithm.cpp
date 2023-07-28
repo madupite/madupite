@@ -25,12 +25,12 @@ PetscErrorCode MDP::extractGreedyPolicy(Vec &V, PetscInt *policy, PetscReal &res
     Mat costMatrix;
     MatCreate(PETSC_COMM_WORLD, &costMatrix);
     MatSetSizes(costMatrix, localNumStates_, PETSC_DECIDE, numStates_, numActions_);
-    MatSetType(costMatrix, MATMPIAIJ);
+    MatSetType(costMatrix, MATDENSE);
     MatSetUp(costMatrix);
     PetscInt localNumActions, rowStart;
     MatGetLocalSize(costMatrix, NULL, &localNumActions);
     MatGetOwnershipRange(costMatrix, &rowStart, NULL);
-    ierr = MatMPIAIJSetPreallocation(costMatrix, localNumActions, NULL, numActions_ - localNumActions, NULL); CHKERRQ(ierr); // preallocate dense matrix
+    //ierr = MatMPIAIJSetPreallocation(costMatrix, localNumActions, NULL, numActions_ - localNumActions, NULL); CHKERRQ(ierr); // preallocate dense matrix
 
     // reshape costVector into costMatrix (fill matrix with values)
     const PetscReal *costVectorValues;
@@ -57,12 +57,39 @@ PetscErrorCode MDP::extractGreedyPolicy(Vec &V, PetscInt *policy, PetscReal &res
     // find minimum for each row and compute residual norm
     Vec residual;
     VecCreateMPI(PETSC_COMM_WORLD, localNumStates_, numStates_, &residual);
+//    if(mode_ == mode::MINCOST) {
+//        ierr = MatGetRowMin(costMatrix, residual, policy); CHKERRQ(ierr);
+//    }
+//    else if(mode_ == mode::MAXREWARD) {
+//        ierr = MatGetRowMax(costMatrix, residual, policy); CHKERRQ(ierr);
+//    }
+
+    PetscInt nnz;
+    const PetscInt *colIdx;
+    const PetscScalar *vals;
+
     if(mode_ == mode::MINCOST) {
-        ierr = MatGetRowMin(costMatrix, residual, policy); CHKERRQ(ierr);
+        for(PetscInt rowInd = 0; rowInd < localNumStates_; ++rowInd) {
+            MatGetRow(costMatrix, rowInd + g_start_, &nnz, &colIdx, &vals);
+            const PetscReal *min = std::min_element(vals, vals + nnz);
+            policy[rowInd] = colIdx[min - vals];
+            VecSetValue(residual, rowInd + g_start_, *min, INSERT_VALUES);
+            MatRestoreRow(costMatrix, rowInd + g_start_, &nnz, &colIdx, &vals);
+        }
     }
     else if(mode_ == mode::MAXREWARD) {
-        ierr = MatGetRowMax(costMatrix, residual, policy); CHKERRQ(ierr);
+        for(PetscInt rowInd = 0; rowInd < localNumStates_; ++rowInd) {
+            MatGetRow(costMatrix, rowInd + g_start_, &nnz, &colIdx, &vals);
+            const PetscReal *max = std::max_element(vals, vals + nnz);
+            policy[rowInd] = colIdx[max - vals];
+            VecSetValue(residual, rowInd + g_start_, *max, INSERT_VALUES);
+            MatRestoreRow(costMatrix, rowInd + g_start_, &nnz, &colIdx, &vals);
+        }
     }
+
+    VecAssemblyBegin(residual);
+    VecAssemblyEnd(residual);
+
     VecAXPY(residual, -1.0, V);
     VecNorm(residual, NORM_INFINITY, &residualNorm);
     VecDestroy(&residual);
