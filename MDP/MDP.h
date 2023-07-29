@@ -70,6 +70,8 @@ public:
 
     Mat transitionProbabilityTensor_;   // transition probability tensor
     Mat stageCostMatrix_;               // stage cost matrix (also rewards possible)
+    Mat costMatrix_;                    // cost matrix used in extractGreedyPolicy
+    Vec costVector_;                    // cost vector used in extractGreedyPolicy
 
     JsonWriter *jsonWriter_;
 };

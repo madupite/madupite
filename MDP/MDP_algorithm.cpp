@@ -15,75 +15,72 @@
 // idea: Mult gamma * P*V, reshape, add g, use MatGetRowMin
 PetscErrorCode MDP::extractGreedyPolicy(Vec &V, PetscInt *policy, PetscReal &residualNorm) {
     PetscErrorCode ierr;
-    Vec costVector;
-    VecCreateMPI(PETSC_COMM_WORLD, localNumStates_*numActions_, numStates_*numActions_, &costVector);
-    ierr = MatMult(transitionProbabilityTensor_, V, costVector); CHKERRQ(ierr);
-    VecScale(costVector, discountFactor_);
+//    Vec costVector_;
+//    VecCreateMPI(PETSC_COMM_WORLD, localNumStates_*numActions_, numStates_*numActions_, &costVector_);
+    ierr = MatMult(transitionProbabilityTensor_, V, costVector_); CHKERRQ(ierr);
+    VecScale(costVector_, discountFactor_);
 
-    // reshape costVector into costMatrix
+    // reshape costVector_ into costMatrix_
     // create + preallocate new matrix
-    Mat costMatrix;
-    MatCreate(PETSC_COMM_WORLD, &costMatrix);
-    MatSetSizes(costMatrix, localNumStates_, PETSC_DECIDE, numStates_, numActions_);
-    MatSetType(costMatrix, MATDENSE);
-    MatSetUp(costMatrix);
-    PetscInt localNumActions, rowStart;
-    MatGetLocalSize(costMatrix, NULL, &localNumActions);
-    MatGetOwnershipRange(costMatrix, &rowStart, NULL);
-    //ierr = MatMPIAIJSetPreallocation(costMatrix, localNumActions, NULL, numActions_ - localNumActions, NULL); CHKERRQ(ierr); // preallocate dense matrix
+//    Mat costMatrix_;
+//    MatCreate(PETSC_COMM_WORLD, &costMatrix_);
+//    MatSetSizes(costMatrix_, localNumStates_, PETSC_DECIDE, numStates_, numActions_);
+//    MatSetType(costMatrix_, MATDENSE);
+//    MatSetUp(costMatrix_);
+    //ierr = MatMPIAIJSetPreallocation(costMatrix_, localNumActions, NULL, numActions_ - localNumActions, NULL); CHKERRQ(ierr); // preallocate dense matrix
 
-    // reshape costVector into costMatrix (fill matrix with values)
+    // reshape costVector_ into costMatrix_ (fill matrix with values)
     const PetscReal *costVectorValues;
-    VecGetArrayRead(costVector, &costVectorValues);
+    VecGetArrayRead(costVector_, &costVectorValues);
     IS rows, cols;
-    ISCreateStride(PETSC_COMM_WORLD, localNumStates_, rowStart, 1, &rows);
+    ISCreateStride(PETSC_COMM_WORLD, localNumStates_, g_start_, 1, &rows);
     ISCreateStride(PETSC_COMM_WORLD, numActions_, 0, 1, &cols);
     const PetscInt *rowIndices, *colIndices;
     ISGetIndices(rows, &rowIndices);
     ISGetIndices(cols, &colIndices);
-    //ierr = MatSetValuesIS(costMatrix, rows, cols, costVectorValues, INSERT_VALUES); CHKERRQ(ierr);
-    ierr = MatSetValues(costMatrix, localNumStates_, rowIndices, numActions_, colIndices, costVectorValues, INSERT_VALUES); CHKERRQ(ierr);
-    MatAssemblyBegin(costMatrix, MAT_FINAL_ASSEMBLY);
-    VecRestoreArrayRead(costVector, &costVectorValues);
+    //ierr = MatSetValuesIS(costMatrix_, rows, cols, costVectorValues, INSERT_VALUES); CHKERRQ(ierr);
+    ierr = MatSetValues(costMatrix_, localNumStates_, rowIndices, numActions_, colIndices, costVectorValues, INSERT_VALUES); CHKERRQ(ierr);
+    MatAssemblyBegin(costMatrix_, MAT_FINAL_ASSEMBLY);
+    VecRestoreArrayRead(costVector_, &costVectorValues);
     ISRestoreIndices(rows, &rowIndices);
     ISRestoreIndices(cols, &colIndices);
-    MatAssemblyEnd(costMatrix, MAT_FINAL_ASSEMBLY);
+    MatAssemblyEnd(costMatrix_, MAT_FINAL_ASSEMBLY);
     ISDestroy(&rows);
     ISDestroy(&cols);
 
-    // add g to costMatrix
-    ierr = MatAXPY(costMatrix, 1.0, stageCostMatrix_, SAME_NONZERO_PATTERN); CHKERRQ(ierr);
+    // add g to costMatrix_
+    ierr = MatAXPY(costMatrix_, 1.0, stageCostMatrix_, SAME_NONZERO_PATTERN); CHKERRQ(ierr);
 
     // find minimum for each row and compute residual norm
     Vec residual;
     VecCreateMPI(PETSC_COMM_WORLD, localNumStates_, numStates_, &residual);
 //    if(mode_ == mode::MINCOST) {
-//        ierr = MatGetRowMin(costMatrix, residual, policy); CHKERRQ(ierr);
+//        ierr = MatGetRowMin(costMatrix_, residual, policy); CHKERRQ(ierr);
 //    }
 //    else if(mode_ == mode::MAXREWARD) {
-//        ierr = MatGetRowMax(costMatrix, residual, policy); CHKERRQ(ierr);
+//        ierr = MatGetRowMax(costMatrix_, residual, policy); CHKERRQ(ierr);
 //    }
 
     PetscInt nnz;
     const PetscInt *colIdx;
-    const PetscScalar *vals;
+    const PetscReal *vals;
 
     if(mode_ == mode::MINCOST) {
         for(PetscInt rowInd = 0; rowInd < localNumStates_; ++rowInd) {
-            MatGetRow(costMatrix, rowInd + g_start_, &nnz, &colIdx, &vals);
+            MatGetRow(costMatrix_, rowInd + g_start_, &nnz, &colIdx, &vals);
             const PetscReal *min = std::min_element(vals, vals + nnz);
             policy[rowInd] = colIdx[min - vals];
             VecSetValue(residual, rowInd + g_start_, *min, INSERT_VALUES);
-            MatRestoreRow(costMatrix, rowInd + g_start_, &nnz, &colIdx, &vals);
+            MatRestoreRow(costMatrix_, rowInd + g_start_, &nnz, &colIdx, &vals);
         }
     }
     else if(mode_ == mode::MAXREWARD) {
         for(PetscInt rowInd = 0; rowInd < localNumStates_; ++rowInd) {
-            MatGetRow(costMatrix, rowInd + g_start_, &nnz, &colIdx, &vals);
+            MatGetRow(costMatrix_, rowInd + g_start_, &nnz, &colIdx, &vals);
             const PetscReal *max = std::max_element(vals, vals + nnz);
             policy[rowInd] = colIdx[max - vals];
             VecSetValue(residual, rowInd + g_start_, *max, INSERT_VALUES);
-            MatRestoreRow(costMatrix, rowInd + g_start_, &nnz, &colIdx, &vals);
+            MatRestoreRow(costMatrix_, rowInd + g_start_, &nnz, &colIdx, &vals);
         }
     }
 
@@ -93,8 +90,8 @@ PetscErrorCode MDP::extractGreedyPolicy(Vec &V, PetscInt *policy, PetscReal &res
     VecAXPY(residual, -1.0, V);
     VecNorm(residual, NORM_INFINITY, &residualNorm);
     VecDestroy(&residual);
-    VecDestroy(&costVector);
-    MatDestroy(&costMatrix);
+//    VecDestroy(&costVector_);
+//    MatDestroy(&costMatrix_);
     return 0;
 }
 
@@ -211,8 +208,16 @@ PetscErrorCode MDP::createJacobian(Mat &jacobian, const Mat &transitionProbabili
 }
 
 PetscErrorCode MDP::inexactPolicyIteration(Vec &V0, IS &policy, Vec &optimalCost) {
+    PetscErrorCode ierr;
     if(rank_ == 0) LOG("Entering inexactPolicyIteration");
     jsonWriter_->add_solver_run();
+
+    // allocation for extractGreedyPolicy
+    ierr = MatCreate(PETSC_COMM_WORLD, &costMatrix_); CHKERRQ(ierr);
+    ierr = MatSetType(costMatrix_, MATDENSE); CHKERRQ(ierr);
+    ierr = MatSetSizes(costMatrix_, localNumStates_, PETSC_DECIDE, numStates_, numActions_); CHKERRQ(ierr);
+    ierr = MatSetUp(costMatrix_); CHKERRQ(ierr);
+    ierr = VecCreateMPI(PETSC_COMM_WORLD, localNumStates_*numActions_, numStates_*numActions_, &costVector_); CHKERRQ(ierr);
 
     Vec V;
     VecDuplicate(V0, &V);

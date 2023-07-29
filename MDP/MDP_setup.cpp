@@ -15,6 +15,8 @@ MDP::MDP() {
     jsonWriter_->add_data("numRanks", size_);
     transitionProbabilityTensor_ = nullptr;
     stageCostMatrix_ = nullptr;
+    costMatrix_ = nullptr;
+    costVector_ = nullptr;
 
     Logger::setPrefix("[R" + std::to_string(rank_) + "] ");
     Logger::setFilename("log_R" + std::to_string(rank_) + ".txt"); // remove if all ranks should output to the same file
@@ -23,6 +25,8 @@ MDP::MDP() {
 MDP::~MDP() {
     MatDestroy(&transitionProbabilityTensor_);
     MatDestroy(&stageCostMatrix_);
+    MatDestroy(&costMatrix_);
+    VecDestroy(&costVector_);
     //delete jsonWriter_; // todo fix this (double free or corruption error)
 }
 
