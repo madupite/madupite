@@ -5,6 +5,9 @@ project(distributed_inexact_policy_iteration)
 # C++ version specification
 set(CMAKE_CXX_STANDARD 17)
 
+# Compiler flags
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -O3 -march=native -funroll-loops -ffast-math -fopenmp -v")
+
 # PETSc configuration
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 set(PETSC $ENV{PETSC_DIR}/$ENV{PETSC_ARCH})
