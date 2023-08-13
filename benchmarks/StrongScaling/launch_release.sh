@@ -1,9 +1,7 @@
 #!/bin/bash
 
 #SBATCH -n 48
-#SBATCH --nodes=1
 #SBATCH --time=04:00:00
-#SBATCH --cpus-per-task=1
 #SBATCH --job-name="iPI Benchmark"
 #SBATCH --mem-per-cpu=2500
 #SBATCH --mail-type=BEGIN,END
@@ -29,22 +27,24 @@ make
 e=GM
 
 if [ "$e" == "MDP" ]; then
-    n=18000
-    m=40
-    s=0.005
-    python ../euler/SolverType/run_benchmark_MDP.py -n $n -m $m -s $s
-    #python ../plot/strong_scaling.py --path ../output/MDP/$SLURM_JOB_ID/
+    python ../benchmarks/StrongScaling/run_benchmark_MDP.py
+    python ../benchmarks/StrongScaling/plot.py --path ../output/MDP/StrongScaling/$SLURM_JOB_ID
 
 
 elif [ "$e" == "GM" ]; then
     python ../benchmarks/StrongScaling/run_benchmark_GM.py
-    python ../benchmarks/StrongScaling/plot.py --path ../output/GM/StrongScaling/$SLURM_JOB_ID/
+    python ../benchmarks/StrongScaling/plot.py --path ../output/GM/StrongScaling/$SLURM_JOB_ID
 
 
 
 elif [ "$e" == "IDM" ]; then
-    python ../euler/SolverType_Size/run_benchmark_IDM.py
-    #python ../plot/strong_scaling.py --path ../output/IDM/$SLURM_JOB_ID/
+    python ../benchmarks/StrongScaling/run_benchmark_IDM.py
+    python ../benchmarks/StrongScaling/plot.py --path ../output/IDM/StrongScaling/$SLURM_JOB_ID
+
+
+elif [ "$e" == "ATC" ]; then
+    python ../benchmarks/StrongScaling/run_benchmark_ATC.py
+    python ../benchmarks/StrongScaling/plot.py --path ../output/ATC/StrongScaling/$SLURM_JOB_ID
 
 
 else

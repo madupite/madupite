@@ -33,8 +33,6 @@ if [ "$e" == "MDP" ]; then
 
 elif [ "$e" == "GM" ]; then
     python ../benchmarks/SolverTolerance/run_benchmark_GM.py
-    #python ../plot/strong_scaling.py --path ../output/GM/$SLURM_JOB_ID/
-    #python ../plot/SolverType_GM.py --path ../output/SolverType_Discount/$SLURM_JOB_ID/
     python ../benchmarks/SolverTolerance/plot.py --path ../output/GM/SolverTolerance/$SLURM_JOB_ID
 
 

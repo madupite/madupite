@@ -27,23 +27,18 @@ make
 e=IDM
 
 if [ "$e" == "MDP" ]; then
-    n=18000
-    m=40
-    s=0.005
-    python ../euler/SolverType/run_benchmark_MDP.py -n $n -m $m -s $s
-    #python ../plot/strong_scaling.py --path ../output/MDP/$SLURM_JOB_ID/
+    python ../benchmarks/SolverType_Size/run_benchmark_MDP.py
+    python ../benchmarks/solverType_Size/plot.py --path ../output/MDP/SolverType_Size/$SLURM_JOB_ID
 
 
 elif [ "$e" == "GM" ]; then
-    python ../euler/SolverType_Size/run_benchmark_GM.py
-    #python ../plot/strong_scaling.py --path ../output/GM/$SLURM_JOB_ID/
-    python ../plot/SolverType_GM.py --path ../output/SolverType_Size/$SLURM_JOB_ID/
+    python ../benchmarks/SolverType_Size/run_benchmark_GM.py
+    python ../benchmarks/SolverType_Size/plot.py --path ../output/GM/SolverType_Size/$SLURM_JOB_ID
 
 
 elif [ "$e" == "IDM" ]; then
-    python ../euler/SolverType_Size/run_benchmark_IDM.py
-    #python ../plot/strong_scaling.py --path ../output/IDM/$SLURM_JOB_ID/
-
+    python ../benchmarks/SolverType_Size/run_benchmark_IDM.py
+    python ../benchmarks/SolverType_Size/plot.py --path ../output/IDM/SolverType_Size/$SLURM_JOB_ID
 
 else
     echo "Invalid value of e. It should be either 'MDP', 'GM' or 'IDM'."

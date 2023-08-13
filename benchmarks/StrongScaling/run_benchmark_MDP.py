@@ -3,17 +3,21 @@ import subprocess
 
 
 # Parameters
-riskAversion = 0.5
-discountFactor = 0.98
-numK = 10000
-numZ = 2
-mode = "MAXREWARD"
-executable = "./growth_model"
+discountFactor = 0.99
+mode = "MINCOST"
+executable = "./distributed_inexact_policy_iteration"
 
 # Define the directory structure
 #slurm_id = "test"
 slurm_id = os.environ["SLURM_JOB_ID"]
-dir_output = f"/cluster/home/rosieber/distributed-inexact-policy-iteration/output/GM/StrongScaling/{slurm_id}"
+data_dir = f"/cluster/scratch/rosieber/BA_DATA/"
+dir_output = f"/cluster/home/rosieber/distributed-inexact-policy-iteration/output/MDP/SolverType_Size/{slurm_id}"
+
+#states_arr = [100, 500, 1000, 5000, 10000, 15000, 30000, 50000]
+#actions_arr = [5, 10, 20, 50, 100, 200]
+numStates = 30000
+numActions = 100
+sparsityFactor = 0.005
 
 #cpus = [1, 2, 4, 8, 16, 24, 32, 40, 48]
 cpus = [1, 2, 4, 8, 16, 20, 24, 28, 32, 36, 40, 44, 48]
@@ -26,18 +30,15 @@ flags = [
     "-maxIter_PI", str(200),
     "-numPIRuns", str(10),
     "-atol_PI", str(1e-10),
+    "-rtol_KSP", str(0.01),
     "-log_view"
 ]
 
 flags += [
     "-mode", mode,
     "-discountFactor", str(discountFactor),
-    "-numZ", str(numZ),
-    "-numK", str(numK),
-    "-riskAversion", str(riskAversion),
-    "-ksp_type", "gmres",
-    "-rtol_KSP", str(0.1),
-    "-maxIter_KSP", str(1000)
+    "-states", str(numStates),
+    "-actions", str(numActions),
 ]
 
 for cpu in cpus:
@@ -48,6 +49,8 @@ for cpu in cpus:
     cmd = ["mpirun", "-n", str(cpu), "--report-bindings", executable, *flags]
 
     cmd += [
+        "-file_P", os.path.join(data_dir, f"P_{numStates}_{numActions}_{sparsityFactor}.bin"),
+        "-file_g", os.path.join(data_dir, f"g_{numStates}_{numActions}_{sparsityFactor}.bin"),
         "-file_stats", os.path.join(dir, "stats.json"),
         "-file_policy", os.path.join(dir, "policy.out"),
         "-file_cost", os.path.join(dir, "cost.out")
@@ -55,7 +58,7 @@ for cpu in cpus:
 
 
     # Print the command
-    print("[run_benchmark_GM.py] Running command: ")
+    print("[run_benchmark_MDP.py] Running command: ")
     print(" ".join(cmd), "\n\n")
 
     # Run the benchmark
