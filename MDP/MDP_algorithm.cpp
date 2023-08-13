@@ -13,7 +13,7 @@
 // find $\argmin_{\pi} \{ g^\pi + \gamma P^\pi V \}$
 // PRE: policy is a array of size localNumStates_ and must be allocated. Function will write into it but not allocate it.
 // idea: Mult gamma * P*V, reshape, add g, use MatGetRowMin
-PetscErrorCode MDP::extractGreedyPolicy(Vec &V, PetscInt *policy, PetscReal &residualNorm) {
+PetscErrorCode MDP::extractGreedyPolicy(const Vec &V, PetscInt *policy, PetscReal &residualNorm) {
     PetscErrorCode ierr;
 //    Vec costVector_;
 //    VecCreateMPI(PETSC_COMM_WORLD, localNumStates_*numActions_, numStates_*numActions_, &costVector_);
@@ -96,7 +96,7 @@ PetscErrorCode MDP::extractGreedyPolicy(Vec &V, PetscInt *policy, PetscReal &res
 }
 
 // user must destroy P and g by himself. Function will create them. [used in inexactPolicyIteration]
-PetscErrorCode MDP::constructFromPolicy(PetscInt *policy, Mat &transitionProbabilities, Vec &stageCosts) {
+PetscErrorCode MDP::constructFromPolicy(const PetscInt *policy, Mat &transitionProbabilities, Vec &stageCosts) {
     //LOG("Entering constructFromPolicy [policy]");
     PetscErrorCode ierr;
     // compute where local ownership of new P_pi matrix starts
@@ -151,7 +151,7 @@ PetscErrorCode MDP::constructFromPolicy(PetscInt *policy, Mat &transitionProbabi
 }
 
 
-PetscErrorCode MDP::iterativePolicyEvaluation(Mat &jacobian, Vec &stageCosts, Vec &V, KSPContext &ctx) {
+PetscErrorCode MDP::iterativePolicyEvaluation(const Mat &jacobian, const Vec &stageCosts, Vec &V, KSPContext &ctx) {
     PetscErrorCode ierr;
     MatAssemblyBegin(jacobian, MAT_FINAL_ASSEMBLY); // overlap communication with KSP setup
 
@@ -161,7 +161,7 @@ PetscErrorCode MDP::iterativePolicyEvaluation(Mat &jacobian, Vec &stageCosts, Ve
     ierr = KSPSetOperators(ksp, jacobian, jacobian); CHKERRQ(ierr);
     ierr = KSPSetFromOptions(ksp); CHKERRQ(ierr);
     ierr = KSPSetInitialGuessNonzero(ksp, PETSC_TRUE); CHKERRQ(ierr);
-    ierr = KSPSetTolerances(ksp, 1e-20, ctx.threshold, PETSC_DEFAULT, ctx.maxIter); CHKERRQ(ierr); // use L2 norm of residual to compare. This works since ||x||_2 >= ||x||_inf. Much faster than infinity norm.
+    ierr = KSPSetTolerances(ksp, 1e-40, ctx.threshold, PETSC_DEFAULT, ctx.maxIter); CHKERRQ(ierr); // use L2 norm of residual to compare. This works since ||x||_2 >= ||x||_inf. Much faster than infinity norm.
     //ierr = KSPSetConvergenceTest(ksp, &MDP::cvgTest, &ctx, NULL); CHKERRQ(ierr); // custom convergence test using infinity norm
     
     ierr = MatAssemblyEnd(jacobian, MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
@@ -207,7 +207,7 @@ PetscErrorCode MDP::createJacobian(Mat &jacobian, const Mat &transitionProbabili
     return 0;
 }
 
-PetscErrorCode MDP::inexactPolicyIteration(Vec &V0, IS &policy, Vec &optimalCost) {
+PetscErrorCode MDP::inexactPolicyIteration(const Vec &V0, IS &policy, Vec &optimalCost) {
     PetscErrorCode ierr;
     if(rank_ == 0) LOG("Entering inexactPolicyIteration");
     jsonWriter_->add_solver_run();
@@ -235,6 +235,16 @@ PetscErrorCode MDP::inexactPolicyIteration(Vec &V0, IS &policy, Vec &optimalCost
         PetscTime(&startTime);
 
         extractGreedyPolicy(V, policyValues, residualNorm);
+        // debug
+        if(rank_ == 0) LOG("DEBUG Iteration " + std::to_string(PI_iteration) + " Bellman residual norm: " + std::to_string(residualNorm));
+        // check policy: every element must be in [0, numK_-1]
+        for(PetscInt i = 0; i < localNumStates_; ++i) {
+            if(policyValues[i] < 0 || policyValues[i] >= numActions_) {
+                LOG("Error: policyValues[" + std::to_string(i) + "] = " + std::to_string(policyValues[i]) + " is not in [0, " + std::to_string(numActions_) + ")");
+                return 1;
+            }
+        }
+
         if(residualNorm < atol_PI_) {
             PetscTime(&endTime);
             jsonWriter_->add_iteration_data(PI_iteration, 0, (endTime - startTime) * 1000, residualNorm);
@@ -245,16 +255,24 @@ PetscErrorCode MDP::inexactPolicyIteration(Vec &V0, IS &policy, Vec &optimalCost
         JacobianContext ctxJac = {transitionProbabilities, discountFactor_};
         createJacobian(jacobian, transitionProbabilities, ctxJac);
 
+        PetscReal vnorm;
+        VecNorm(V, NORM_INFINITY, &vnorm);
+        if(rank_ == 0) LOG("[before KSP] V norm: " + std::to_string(vnorm));
         // solve linear system
         KSPContext ctx = {maxIter_KSP_, residualNorm * rtol_KSP_, -1};
         iterativePolicyEvaluation(jacobian, stageCosts, V, ctx);
+        // DEBUG: print V norm
+        VecNorm(V, NORM_INFINITY, &vnorm);
+        if(rank_ == 0) LOG("[after KSP] V norm: " + std::to_string(vnorm));
+
+
         MatDestroy(&transitionProbabilities);
         MatDestroy(&jacobian); // avoid memory leak
         VecDestroy(&stageCosts);
 
         PetscTime(&endTime);
         jsonWriter_->add_iteration_data(PI_iteration, ctx.kspIterations, (endTime - startTime) * 1000, residualNorm);
-        if(rank_ == 0) LOG("Iteration " + std::to_string(PI_iteration) + " residual norm: " + std::to_string(residualNorm));
+        //if(rank_ == 0) LOG("Iteration " + std::to_string(PI_iteration) + " residual norm: " + std::to_string(residualNorm)); // todo uncomment
     }
 
     if(PI_iteration >= maxIter_PI_) {
@@ -299,7 +317,7 @@ PetscErrorCode MDP::cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedR
     return 0;
 }
 
-PetscErrorCode MDP::benchmarkIPI(Vec &V0, IS &policy, Vec &optimalCost) {
+PetscErrorCode MDP::benchmarkIPI(const Vec &V0, IS &policy, Vec &optimalCost) {
 
     for(PetscInt i = 0; i < numPIRuns_; ++i) {
         inexactPolicyIteration(V0, policy, optimalCost);

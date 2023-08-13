@@ -29,12 +29,12 @@ public:
     ~MDP();
     virtual PetscErrorCode setValuesFromOptions();
 
-    virtual PetscErrorCode extractGreedyPolicy(Vec &V, PetscInt *policy, PetscReal &residualNorm);
-    virtual PetscErrorCode constructFromPolicy(PetscInt   *policy, Mat &transitionProbabilities, Vec &stageCosts);
-    virtual PetscErrorCode iterativePolicyEvaluation(Mat &jacobian, Vec &stageCosts, Vec &V, KSPContext &ctx);
+    virtual PetscErrorCode extractGreedyPolicy(const Vec &V, PetscInt *policy, PetscReal &residualNorm);
+    virtual PetscErrorCode constructFromPolicy(const PetscInt   *policy, Mat &transitionProbabilities, Vec &stageCosts);
+    virtual PetscErrorCode iterativePolicyEvaluation(const Mat &jacobian, const Vec &stageCosts, Vec &V, KSPContext &ctx);
     virtual PetscErrorCode createJacobian(Mat &jacobian, const Mat &transitionProbabilities, JacobianContext &ctx);
-    virtual PetscErrorCode inexactPolicyIteration(Vec &V0, IS &policy, Vec &optimalCost);
-    virtual PetscErrorCode benchmarkIPI(Vec &V0, IS &policy, Vec &optimalCost);
+    virtual PetscErrorCode inexactPolicyIteration(const Vec &V0, IS &policy, Vec &optimalCost);
+    virtual PetscErrorCode benchmarkIPI(const Vec &V0, IS &policy, Vec &optimalCost);
 
     static PetscErrorCode cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason *reason, void *ctx); // Test if residual norm is smaller than alpha * r0_norm
     static void jacobianMultiplication(Mat mat, Vec x, Vec y); // defines matrix vector product for jacobian shell
