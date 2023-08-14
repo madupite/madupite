@@ -235,15 +235,6 @@ PetscErrorCode MDP::inexactPolicyIteration(const Vec &V0, IS &policy, Vec &optim
         PetscTime(&startTime);
 
         extractGreedyPolicy(V, policyValues, residualNorm);
-        // debug
-        if(rank_ == 0) LOG("DEBUG Iteration " + std::to_string(PI_iteration) + " Bellman residual norm: " + std::to_string(residualNorm));
-        // check policy: every element must be in [0, numK_-1]
-        for(PetscInt i = 0; i < localNumStates_; ++i) {
-            if(policyValues[i] < 0 || policyValues[i] >= numActions_) {
-                LOG("Error: policyValues[" + std::to_string(i) + "] = " + std::to_string(policyValues[i]) + " is not in [0, " + std::to_string(numActions_) + ")");
-                return 1;
-            }
-        }
 
         if(residualNorm < atol_PI_) {
             PetscTime(&endTime);
@@ -255,16 +246,9 @@ PetscErrorCode MDP::inexactPolicyIteration(const Vec &V0, IS &policy, Vec &optim
         JacobianContext ctxJac = {transitionProbabilities, discountFactor_};
         createJacobian(jacobian, transitionProbabilities, ctxJac);
 
-        PetscReal vnorm;
-        VecNorm(V, NORM_INFINITY, &vnorm);
-        if(rank_ == 0) LOG("[before KSP] V norm: " + std::to_string(vnorm));
         // solve linear system
         KSPContext ctx = {maxIter_KSP_, residualNorm * rtol_KSP_, -1};
         iterativePolicyEvaluation(jacobian, stageCosts, V, ctx);
-        // DEBUG: print V norm
-        VecNorm(V, NORM_INFINITY, &vnorm);
-        if(rank_ == 0) LOG("[after KSP] V norm: " + std::to_string(vnorm));
-
 
         MatDestroy(&transitionProbabilities);
         MatDestroy(&jacobian); // avoid memory leak
@@ -272,7 +256,7 @@ PetscErrorCode MDP::inexactPolicyIteration(const Vec &V0, IS &policy, Vec &optim
 
         PetscTime(&endTime);
         jsonWriter_->add_iteration_data(PI_iteration, ctx.kspIterations, (endTime - startTime) * 1000, residualNorm);
-        //if(rank_ == 0) LOG("Iteration " + std::to_string(PI_iteration) + " residual norm: " + std::to_string(residualNorm)); // todo uncomment
+        if(rank_ == 0) LOG("Iteration " + std::to_string(PI_iteration) + " residual norm: " + std::to_string(residualNorm));
     }
 
     if(PI_iteration >= maxIter_PI_) {
