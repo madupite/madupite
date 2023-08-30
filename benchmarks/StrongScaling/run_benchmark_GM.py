@@ -5,7 +5,7 @@ import subprocess
 # Parameters
 riskAversion = 0.5
 discountFactor = 0.98
-numK = 10000
+numK = 12500
 numZ = 2
 mode = "MAXREWARD"
 executable = "./growth_model"
@@ -24,8 +24,11 @@ flags = [
     "-mat_type", "mpiaij",
     "-pc_type", "none",
     "-maxIter_PI", str(200),
+    "-maxIter_KSP", str(10000),
+    "-ksp_type", "gmres",
     "-numPIRuns", str(10),
     "-atol_PI", str(1e-10),
+    "-rtol_KSP", str(0.1),
     "-log_view"
 ]
 

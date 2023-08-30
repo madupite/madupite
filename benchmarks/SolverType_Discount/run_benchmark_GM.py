@@ -14,12 +14,13 @@ executable = "./growth_model"
 slurm_id = os.environ["SLURM_JOB_ID"]
 dir_output = f"/cluster/home/rosieber/distributed-inexact-policy-iteration/output/GM/SolverType_Discount/{slurm_id}"
 
+rtol = 0.1
 discount_arr = [0.01, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.98, 0.99, 0.995, 0.999]
 solvers = {
     "gmres" : [
         "-ksp_type",  "gmres",
         "-maxIter_KSP", str(10000),
-        "-rtol_KSP", str(0.1)
+        "-rtol_KSP", str(rtol)
     ],
     "opi50" : [
         "-ksp_type", "richardson",
@@ -42,12 +43,12 @@ solvers = {
     "tfqmr" : [
         "-ksp_type", "tfqmr",
         "-maxIter_KSP", str(10000),
-        "-rtol_KSP", str(0.1)
+        "-rtol_KSP", str(rtol)
     ],
     "bcgs" : [
         "-ksp_type", "bcgs",
         "-maxIter_KSP", str(10000),
-        "-rtol_KSP", str(0.1)
+        "-rtol_KSP", str(rtol)
     ]
 }
 

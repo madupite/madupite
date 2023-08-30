@@ -38,7 +38,7 @@ for i, (method, variations) in enumerate(runtimes.items()):
     ax1.set_xlabel('states')
     ax1.set_ylabel('Runtime [s]')
     line1 = ax1.plot(variation_counts, means, color=colors[i % len(colors)], label=f"{method}")
-    #fill1 = ax1.fill_between(variation_counts, mins, maxs, color=colors[i % len(colors)], alpha=0.2)
+    fill1 = ax1.fill_between(variation_counts, mins, maxs, color=colors[i % len(colors)], alpha=0.2)
 
 #grid
 ax1.grid(axis='y', linestyle='--')

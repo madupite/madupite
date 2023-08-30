@@ -8,7 +8,7 @@ weights = "5,20,0.05"
 HM = "0.25,0.125,0.08,0.05,0.03"
 HM_cf = "0,1,5,6,9"
 HM_cq = "1,0.7,0.5,0.4,0.05"  
-
+SD = "500,300,140,80"
 SD_cf = "0,1,10,30"
 SD_cq = "1,0.9,0.5,0.1"
 
@@ -20,12 +20,13 @@ executable = "./infectious_disease_model"
 slurm_id = os.environ["SLURM_JOB_ID"]
 dir_output = f"/cluster/home/rosieber/distributed-inexact-policy-iteration/output/IDM/SolverType_Size/{slurm_id}"
 
-population_arr = [99, 499, 999, 4999, 9999, 19999, 24999, 39999, 49999]
+population_arr = [499, 999, 4999, 9999, 19999, 29999, 39999, 49999, 59999, 69999, 79999, 89999, 99999] # such that numStates is a round number
+rtol = 0.1
 solvers = {
     "gmres" : [
         "-ksp_type",  "gmres",
         "-maxIter_KSP", str(10000),
-        "-rtol_KSP", str(1e-4)
+        "-rtol_KSP", str(rtol)
     ],
     "opi50" : [
         "-ksp_type", "richardson",
@@ -45,20 +46,15 @@ solvers = {
         "-rtol_KSP", str(1e-20),
         "-ksp_richardson_scale", "1.0"
     ],
-    "cgs" : [
-        "-ksp_type", "cgs",
-        "-maxIter_KSP", str(10000),
-        "-rtol_KSP", str(1e-4)
-    ],
     "tfqmr" : [
         "-ksp_type", "tfqmr",
         "-maxIter_KSP", str(10000),
-        "-rtol_KSP", str(1e-4)
+        "-rtol_KSP", str(rtol)
     ],
-    "bicg" : [
-        "-ksp_type", "bicg",
+    "bcgs" : [
+        "-ksp_type", "bcgs",
         "-maxIter_KSP", str(10000),
-        "-rtol_KSP", str(1e-4)
+        "-rtol_KSP", str(rtol)
     ]
 }
 
@@ -68,7 +64,7 @@ flags = [
     "-mat_type mpiaij",
     "-pc_type none",
     "-maxIter_PI", str(200),
-    "-numPIRuns", str(10),
+    "-numPIRuns", str(20),
     "-atol_PI", str(1e-10),
     "-log_view"
 ]
@@ -81,7 +77,7 @@ flags += [
     "-HM-cf", HM_cf,
     "-HM-cq", HM_cq,
     "-SD-cf", SD_cf,
-    "-SD-cq", SD_cq
+    "-SD-cq", SD_cq,
 ]
 
 for solver_name, solver_options in solvers.items():
@@ -94,9 +90,10 @@ for solver_name, solver_options in solvers.items():
 
         cmd += [
             "-file_stats", os.path.join(dir, "stats.json"),
-            "-file_policy", os.path.join(dir, "policy.out"),
-            "-file_cost", os.path.join(dir, "cost.out")
         ]
+        # don't print unnecessary huge files
+        #             "-file_policy", os.path.join(dir, "policy.out"),
+        #    "-file_cost", os.path.join(dir, "cost.out")
 
         cmd += solver_options
         cmd += ["-populationSize", str(population),

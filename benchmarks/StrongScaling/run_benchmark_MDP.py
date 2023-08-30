@@ -11,11 +11,11 @@ executable = "./distributed_inexact_policy_iteration"
 #slurm_id = "test"
 slurm_id = os.environ["SLURM_JOB_ID"]
 data_dir = f"/cluster/scratch/rosieber/BA_DATA/"
-dir_output = f"/cluster/home/rosieber/distributed-inexact-policy-iteration/output/MDP/SolverType_Size/{slurm_id}"
+dir_output = f"/cluster/home/rosieber/distributed-inexact-policy-iteration/output/MDP/StrongScaling/{slurm_id}"
 
 #states_arr = [100, 500, 1000, 5000, 10000, 15000, 30000, 50000]
 #actions_arr = [5, 10, 20, 50, 100, 200]
-numStates = 30000
+numStates = 20000
 numActions = 100
 sparsityFactor = 0.005
 
@@ -28,6 +28,8 @@ flags = [
     "-mat_type", "mpiaij",
     "-pc_type", "none",
     "-maxIter_PI", str(200),
+    "-maxIter_KSP", str(10000),
+    "-ksp_type", "gmres",
     "-numPIRuns", str(10),
     "-atol_PI", str(1e-10),
     "-rtol_KSP", str(0.01),
@@ -49,8 +51,8 @@ for cpu in cpus:
     cmd = ["mpirun", "-n", str(cpu), "--report-bindings", executable, *flags]
 
     cmd += [
-        "-file_P", os.path.join(data_dir, f"P_{numStates}_{numActions}_{sparsityFactor}.bin"),
-        "-file_g", os.path.join(data_dir, f"g_{numStates}_{numActions}_{sparsityFactor}.bin"),
+        "-file_P", os.path.join(data_dir, f"P_{numStates}_{numActions}_{sparsityFactor:0.6f}.bin"),
+        "-file_g", os.path.join(data_dir, f"g_{numStates}_{numActions}_{sparsityFactor:0.6f}.bin"),
         "-file_stats", os.path.join(dir, "stats.json"),
         "-file_policy", os.path.join(dir, "policy.out"),
         "-file_cost", os.path.join(dir, "cost.out")

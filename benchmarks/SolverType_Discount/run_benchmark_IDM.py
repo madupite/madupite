@@ -11,6 +11,7 @@ HM_cq = "1,0.7,0.5,0.4,0.05"
 SD = "500,300,140,80"
 SD_cf = "0,1,10,30"
 SD_cq = "1,0.9,0.5,0.1"
+population = 19999
 
 mode = "MINCOST"
 executable = "./infectious_disease_model"
@@ -22,9 +23,9 @@ dir_output = f"/cluster/home/rosieber/distributed-inexact-policy-iteration/outpu
 
 
 
-rtol = 0.1
-
 discount_arr = [0.01, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.98, 0.99, 0.995, 0.999]
+
+rtol = 0.1
 solvers = {
     "gmres" : [
         "-ksp_type",  "gmres",
@@ -68,7 +69,7 @@ flags = [
     "-pc_type none",
     "-maxIter_PI", str(200),
     "-numPIRuns", str(10),
-    "-atol_PI", str(1e-10),
+    "-atol_PI", str(1e-8), # higher tolerance because e-10 is not always reached
     "-log_view"
 ]
 
@@ -80,7 +81,9 @@ flags += [
     "-HM-cf", HM_cf,
     "-HM-cq", HM_cq,
     "-SD-cf", SD_cf,
-    "-SD-cq", SD_cq
+    "-SD-cq", SD_cq,
+    "-SD", SD,
+    "-populationSize", str(population)
 ]
 for solver_name, solver_options in solvers.items():
     for discountFactor in discount_arr:

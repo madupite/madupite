@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH -n 16
-#SBATCH --time=01:00:00
+#SBATCH --time=16:00:00
 #SBATCH --job-name="iPI Benchmark"
 #SBATCH --mem-per-cpu=8000
 #SBATCH --mail-type=BEGIN,END
@@ -24,7 +24,7 @@ cd ../../release
 make
 
 # Variables
-e=ATC
+e=GM
 
 if [ "$e" == "MDP" ]; then
     python ../benchmarks/SolverType_Discount/run_benchmark_MDP.py

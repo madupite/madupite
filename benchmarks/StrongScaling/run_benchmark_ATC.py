@@ -21,8 +21,8 @@ else:
 # Define the directory structure
 #slurm_id = "test"
 slurm_id = os.environ["SLURM_JOB_ID"]
-data_dir = f"/cluster/scratch/rosieber/BA_DATA/"
-dir_output = f"/cluster/home/rosieber/distributed-inexact-policy-iteration/output/MDP/SolverType_Size/{slurm_id}"
+data_dir = f"/cluster/scratch/rosieber/BA_DATA/ATC/data"
+dir_output = f"/cluster/home/rosieber/distributed-inexact-policy-iteration/output/ATC/StrongScaling/{slurm_id}"
 
 #states_arr = [100, 500, 1000, 5000, 10000, 15000, 30000, 50000]
 #actions_arr = [5, 10, 20, 50, 100, 200]
@@ -37,9 +37,11 @@ flags = [
     "-mat_type", "mpiaij",
     "-pc_type", "none",
     "-maxIter_PI", str(200),
+    "-maxIter_KSP", str(10000),
+    "-ksp_type", "gmres",
     "-numPIRuns", str(10),
     "-atol_PI", str(1e-10),
-    "-rtol_KSP", str(0.01),
+    "-rtol_KSP", str(0.6),
     "-log_view"
 ]
 
@@ -58,6 +60,8 @@ for cpu in cpus:
     cmd = ["mpirun", "-n", str(cpu), "--report-bindings", executable, *flags]
 
     cmd += [
+        "-file_P", f"{data_dir}/{flight_id}_P.bin",
+        "-file_g", f"{data_dir}/{flight_id}_g.bin",
         "-file_stats", os.path.join(dir, "stats.json"),
         "-file_policy", os.path.join(dir, "policy.out"),
         "-file_cost", os.path.join(dir, "cost.out")

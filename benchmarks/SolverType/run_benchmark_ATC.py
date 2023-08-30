@@ -23,12 +23,12 @@ else:
 slurm_id = os.environ["SLURM_JOB_ID"]
 dir_output = f"/cluster/home/rosieber/distributed-inexact-policy-iteration/output/ATC/SolverType/{slurm_id}"
 
-numK_arr = [100, 500, 1000, 5000, 10000, 20000, 25000]
+rtol = 0.6
 solvers = {
     "gmres" : [
         "-ksp_type",  "gmres",
         "-maxIter_KSP", str(10000),
-        "-rtol_KSP", str(1e-4)
+        "-rtol_KSP", str(rtol)
     ],
     "opi50" : [
         "-ksp_type", "richardson",
@@ -48,20 +48,15 @@ solvers = {
         "-rtol_KSP", str(1e-20),
         "-ksp_richardson_scale", "1.0"
     ],
-    "cgs" : [
-        "-ksp_type", "cgs",
-        "-maxIter_KSP", str(10000),
-        "-rtol_KSP", str(1e-4)
-    ],
     "tfqmr" : [
         "-ksp_type", "tfqmr",
         "-maxIter_KSP", str(10000),
-        "-rtol_KSP", str(1e-4)
+        "-rtol_KSP", str(rtol)
     ],
     "bicg" : [
         "-ksp_type", "bicg",
         "-maxIter_KSP", str(10000),
-        "-rtol_KSP", str(1e-4)
+        "-rtol_KSP", str(rtol)
     ]
 }
 

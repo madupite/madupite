@@ -1,9 +1,9 @@
 #!/bin/bash
 
 #SBATCH -n 16
-#SBATCH --time=16:00:00
+#SBATCH --time=08:00:00
 #SBATCH --job-name="iPI Benchmark"
-#SBATCH --mem-per-cpu=6000
+#SBATCH --mem-per-cpu=4000
 #SBATCH --mail-type=BEGIN,END
 
 date
@@ -24,11 +24,11 @@ cd ../../release
 make
 
 # Variables
-e=IDM
+e=MDP
 
 if [ "$e" == "MDP" ]; then
     python ../benchmarks/SolverType_Size/run_benchmark_MDP.py
-    python ../benchmarks/solverType_Size/plot.py --path ../output/MDP/SolverType_Size/$SLURM_JOB_ID
+    #python ../benchmarks/solverType_Size/plot.py --path ../output/MDP/SolverType_Size/$SLURM_JOB_ID
 
 
 elif [ "$e" == "GM" ]; then

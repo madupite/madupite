@@ -11,6 +11,7 @@ HM_cq = "1,0.7,0.5,0.4,0.05"
 SD = "500,300,140,80"
 SD_cf = "0,1,10,30"
 SD_cq = "1,0.9,0.5,0.1"
+population = 39999
 
 mode = "MINCOST"
 executable = "./infectious_disease_model"
@@ -29,6 +30,8 @@ flags = [
     "-mat_type", "mpiaij",
     "-pc_type", "none",
     "-maxIter_PI", str(200),
+    "-maxIter_KSP", str(10000),
+    "-ksp_type", "gmres",
     "-numPIRuns", str(10),
     "-atol_PI", str(1e-10),
     "-rtol_KSP", str(0.1),
@@ -43,7 +46,9 @@ flags += [
     "-HM-cf", HM_cf,
     "-HM-cq", HM_cq,
     "-SD-cf", SD_cf,
-    "-SD-cq", SD_cq
+    "-SD-cq", SD_cq,
+    "-SD", SD,
+    "-populationSize", str(population)
 ]
 
 for cpu in cpus:

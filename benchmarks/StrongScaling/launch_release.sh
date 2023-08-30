@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH -n 48
-#SBATCH --time=04:00:00
+#SBATCH --time=16:00:00
 #SBATCH --job-name="iPI Benchmark"
 #SBATCH --mem-per-cpu=2500
 #SBATCH --mail-type=BEGIN,END
@@ -24,7 +24,7 @@ cd ../../release
 make
 
 # Variables
-e=GM
+e=MDP
 
 if [ "$e" == "MDP" ]; then
     python ../benchmarks/StrongScaling/run_benchmark_MDP.py
