@@ -16,10 +16,10 @@ public:
     PetscErrorCode generateStageCosts();
     PetscErrorCode generateTransitionProbabilities();
 
-    std::pair<PetscInt, PetscInt> a2ij(PetscInt a) const; // 1d action index to 2d action index
-    PetscReal g(PetscInt state, PetscInt action) const; // stage cost
-    PetscReal q(PetscInt state, PetscInt action) const; // toal infection probability
-    inline PetscReal ch(PetscInt state) const; // cost of hospitalization
+    std::pair<PetscInt, PetscInt> a2ij(PetscInt a) const;   // 1d action index to 2d action index
+    PetscReal g(PetscInt state, PetscInt action) const;     // stage cost
+    PetscReal q(PetscInt state, PetscInt action) const;     // toal infection probability
+    inline PetscReal ch(PetscInt state) const;              // cost of hospitalization
 
     static const PetscInt numA1_ = 5;
     static const PetscInt numA2_ = 4;
@@ -31,8 +31,6 @@ public:
     PetscReal cq_a1_[numA1_];
     PetscReal cq_a2_[numA2_];
     PetscReal weights_[3];
-
-
 };
 
 

@@ -28,6 +28,7 @@ PetscReal InfectiousDiseaseModel::g(PetscInt state, PetscInt action) const {
     return weights_[0] * cf - weights_[1] * cq + weights_[2] * ch(state);
 }
 
+
 PetscReal InfectiousDiseaseModel::q(PetscInt state, PetscInt action) const {
     auto [a1, a2] = a2ij(action);
     PetscReal beta = 1.0 - 1.0 * state / populationSize_;
@@ -53,6 +54,7 @@ PetscErrorCode InfectiousDiseaseModel::generateStageCosts() {
 
     return 0;
 }
+
 
 PetscErrorCode InfectiousDiseaseModel::generateTransitionProbabilities() {
     PetscErrorCode ierr;
@@ -106,7 +108,6 @@ PetscErrorCode InfectiousDiseaseModel::generateTransitionProbabilities() {
 
     return 0;
 }
-
 
 
 PetscErrorCode InfectiousDiseaseModel::setValuesFromOptions() {
@@ -246,7 +247,7 @@ PetscErrorCode InfectiousDiseaseModel::setValuesFromOptions() {
         SETERRQ(PETSC_COMM_WORLD, 1, "Input mode not recognized. Use -mode MINCOST or MAXREWARD.");
     }
 
-
+    // set derived parameters
     numStates_ = populationSize_ + 1;
     numActions_ = numA1_ * numA2_;
     localNumStates_ = (rank_ < numStates_ % size_) ? numStates_ / size_ + 1 : numStates_ / size_; // first numStates_ % size_ ranks get one more state

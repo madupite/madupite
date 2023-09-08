@@ -14,8 +14,6 @@ GrowthModel::~GrowthModel() {
     MatDestroy(&P_z_);
     VecDestroy(&z_);
     //VecDestroy(&k_);
-    //VecDestroy(&B_);
-    //ISDestroy(&A_);
 }
 
 
