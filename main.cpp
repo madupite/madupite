@@ -1,5 +1,6 @@
 //
-// Created by robin on 02.04.23.
+// Benchmarking Distributed Inexact Policy Iteration for Large-Scale Markov Decision Processes
+// Bachelor Thesis - Robin Sieber - 2023 - ETH Zürich
 //
 
 #include <petscvec.h>
