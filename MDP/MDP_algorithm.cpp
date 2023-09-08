@@ -15,19 +15,9 @@
 // idea: Mult gamma * P*V, reshape, add g, use MatGetRowMin
 PetscErrorCode MDP::extractGreedyPolicy(const Vec &V, PetscInt *policy, PetscReal &residualNorm) {
     PetscErrorCode ierr;
-//    Vec costVector_;
-//    VecCreateMPI(PETSC_COMM_WORLD, localNumStates_*numActions_, numStates_*numActions_, &costVector_);
-    ierr = MatMult(transitionProbabilityTensor_, V, costVector_); CHKERRQ(ierr);
-    VecScale(costVector_, discountFactor_);
 
-    // reshape costVector_ into costMatrix_
-    // create + preallocate new matrix
-//    Mat costMatrix_;
-//    MatCreate(PETSC_COMM_WORLD, &costMatrix_);
-//    MatSetSizes(costMatrix_, localNumStates_, PETSC_DECIDE, numStates_, numActions_);
-//    MatSetType(costMatrix_, MATDENSE);
-//    MatSetUp(costMatrix_);
-    //ierr = MatMPIAIJSetPreallocation(costMatrix_, localNumActions, NULL, numActions_ - localNumActions, NULL); CHKERRQ(ierr); // preallocate dense matrix
+    ierr = MatMult(transitionProbabilityTensor_, V, costVector_); CHKERRQ(ierr); // costVector_ = P*V
+    VecScale(costVector_, discountFactor_); // costVector_ = gamma * P*V
 
     // reshape costVector_ into costMatrix_ (fill matrix with values)
     const PetscReal *costVectorValues;
@@ -38,7 +28,7 @@ PetscErrorCode MDP::extractGreedyPolicy(const Vec &V, PetscInt *policy, PetscRea
     const PetscInt *rowIndices, *colIndices;
     ISGetIndices(rows, &rowIndices);
     ISGetIndices(cols, &colIndices);
-    //ierr = MatSetValuesIS(costMatrix_, rows, cols, costVectorValues, INSERT_VALUES); CHKERRQ(ierr);
+    //ierr = MatSetValuesIS(costMatrix_, rows, cols, costVectorValues, INSERT_VALUES); CHKERRQ(ierr); // for higher versions of PETSc
     ierr = MatSetValues(costMatrix_, localNumStates_, rowIndices, numActions_, colIndices, costVectorValues, INSERT_VALUES); CHKERRQ(ierr);
     MatAssemblyBegin(costMatrix_, MAT_FINAL_ASSEMBLY);
     VecRestoreArrayRead(costVector_, &costVectorValues);
@@ -51,15 +41,9 @@ PetscErrorCode MDP::extractGreedyPolicy(const Vec &V, PetscInt *policy, PetscRea
     // add g to costMatrix_
     ierr = MatAXPY(costMatrix_, 1.0, stageCostMatrix_, SAME_NONZERO_PATTERN); CHKERRQ(ierr);
 
-    // find minimum for each row and compute residual norm
+    // find minimum for each row and compute Bellman residual norm
     Vec residual;
     VecCreateMPI(PETSC_COMM_WORLD, localNumStates_, numStates_, &residual);
-//    if(mode_ == mode::MINCOST) {
-//        ierr = MatGetRowMin(costMatrix_, residual, policy); CHKERRQ(ierr);
-//    }
-//    else if(mode_ == mode::MAXREWARD) {
-//        ierr = MatGetRowMax(costMatrix_, residual, policy); CHKERRQ(ierr);
-//    }
 
     PetscInt nnz;
     const PetscInt *colIdx;
@@ -90,12 +74,12 @@ PetscErrorCode MDP::extractGreedyPolicy(const Vec &V, PetscInt *policy, PetscRea
     VecAXPY(residual, -1.0, V);
     VecNorm(residual, NORM_INFINITY, &residualNorm);
     VecDestroy(&residual);
-//    VecDestroy(&costVector_);
-//    MatDestroy(&costMatrix_);
+
     return 0;
 }
 
-// user must destroy P and g by himself. Function will create them. [used in inexactPolicyIteration]
+
+// createse P_pi and g_pi from policy pi. P_pi and g_pi are allocated by this function but must be destroyed by the user.
 PetscErrorCode MDP::constructFromPolicy(const PetscInt *policy, Mat &transitionProbabilities, Vec &stageCosts) {
     //LOG("Entering constructFromPolicy [policy]");
     PetscErrorCode ierr;
@@ -231,12 +215,12 @@ PetscErrorCode MDP::inexactPolicyIteration(const Vec &V0, IS &policy, Vec &optim
     PetscLogDouble startTime, endTime;
 
     PetscInt PI_iteration= 0;
-    for(; PI_iteration < maxIter_PI_; ++PI_iteration) {
+    for(; PI_iteration < maxIter_PI_; ++PI_iteration) { // outer loop
         PetscTime(&startTime);
 
         extractGreedyPolicy(V, policyValues, residualNorm);
 
-        if(residualNorm < atol_PI_) {
+        if(residualNorm < atol_PI_) { 
             PetscTime(&endTime);
             jsonWriter_->add_iteration_data(PI_iteration, 0, (endTime - startTime) * 1000, residualNorm);
             if(rank_ == 0) LOG("Iteration " + std::to_string(PI_iteration) + " residual norm: " + std::to_string(residualNorm));
@@ -248,7 +232,7 @@ PetscErrorCode MDP::inexactPolicyIteration(const Vec &V0, IS &policy, Vec &optim
 
         // solve linear system
         KSPContext ctx = {maxIter_KSP_, residualNorm * rtol_KSP_, -1};
-        iterativePolicyEvaluation(jacobian, stageCosts, V, ctx);
+        iterativePolicyEvaluation(jacobian, stageCosts, V, ctx); // inner loop
 
         MatDestroy(&transitionProbabilities);
         MatDestroy(&jacobian); // avoid memory leak
