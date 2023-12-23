@@ -191,11 +191,16 @@ PetscErrorCode MDP::createJacobian(Mat &jacobian, const Mat &transitionProbabili
     return 0;
 }
 
-PetscErrorCode MDP::inexactPolicyIteration(const Vec &V0, IS &policy, Vec &optimalCost) {
+PetscErrorCode MDP::inexactPolicyIteration() {
     PetscErrorCode ierr;
     if(rank_ == 0) LOG("Entering inexactPolicyIteration");
     jsonWriter_->add_solver_run();
 
+    // init guess V0
+    Vec V0;
+    VecCreateMPI(PETSC_COMM_WORLD, localNumStates_, numStates_, &V0);
+    VecSet(V0, 1.0);
+    
     // allocation for extractGreedyPolicy
     ierr = MatCreate(PETSC_COMM_WORLD, &costMatrix_); CHKERRQ(ierr);
     ierr = MatSetType(costMatrix_, MATDENSE); CHKERRQ(ierr);
@@ -252,14 +257,26 @@ PetscErrorCode MDP::inexactPolicyIteration(const Vec &V0, IS &policy, Vec &optim
     MatDestroy(&transitionProbabilities);
     MatDestroy(&jacobian);
     VecDestroy(&stageCosts);
+    VecDestroy(&V0);
+
 
     // output results
-    VecDuplicate(V, &optimalCost);
-    VecCopy(V, optimalCost);
-    ISCreateGeneral(PETSC_COMM_WORLD, localNumStates_, policyValues, PETSC_COPY_VALUES, &policy);
+    PetscTime(&startTime);
+    IS optimalPolicy;
+    ISCreateGeneral(PETSC_COMM_WORLD, localNumStates_, policyValues, PETSC_COPY_VALUES, &optimalPolicy);
 
+    writeVec(V, file_cost_);
+    writeIS(optimalPolicy, file_policy_);
+
+    ISDestroy(&optimalPolicy);
     VecDestroy(&V);
     PetscFree(policyValues);
+
+    PetscTime(&endTime);
+    PetscLogDouble duration = (endTime - startTime) * 1000;
+    if (rank_ == 0) {
+        LOG("Saving results took: " + std::to_string(duration) + " ms");
+    }
 
     return 0;
 }
@@ -285,6 +302,7 @@ PetscErrorCode MDP::cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedR
     return 0;
 }
 
+/*
 PetscErrorCode MDP::benchmarkIPI(const Vec &V0, IS &policy, Vec &optimalCost) {
 
     for(PetscInt i = 0; i < numPIRuns_; ++i) {
@@ -293,3 +311,4 @@ PetscErrorCode MDP::benchmarkIPI(const Vec &V0, IS &policy, Vec &optimalCost) {
 
     return 0;
 }
+*/

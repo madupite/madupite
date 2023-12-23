@@ -33,8 +33,8 @@ public:
     virtual PetscErrorCode constructFromPolicy(const PetscInt   *policy, Mat &transitionProbabilities, Vec &stageCosts);
     virtual PetscErrorCode iterativePolicyEvaluation(const Mat &jacobian, const Vec &stageCosts, Vec &V, KSPContext &ctx);
     virtual PetscErrorCode createJacobian(Mat &jacobian, const Mat &transitionProbabilities, JacobianContext &ctx);
-    virtual PetscErrorCode inexactPolicyIteration(const Vec &V0, IS &policy, Vec &optimalCost);
-    virtual PetscErrorCode benchmarkIPI(const Vec &V0, IS &policy, Vec &optimalCost);
+    virtual PetscErrorCode inexactPolicyIteration();
+    // virtual PetscErrorCode benchmarkIPI(const Vec &V0, IS &policy, Vec &optimalCost);
 
     static PetscErrorCode cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason *reason, void *ctx); // Test if residual norm is smaller than alpha * r0_norm
     static void jacobianMultiplication(Mat mat, Vec x, Vec y);          // defines matrix vector product for jacobian shell

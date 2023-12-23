@@ -2,6 +2,8 @@
 // Created by robin on 29.06.23.
 //
 
+// Run: cd build; ./growth_model -options_file ../GrowthModel/petsc_options.txt 
+
 #include "GrowthModel.h"
 #include <petsc.h>
 #include "../utils/Timer.h"
@@ -41,27 +43,28 @@ int main(int argc, char** argv) {
     t.stop("Construction of transition probabilities and rewards took: ");
     LOG("localNumStates: " + std::to_string(gm.localNumStates_) + ", numStates: " + std::to_string(gm.numStates_));
 
-    Vec V0;
-    VecCreateMPI(PETSC_COMM_WORLD, gm.localNumStates_, gm.numStates_, &V0);
-    VecSet(V0, 1.0);
+    // Vec V0;
+    // VecCreateMPI(PETSC_COMM_WORLD, gm.localNumStates_, gm.numStates_, &V0);
+    // VecSet(V0, 1.0);
 
-    Vec optimalCost;
-    IS optimalPolicy;
+    // Vec optimalCost;
+    // IS optimalPolicy;
     t.start();
-    gm.benchmarkIPI(V0, optimalPolicy, optimalCost);
+    // gm.benchmarkIPI(V0, optimalPolicy, optimalCost);
+    gm.inexactPolicyIteration();
     t.stop("iPI took: ");
 
-    t.start();
-    gm.writeVec(optimalCost, gm.file_cost_);
-    gm.writeIS(optimalPolicy, gm.file_policy_);
-    t.stop("Writing took: ");
+    // t.start();
+    // gm.writeVec(optimalCost, gm.file_cost_);
+    // gm.writeIS(optimalPolicy, gm.file_policy_);
+    // t.stop("Writing took: ");
 
     //VecView(optimalCost, PETSC_VIEWER_STDOUT_WORLD);
     //ISView(optimalPolicy, PETSC_VIEWER_STDOUT_WORLD);
 
-    VecDestroy(&V0);
-    VecDestroy(&optimalCost);
-    ISDestroy(&optimalPolicy);
+    // VecDestroy(&V0);
+    // VecDestroy(&optimalCost);
+    // ISDestroy(&optimalPolicy);
 
     gm.~GrowthModel();
     PetscFinalize();

@@ -10,6 +10,6 @@
 -numPIRuns 1
 -rtol_KSP 1e-4
 -atol_PI 1e-10
--file_stats out/stats.json
--file_policy out/policy.out
--file_cost out/cost.out
+-file_stats GM_out/stats.json
+-file_policy GM_out/policy.out
+-file_cost GM_out/cost.out
