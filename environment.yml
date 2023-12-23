@@ -1,0 +1,19 @@
+name: madupiteenv
+channels:
+  - conda-forge
+dependencies:
+  - conda-forge::cython
+  - conda-forge::cmake
+  - conda-forge::make
+  - conda-forge::mpich-mpicc
+  - conda-forge::mpich-mpicxx
+  - conda-forge::numpy
+  - conda-forge::petsc
+  - conda-forge::pip
+  - conda-forge::pkgconfig
+  - conda-forge::python
+  - conda-forge::build
+  - conda-forge::scipy
+  - conda-forge::numpy
+  - conda-forge::numba
+  - conda-forge::boost
