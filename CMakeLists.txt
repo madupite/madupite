@@ -37,13 +37,28 @@ set_target_properties(nlohmann_json PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTOR
 
 # Project files
 include_directories(MDP/)
+
+# Add a new library target
+add_library(madupite SHARED
+MDP/MDP_algorithm.cpp
+MDP/MDP_setup.cpp
+)
+# Specify the output directory for the shared library
+set_target_properties(madupite PROPERTIES
+LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
+# Link the necessary libraries to your new library
+target_link_libraries(madupite PkgConfig::PETSC)
+target_link_libraries(madupite ${MPI_LIBRARIES})
+target_link_libraries(madupite nlohmann_json::nlohmann_json)
+
+
 add_executable(distributed_inexact_policy_iteration
         main.cpp
         utils/Logger.cpp
         MDP/MDP_algorithm.cpp
         MDP/MDP_setup.cpp
         )
-
 # Linking libraries to the executable
 target_link_libraries(distributed_inexact_policy_iteration PkgConfig::PETSC)
 target_link_libraries(distributed_inexact_policy_iteration ${MPI_LIBRARIES})
