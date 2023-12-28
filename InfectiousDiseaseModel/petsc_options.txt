@@ -1,4 +1,3 @@
--mat_type mpiaij
 -pc_type none
 -populationSize 100
 -discountFactor 0.7

@@ -13,10 +13,9 @@ int main(int argc, char **argv) {
 
     Timer t;
 
+    // model setup
     InfectiousDiseaseModel idm;
-
     idm.setValuesFromOptions();
-
     t.start();
     idm.generateStageCosts();
     t.stop("Generating stage costs took: ");
@@ -24,24 +23,24 @@ int main(int argc, char **argv) {
     idm.generateTransitionProbabilities();
     t.stop("Generating transition probabilities took: ");
 
-    // Vec V0;
-    // VecCreateMPI(PETSC_COMM_WORLD, idm.localNumStates_, idm.numStates_, &V0);
-    // VecSet(V0, 1.0);
-
-    // Vec optimalCost;
-    // IS optimalPolicy;
+    // run iPI
     t.start();
     idm.inexactPolicyIteration();
     // idm.benchmarkIPI(V0, optimalPolicy, optimalCost);
     t.stop("Inexact policy iteration took: ");
 
-    // PetscPrintf(PETSC_COMM_WORLD, "Optimal cost:\n");
-    // VecView(optimalCost, PETSC_VIEWER_STDOUT_WORLD);
-    // PetscPrintf(PETSC_COMM_WORLD, "Optimal policy:\n");
-    // ISView(optimalPolicy, PETSC_VIEWER_STDOUT_WORLD);
+    // change discountFactor to 0.1
+    PetscOptionsSetValue(PETSC_NULLPTR, "-discountFactor", "0.1");
+    idm.setValuesFromOptions();
+    t.start();
+    idm.inexactPolicyIteration();
+    t.stop("Inexact policy iteration took: ");
 
-    // idm.writeVec(optimalCost, idm.file_cost_);
-    // idm.writeIS(optimalPolicy, idm.file_policy_);
+    // change discount factor using member function
+    idm.setOption("-discountFactor", "0.9999");
+    t.start();
+    idm.inexactPolicyIteration();
+    t.stop("Inexact policy iteration took: ");
 
     idm.~InfectiousDiseaseModel();
     PetscFinalize();

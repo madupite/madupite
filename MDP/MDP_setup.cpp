@@ -124,6 +124,14 @@ PetscErrorCode MDP::setValuesFromOptions() {
     return 0;
 }
 
+PetscErrorCode MDP::setOption(const char *option, const char *value) {
+    PetscErrorCode ierr;
+    ierr = PetscOptionsSetValue(NULL, option, value); CHKERRQ(ierr);
+    ierr = setValuesFromOptions(); CHKERRQ(ierr);
+    return 0;
+}
+
+
 PetscErrorCode MDP::loadFromBinaryFile(std::string filename_P, std::string filename_g) {
     LOG("Loading MDP from binary file: " + filename_P + ", " + filename_g);
     PetscErrorCode ierr = 0;

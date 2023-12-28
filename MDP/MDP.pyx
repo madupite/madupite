@@ -20,6 +20,7 @@ cdef extern from "MDP.h":
     cdef cppclass MDP:
         MDP() except +
         int setValuesFromOptions() except +
+        int setOption(const char *option, const char *value) except +
         int inexactPolicyIteration() except +
 
 # Cython wrapper for the MDP C++ class
