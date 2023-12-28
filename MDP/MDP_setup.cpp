@@ -5,6 +5,7 @@
 #include "MDP.h"
 #include "../utils/Logger.h"
 #include <mpi.h>
+#include <string>
 
 MDP::MDP() {
     // MPI parallelization initialization
@@ -20,6 +21,7 @@ MDP::MDP() {
 
     Logger::setPrefix("[R" + std::to_string(rank_) + "] ");
     Logger::setFilename("log_R" + std::to_string(rank_) + ".txt"); // remove if all ranks should output to the same file
+
 }
 
 MDP::~MDP() {
@@ -34,16 +36,6 @@ PetscErrorCode MDP::setValuesFromOptions() {
     PetscErrorCode ierr;
     PetscBool flg;
 
-    ierr = PetscOptionsGetInt(NULL, NULL, "-states", &numStates_, &flg); CHKERRQ(ierr);
-    if(!flg) {
-        SETERRQ(PETSC_COMM_WORLD, 1, "Number of states not specified. Use -states <int>.");
-    }
-    jsonWriter_->add_data("numStates", numStates_);
-    ierr = PetscOptionsGetInt(NULL, NULL, "-actions", &numActions_, &flg); CHKERRQ(ierr);
-    if(!flg) {
-        SETERRQ(PETSC_COMM_WORLD, 1, "Number of actions not specified. Use -actions <int>.");
-    }
-    jsonWriter_->add_data("numActions", numActions_);
     ierr = PetscOptionsGetReal(NULL, NULL, "-discountFactor", &discountFactor_, &flg); CHKERRQ(ierr);
     if(!flg) {
         SETERRQ(PETSC_COMM_WORLD, 1, "Discount factor not specified. Use -discountFactor <double>.");
@@ -118,13 +110,15 @@ PetscErrorCode MDP::setValuesFromOptions() {
     }
 
     // set local number of states (for this rank)
-    localNumStates_ = (rank_ < numStates_ % size_) ? numStates_ / size_ + 1 : numStates_ / size_; // first numStates_ % size_ ranks get one more state
-    LOG("owns " + std::to_string(localNumStates_) + " states.");
+    // localNumStates_ = (rank_ < numStates_ % size_) ? numStates_ / size_ + 1 : numStates_ / size_; // first numStates_ % size_ ranks get one more state
+    // LOG("owns " + std::to_string(localNumStates_) + " states.");
 
     return 0;
 }
 
 PetscErrorCode MDP::setOption(const char *option, const char *value) {
+    // todo: should only be possible for:
+    // -discountFactor, -maxIter_PI, -maxIter_KSP, -numPIRuns, -rtol_KSP, -atol_PI, -file_policy, -file_cost, -file_stats, -mode
     PetscErrorCode ierr;
     ierr = PetscOptionsSetValue(NULL, option, value); CHKERRQ(ierr);
     ierr = setValuesFromOptions(); CHKERRQ(ierr);
@@ -132,17 +126,41 @@ PetscErrorCode MDP::setOption(const char *option, const char *value) {
 }
 
 
-PetscErrorCode MDP::loadFromBinaryFile(std::string filename_P, std::string filename_g) {
-    LOG("Loading MDP from binary file: " + filename_P + ", " + filename_g);
+PetscErrorCode MDP::loadFromBinaryFile() {
+    LOG("Loading MDP from binary file: " + std::string(file_P_) + ", " + std::string(file_g_));
     PetscErrorCode ierr = 0;
     PetscViewer viewer;
+
+    // Read number of states and actions from file
+    PetscViewerBinaryOpen(PETSC_COMM_WORLD, file_g_, FILE_MODE_READ, &viewer);
+    PetscInt sizes[4]; // ClassID, Rows, Cols, NNZ
+    PetscViewerBinaryRead(viewer, sizes, 4, PETSC_NULLPTR, PETSC_INT);
+    numStates_ = sizes[1];
+    numActions_ = sizes[2];
+    PetscViewerDestroy(&viewer);
+    
+    // assert P and g are compatible (P: nm x n, g: n x m)
+    PetscViewerBinaryOpen(PETSC_COMM_WORLD, file_P_, FILE_MODE_READ, &viewer);
+    PetscViewerBinaryRead(viewer, sizes, 4, PETSC_NULLPTR, PETSC_INT);
+    if (sizes[1] != numStates_ * numActions_ || sizes[2] != numStates_) {
+        SETERRQ(PETSC_COMM_WORLD, 1, "Sizes of cost matrix and transition probability tensor not compatible.\nIt should hold that P: nm x n, g: n x m,\nwhere n is the number of states and m is the number of actions.\n");
+    }
+    PetscViewerDestroy(&viewer);
+
+    // PetscPrintf(PETSC_COMM_WORLD, "%d %d %d %d\n", sizes[0], sizes[1], sizes[2], sizes[3]); // ClassID, Rows, Cols, NNZ
+
+    // set local number of states (for this rank) 
+    localNumStates_ = (rank_ < numStates_ % size_) ? numStates_ / size_ + 1 : numStates_ / size_; // first numStates_ % size_ ranks get one more state
+    LOG("owns " + std::to_string(localNumStates_) + " states.");
+    jsonWriter_->add_data("numStates", numStates_);
+    jsonWriter_->add_data("numActions", numActions_);
 
     // load transition probability tensor
     MatCreate(PETSC_COMM_WORLD, &transitionProbabilityTensor_);
     MatSetFromOptions(transitionProbabilityTensor_);
     ierr = MatSetSizes(transitionProbabilityTensor_, localNumStates_*numActions_, localNumStates_, numStates_*numActions_, numStates_); CHKERRQ(ierr);
     MatSetUp(transitionProbabilityTensor_);
-    PetscViewerBinaryOpen(PETSC_COMM_WORLD, filename_P.c_str(), FILE_MODE_READ, &viewer);
+    PetscViewerBinaryOpen(PETSC_COMM_WORLD, file_P_, FILE_MODE_READ, &viewer);
     MatLoad(transitionProbabilityTensor_, viewer);
     PetscViewerDestroy(&viewer);
 
@@ -151,7 +169,7 @@ PetscErrorCode MDP::loadFromBinaryFile(std::string filename_P, std::string filen
     MatSetFromOptions(stageCostMatrix_);
     ierr = MatSetSizes(stageCostMatrix_, localNumStates_, PETSC_DECIDE, numStates_, numActions_); CHKERRQ(ierr);
     MatSetUp(stageCostMatrix_);
-    PetscViewerBinaryOpen(PETSC_COMM_WORLD, filename_g.c_str(), FILE_MODE_READ, &viewer);
+    PetscViewerBinaryOpen(PETSC_COMM_WORLD, file_g_, FILE_MODE_READ, &viewer);
     MatLoad(stageCostMatrix_, viewer);
     PetscViewerDestroy(&viewer);
 

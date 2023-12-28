@@ -8,8 +8,6 @@ nproc=4
 mpirun -n $nproc ./distributed_inexact_policy_iteration \
 -pc_type none \
 -mode MINCOST \
--states 100 \
--actions 50 \
 -discountFactor 0.9 \
 -maxIter_PI 20 \
 -maxIter_KSP 1000 \

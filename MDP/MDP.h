@@ -41,7 +41,7 @@ public:
     static void jacobianMultiplication(Mat mat, Vec x, Vec y);          // defines matrix vector product for jacobian shell
     static void jacobianMultiplicationTranspose(Mat mat, Vec x, Vec y); // defines tranposed matrix vector product for jacobian shell (needed for some KSP methods)
 
-    virtual PetscErrorCode loadFromBinaryFile(std::string filename_P, std::string filename_g);
+    virtual PetscErrorCode loadFromBinaryFile();
     PetscErrorCode writeVec  (const Vec  &vec, const PetscChar *filename);
     PetscErrorCode writeIS(const IS &is, const PetscChar *filename);
 
