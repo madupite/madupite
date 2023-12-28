@@ -217,8 +217,9 @@ PetscErrorCode MDP::inexactPolicyIteration() {
     PetscInt *policyValues;
     PetscMalloc1(localNumStates_, &policyValues);
     PetscReal residualNorm;
-    PetscLogDouble startTime, endTime;
+    PetscLogDouble startTime, endTime, startiPI, endiPI;
 
+    PetscTime(&startiPI);
     PetscInt PI_iteration= 0;
     for(; PI_iteration < maxIter_PI_; ++PI_iteration) { // outer loop
         PetscTime(&startTime);
@@ -247,6 +248,8 @@ PetscErrorCode MDP::inexactPolicyIteration() {
         jsonWriter_->add_iteration_data(PI_iteration, ctx.kspIterations, (endTime - startTime) * 1000, residualNorm);
         if(rank_ == 0) LOG("Iteration " + std::to_string(PI_iteration) + " residual norm: " + std::to_string(residualNorm));
     }
+    PetscTime(&endiPI);
+    LOG("Inexact Policy Iteration took: " + std::to_string((endiPI - startiPI) * 1000) + " ms");
 
     if(PI_iteration >= maxIter_PI_) {
         LOG("Warning: maximum number of PI iterations reached. Solution might not be optimal.");
