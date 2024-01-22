@@ -5,6 +5,7 @@
 #ifndef DISTRIBUTED_INEXACT_POLICY_ITERATION_MDP_H
 #define DISTRIBUTED_INEXACT_POLICY_ITERATION_MDP_H
 
+#include <petsc.h>
 #include <petscvec.h>
 #include <petscmat.h>
 #include <petscksp.h>

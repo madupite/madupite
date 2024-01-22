@@ -3,9 +3,10 @@
 //
 
 #include "MDP.h"
-#include "../utils/Logger.h"
+// #include "../utils/Logger.h"
 #include <mpi.h>
 #include <string>
+#include<iostream>
 
 MDP::MDP() {
     // MPI parallelization initialization
@@ -19,8 +20,8 @@ MDP::MDP() {
     costMatrix_ = nullptr;
     costVector_ = nullptr;
 
-    Logger::setPrefix("[R" + std::to_string(rank_) + "] ");
-    Logger::setFilename("log_R" + std::to_string(rank_) + ".txt"); // remove if all ranks should output to the same file
+    // Logger::setPrefix("[R" + std::to_string(rank_) + "] ");
+    // Logger::setFilename("log_R" + std::to_string(rank_) + ".txt"); // remove if all ranks should output to the same file
 
 }
 
@@ -54,7 +55,7 @@ PetscErrorCode MDP::setValuesFromOptions() {
     ierr = PetscOptionsGetInt(NULL, NULL, "-numPIRuns", &numPIRuns_, &flg); CHKERRQ(ierr);
     if(!flg) {
         //SETERRQ(PETSC_COMM_WORLD, 1, "Maximum number of KSP iterations not specified. Use -maxIter_KSP <int>.");
-        LOG("Number of PI runs for benchmarking not specified. Use -numPIRuns <int>. Default: 1");
+        // LOG("Number of PI runs for benchmarking not specified. Use -numPIRuns <int>. Default: 1");
         numPIRuns_ = 1;
     }
     jsonWriter_->add_data("numPIRuns", numPIRuns_);
@@ -71,23 +72,23 @@ PetscErrorCode MDP::setValuesFromOptions() {
     ierr = PetscOptionsGetString(NULL, NULL, "-file_P", file_P_, PETSC_MAX_PATH_LEN, &flg); CHKERRQ(ierr);
     if(!flg) {
         //SETERRQ(PETSC_COMM_WORLD, 1, "Filename for transition probability tensor not specified. Use -file_P <string>. (max length: 4096 chars");
-        LOG("Warning: Filename for transition probability tensor not specified. Use -file_P <string>. (max length: 4096 chars");
+        // LOG("Warning: Filename for transition probability tensor not specified. Use -file_P <string>. (max length: 4096 chars");
         file_P_[0] = '\0';
     }
     ierr = PetscOptionsGetString(NULL, NULL, "-file_g", file_g_, PETSC_MAX_PATH_LEN, &flg); CHKERRQ(ierr);
     if(!flg) {
         //SETERRQ(PETSC_COMM_WORLD, 1, "Filename for stage cost matrix not specified. Use -file_g <string>. (max length: 4096 chars");
-        LOG("Warning: Filename for stage cost matrix not specified. Use -file_g <string>. (max length: 4096 chars");
+        // LOG("Warning: Filename for stage cost matrix not specified. Use -file_g <string>. (max length: 4096 chars");
         file_g_[0] = '\0';
     }
     ierr = PetscOptionsGetString(NULL, NULL, "-file_policy", file_policy_, PETSC_MAX_PATH_LEN, &flg); CHKERRQ(ierr);
     if(!flg) {
-        LOG("Filename for policy not specified. Optimal policy will not be written to file.");
+        // LOG("Filename for policy not specified. Optimal policy will not be written to file.");
         file_policy_[0] = '\0';
     }
     ierr = PetscOptionsGetString(NULL, NULL, "-file_cost", file_cost_, PETSC_MAX_PATH_LEN, &flg); CHKERRQ(ierr);
     if(!flg) {
-        LOG("Filename for cost not specified. Optimal cost will not be written to file.");
+        // LOG("Filename for cost not specified. Optimal cost will not be written to file.");
         file_cost_[0] = '\0';
     }
     ierr = PetscOptionsGetString(NULL, NULL, "-file_stats", file_stats_, PETSC_MAX_PATH_LEN, &flg); CHKERRQ(ierr);
@@ -127,7 +128,8 @@ PetscErrorCode MDP::setOption(const char *option, const char *value) {
 
 
 PetscErrorCode MDP::loadFromBinaryFile() {
-    LOG("Loading MDP from binary file: " + std::string(file_P_) + ", " + std::string(file_g_));
+    // LOG("Loading MDP from binary file: " + std::string(file_P_) + ", " + std::string(file_g_));
+    std::cout << "Loading MDP from binary file: " << file_P_ << ", " << file_g_ << std::endl;
     PetscErrorCode ierr = 0;
     PetscViewer viewer;
 
@@ -151,7 +153,7 @@ PetscErrorCode MDP::loadFromBinaryFile() {
 
     // set local number of states (for this rank) 
     localNumStates_ = (rank_ < numStates_ % size_) ? numStates_ / size_ + 1 : numStates_ / size_; // first numStates_ % size_ ranks get one more state
-    LOG("owns " + std::to_string(localNumStates_) + " states.");
+    // LOG("owns " + std::to_string(localNumStates_) + " states.");
     jsonWriter_->add_data("numStates", numStates_);
     jsonWriter_->add_data("numActions", numActions_);
 
@@ -179,8 +181,8 @@ PetscErrorCode MDP::loadFromBinaryFile() {
     // Information about distribution on processes
     MatGetOwnershipRange(transitionProbabilityTensor_, &P_start_, &P_end_);
     MatGetOwnershipRange(stageCostMatrix_, &g_start_, &g_end_);
-    LOG("owns rows " + std::to_string(P_start_) + " to " + std::to_string(P_end_) + " of P.");
-    LOG("owns rows " + std::to_string(g_start_) + " to " + std::to_string(g_end_) + " of g.");
+    // LOG("owns rows " + std::to_string(P_start_) + " to " + std::to_string(P_end_) + " of P.");
+    // LOG("owns rows " + std::to_string(g_start_) + " to " + std::to_string(g_end_) + " of g.");
 
     return ierr;
 }

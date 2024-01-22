@@ -44,9 +44,14 @@ MDP/MDP_algorithm.cpp
 MDP/MDP_setup.cpp
 )
 # Specify the output directory for the shared library
-set_target_properties(madupite PROPERTIES
-LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}
+set_target_properties(
+    madupite
+    PROPERTIES
+        PREFIX ""
+        OUTPUT_NAME "libmadupite"
+        LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}
 )
+
 # Link the necessary libraries to your new library
 target_link_libraries(madupite PkgConfig::PETSC)
 target_link_libraries(madupite ${MPI_LIBRARIES})
@@ -94,3 +99,10 @@ target_link_libraries(infectious_disease_model PkgConfig::PETSC)
 target_link_libraries(infectious_disease_model ${MPI_LIBRARIES})
 target_link_libraries(infectious_disease_model nlohmann_json::nlohmann_json)
 target_link_libraries(infectious_disease_model PRIVATE ${Boost_LIBRARIES})
+
+install(
+    TARGETS madupite
+    LIBRARY DESTINATION ${CMAKE_BINARY_DIR}
+    ARCHIVE DESTINATION ${CMAKE_BINARY_DIR}
+
+)

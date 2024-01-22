@@ -7,7 +7,6 @@ from setuptools import Extension, setup
 from setuptools.command.build_ext import build_ext as build_ext
 
 import os
-import numpy
 
 
 # Check if mpi is installed
@@ -41,35 +40,30 @@ class CMakeBuildExt(build_ext):
 
     def build_cmake(self):
         # create directory for cmake/make build
-        build_dir = Path(self.build_temp) / "cmake_build"
+        build_dir = Path(self.build_temp) / "cmake_build" 
         build_dir.mkdir(parents=True, exist_ok=True)
-
-        # Run cmake with verbose makefile generation
-        cmake_command = ["cmake", "../../..", "-DCMAKE_VERBOSE_MAKEFILE:BOOL=ON"]
-        print(f"Running CMake: {' '.join(cmake_command)}")
+        cmake_command = ["cmake", "../../.."]
         cmake_process = subprocess.Popen(
-            cmake_command, cwd=build_dir, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+            cmake_command, cwd=build_dir, stdout=subprocess.PIPE, stderr=subprocess.PIPE
         )
-        for line in cmake_process.stdout:
-            print(line.decode(), end='')
+        cmake_output, cmake_error = cmake_process.communicate()
+        if cmake_output:
+            print(cmake_output.decode())
 
-        # Check for errors in cmake
-        cmake_process.wait()
-        if cmake_process.returncode != 0:
+        if cmake_error:
+            print(cmake_error.decode())
             raise subprocess.CalledProcessError(cmake_process.returncode, cmake_command)
 
-        # Run make with verbosity
-        make_command = ["make", "install", "VERBOSE=1"]
-        print(f"Running Make: {' '.join(make_command)}")
+        make_command = ["make", "install"]
         make_process = subprocess.Popen(
-            make_command, cwd=build_dir, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+            make_command, cwd=build_dir, stdout=subprocess.PIPE, stderr=subprocess.PIPE
         )
-        for line in make_process.stdout:
-            print(line.decode(), end='')
+        make_output, make_error = make_process.communicate()
+        if make_output:
+            print(make_output.decode())
 
-        # Check for errors in make
-        make_process.wait()
-        if make_process.returncode != 0:
+        if make_error:
+            print(make_error.decode())
             raise subprocess.CalledProcessError(make_process.returncode, make_command)
 
         # copy libmadupite.so to build_lib, s.t. setuptools finds and packages it
@@ -86,7 +80,7 @@ nlohmann_json_include_path = os.path.join(os.getcwd(), "build/_deps/json-src/inc
 cython_ext = Extension(
     name="madupite",
     sources=["MDP/MDP.pyx"],
-    include_dirs=["MDP", nlohmann_json_include_path, numpy.get_include(), "utils"],
+    include_dirs=["MDP", nlohmann_json_include_path],
     language="c++",
     extra_compile_args=["-std=c++17"],
     extra_objects=["libmadupite.so"],
@@ -103,7 +97,7 @@ if __name__ == "__main__":
         package_data={"": ["*.so"]},
         include_package_data=True,
         zip_safe=False,
-        packages=["MDP", "utils"],
+        packages=["MDP"],
     )
 
 

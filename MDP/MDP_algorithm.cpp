@@ -6,7 +6,7 @@
 #include <petscksp.h>
 #include <mpi.h>
 #include <iostream>
-#include "../utils/Logger.h"
+// #include "../utils/Logger.h"
 #include <chrono>
 #include <algorithm>
 
@@ -193,7 +193,7 @@ PetscErrorCode MDP::createJacobian(Mat &jacobian, const Mat &transitionProbabili
 
 PetscErrorCode MDP::inexactPolicyIteration() {
     PetscErrorCode ierr;
-    if(rank_ == 0) LOG("Entering inexactPolicyIteration");
+    // if(rank_ == 0) LOG("Entering inexactPolicyIteration");
     jsonWriter_->add_solver_run();
 
     // init guess V0
@@ -229,7 +229,7 @@ PetscErrorCode MDP::inexactPolicyIteration() {
         if(residualNorm < atol_PI_) { 
             PetscTime(&endTime);
             jsonWriter_->add_iteration_data(PI_iteration, 0, (endTime - startTime) * 1000, residualNorm);
-            if(rank_ == 0) LOG("Iteration " + std::to_string(PI_iteration) + " residual norm: " + std::to_string(residualNorm));
+            // if(rank_ == 0) LOG("Iteration " + std::to_string(PI_iteration) + " residual norm: " + std::to_string(residualNorm));
             break;
         }
         constructFromPolicy(policyValues, transitionProbabilities, stageCosts);
@@ -246,13 +246,14 @@ PetscErrorCode MDP::inexactPolicyIteration() {
 
         PetscTime(&endTime);
         jsonWriter_->add_iteration_data(PI_iteration, ctx.kspIterations, (endTime - startTime) * 1000, residualNorm);
-        if(rank_ == 0) LOG("Iteration " + std::to_string(PI_iteration) + " residual norm: " + std::to_string(residualNorm));
+        // if(rank_ == 0) LOG("Iteration " + std::to_string(PI_iteration) + " residual norm: " + std::to_string(residualNorm));
     }
     PetscTime(&endiPI);
-    LOG("Inexact Policy Iteration took: " + std::to_string((endiPI - startiPI) * 1000) + " ms");
+    // LOG("Inexact Policy Iteration took: " + std::to_string((endiPI - startiPI) * 1000) + " ms");
 
     if(PI_iteration >= maxIter_PI_) {
-        LOG("Warning: maximum number of PI iterations reached. Solution might not be optimal.");
+        // LOG("Warning: maximum number of PI iterations reached. Solution might not be optimal.");
+        std::cout << "Warning: maximum number of PI iterations reached. Solution might not be optimal." << std::endl;
     }
 
     jsonWriter_->write_to_file(file_stats_);
@@ -278,7 +279,7 @@ PetscErrorCode MDP::inexactPolicyIteration() {
     PetscTime(&endTime);
     PetscLogDouble duration = (endTime - startTime) * 1000;
     if (rank_ == 0) {
-        LOG("Saving results took: " + std::to_string(duration) + " ms");
+        // LOG("Saving results took: " + std::to_string(duration) + " ms");
     }
 
     return 0;
