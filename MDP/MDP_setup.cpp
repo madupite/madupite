@@ -122,7 +122,7 @@ PetscErrorCode MDP::setOption(const char *option, const char *value) {
     // -discountFactor, -maxIter_PI, -maxIter_KSP, -numPIRuns, -rtol_KSP, -atol_PI, -file_policy, -file_cost, -file_stats, -mode
     PetscErrorCode ierr;
     ierr = PetscOptionsSetValue(NULL, option, value); CHKERRQ(ierr);
-    ierr = setValuesFromOptions(); CHKERRQ(ierr);
+    // ierr = setValuesFromOptions(); CHKERRQ(ierr); // todo need to update member variables?
     return 0;
 }
 

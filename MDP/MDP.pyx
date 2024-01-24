@@ -27,6 +27,7 @@ cdef extern from "MDP.h":
         int setValuesFromOptions() except +
         int setOption(const char *option, const char *value) except +
         int inexactPolicyIteration() except +
+        int loadFromBinaryFile() except +
 
 # Cython wrapper for the MDP C++ class
 cdef class PyMDP:
@@ -58,12 +59,17 @@ cdef class PyMDP:
         return result
 
     def setOption(self, option, value):
-        cdef int result
         cdef string cpp_option = pystr2cppstr(option)
         cdef string cpp_value = pystr2cppstr(value)
-        result = self.c_mdp.setOption(cpp_option.c_str(), cpp_value.c_str())
+        cdef int result = self.c_mdp.setOption(cpp_option.c_str(), cpp_value.c_str())
         if result != 0:
             raise RuntimeError("setOption failed with error code %d" % result)
+        return result
+
+    def loadFromBinaryFile(self):
+        cdef int result = self.c_mdp.loadFromBinaryFile()
+        if result != 0:
+            raise RuntimeError("loadFromBinaryFile failed with error code %d" % result)
         return result
 
     @classmethod
