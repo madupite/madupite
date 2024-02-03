@@ -14,11 +14,14 @@ MDP::MDP() {
     MPI_Comm_size(PETSC_COMM_WORLD, &size_);
 
     jsonWriter_ = new JsonWriter(rank_);
-    jsonWriter_->add_data("numRanks", size_);
+    // jsonWriter_->add_data("numRanks", size_);
     transitionProbabilityTensor_ = nullptr;
     stageCostMatrix_ = nullptr;
     costMatrix_ = nullptr;
     costVector_ = nullptr;
+
+    numStates_ = -1;
+    numActions_ = -1;
 
     // Logger::setPrefix("[R" + std::to_string(rank_) + "] ");
     // Logger::setFilename("log_R" + std::to_string(rank_) + ".txt"); // remove if all ranks should output to the same file
@@ -38,52 +41,44 @@ PetscErrorCode MDP::setValuesFromOptions() {
     PetscBool flg;
 
     ierr = PetscOptionsGetInt(NULL, NULL, "-numStates", &numStates_, &flg); CHKERRQ(ierr);
-    if(!flg) {
-        SETERRQ(PETSC_COMM_WORLD, 1, "Number of states not specified. Use -numStates <int>.");
-    }
-    else { // set local num states here if numStates_ is set (e.g. not the case for loading from file)
+    if(flg) { // set local num states here if numStates_ is set (e.g. not the case for loading from file)
         localNumStates_ = (rank_ < numStates_ % size_) ? numStates_ / size_ + 1 : numStates_ / size_; // first numStates_ % size_ ranks get one more state
     }
-    jsonWriter_->add_data("numStates", numStates_);
+    // jsonWriter_->add_data("numStates", numStates_);
     ierr = PetscOptionsGetInt(NULL, NULL, "-numActions", &numActions_, &flg); CHKERRQ(ierr);
-    if(!flg) {
-        SETERRQ(PETSC_COMM_WORLD, 1, "Number of actions not specified. Use -numActions <int>.");
-    }
-    jsonWriter_->add_data("numActions", numActions_);
-
 
     ierr = PetscOptionsGetReal(NULL, NULL, "-discountFactor", &discountFactor_, &flg); CHKERRQ(ierr);
     if(!flg) {
         SETERRQ(PETSC_COMM_WORLD, 1, "Discount factor not specified. Use -discountFactor <double>.");
     }
-    jsonWriter_->add_data("discountFactor", discountFactor_);
+    // jsonWriter_->add_data("discountFactor", discountFactor_);
     ierr = PetscOptionsGetInt(NULL, NULL, "-maxIter_PI", &maxIter_PI_, &flg); CHKERRQ(ierr);
     if(!flg) {
         SETERRQ(PETSC_COMM_WORLD, 1, "Maximum number of policy iterations not specified. Use -maxIter_PI <int>.");
     }
-    jsonWriter_->add_data("maxIter_PI", maxIter_PI_);
+    // jsonWriter_->add_data("maxIter_PI", maxIter_PI_);
     ierr = PetscOptionsGetInt(NULL, NULL, "-maxIter_KSP", &maxIter_KSP_, &flg); CHKERRQ(ierr);
     if(!flg) {
         SETERRQ(PETSC_COMM_WORLD, 1, "Maximum number of KSP iterations not specified. Use -maxIter_KSP <int>.");
     }
-    jsonWriter_->add_data("maxIter_KSP", maxIter_KSP_);
+    // jsonWriter_->add_data("maxIter_KSP", maxIter_KSP_);
     ierr = PetscOptionsGetInt(NULL, NULL, "-numPIRuns", &numPIRuns_, &flg); CHKERRQ(ierr);
     if(!flg) {
         //SETERRQ(PETSC_COMM_WORLD, 1, "Maximum number of KSP iterations not specified. Use -maxIter_KSP <int>.");
         // LOG("Number of PI runs for benchmarking not specified. Use -numPIRuns <int>. Default: 1");
         numPIRuns_ = 1;
     }
-    jsonWriter_->add_data("numPIRuns", numPIRuns_);
+    // jsonWriter_->add_data("numPIRuns", numPIRuns_);
     ierr = PetscOptionsGetReal(NULL, NULL, "-rtol_KSP", &rtol_KSP_, &flg); CHKERRQ(ierr);
     if(!flg) {
         SETERRQ(PETSC_COMM_WORLD, 1, "Relative tolerance for KSP not specified. Use -rtol_KSP <double>.");
     }
-    jsonWriter_->add_data("rtol_KSP", rtol_KSP_);
+    // jsonWriter_->add_data("rtol_KSP", rtol_KSP_);
     ierr = PetscOptionsGetReal(NULL, NULL, "-atol_PI", &atol_PI_, &flg); CHKERRQ(ierr);
     if(!flg) {
         SETERRQ(PETSC_COMM_WORLD, 1, "Absolute tolerance for policy iteration not specified. Use -atol_PI <double>.");
     }
-    jsonWriter_->add_data("atol_PI", atol_PI_);
+    // jsonWriter_->add_data("atol_PI", atol_PI_);
     ierr = PetscOptionsGetString(NULL, NULL, "-file_P", file_P_, PETSC_MAX_PATH_LEN, &flg); CHKERRQ(ierr);
     if(!flg) {
         //SETERRQ(PETSC_COMM_WORLD, 1, "Filename for transition probability tensor not specified. Use -file_P <string>. (max length: 4096 chars");
@@ -117,10 +112,10 @@ PetscErrorCode MDP::setValuesFromOptions() {
     }
     if (strcmp(inputMode, "MINCOST") == 0) {
         mode_ = MINCOST;
-        jsonWriter_->add_data("mode", "MINCOST");
+        // jsonWriter_->add_data("mode", "MINCOST");
     } else if (strcmp(inputMode, "MAXREWARD") == 0) {
         mode_ = MAXREWARD;
-        jsonWriter_->add_data("mode", "MAXREWARD");
+        // jsonWriter_->add_data("mode", "MAXREWARD");
     } else {
         SETERRQ(PETSC_COMM_WORLD, 1, "Input mode not recognized. Use -mode MINCOST or MAXREWARD.");
     }
@@ -169,8 +164,8 @@ PetscErrorCode MDP::loadFromBinaryFile() {
     // set local number of states (for this rank) 
     localNumStates_ = (rank_ < numStates_ % size_) ? numStates_ / size_ + 1 : numStates_ / size_; // first numStates_ % size_ ranks get one more state
     // LOG("owns " + std::to_string(localNumStates_) + " states.");
-    jsonWriter_->add_data("numStates", numStates_);
-    jsonWriter_->add_data("numActions", numActions_);
+    // jsonWriter_->add_data("numStates", numStates_);
+    // jsonWriter_->add_data("numActions", numActions_);
 
     // load transition probability tensor
     MatCreate(PETSC_COMM_WORLD, &transitionProbabilityTensor_);
@@ -327,7 +322,7 @@ PetscErrorCode MDP::generateTransitionProbabilityTensor(double (*P)(PetscInt, Pe
     PetscErrorCode ierr;
 
     // assert numStates_ and numActions_ are set
-    if (numStates_ == 0 || numActions_ == 0) {
+    if (numStates_ == -1 || numActions_ == -1) {
         SETERRQ(PETSC_COMM_WORLD, 1, "Number of states and actions not set.");
     }
 
@@ -356,6 +351,13 @@ PetscErrorCode MDP::generateTransitionProbabilityTensor(double (*P)(PetscInt, Pe
     MatAssemblyBegin(transitionProbabilityTensor_, MAT_FINAL_ASSEMBLY);
     MatAssemblyEnd(transitionProbabilityTensor_, MAT_FINAL_ASSEMBLY);
 
+    return 0;
+}
+
+PetscErrorCode MDP::writeJSONmetadata() {
+    jsonWriter_->add_data("numStates", numStates_);
+    jsonWriter_->add_data("numActions", numActions_);
+    jsonWriter_->add_data("discountFactor", discountFactor_);
     return 0;
 }
 

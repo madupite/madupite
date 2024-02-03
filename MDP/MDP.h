@@ -44,10 +44,9 @@ public:
 
     virtual PetscErrorCode loadFromBinaryFile(); // TODO split into P and g
     virtual PetscErrorCode generateCostMatrix(double (*g)(PetscInt, PetscInt));
-    // virtual PetscErrorCode generateTransitionProbabilityTensor(const PetscReal (*P)(PetscInt, PetscInt, PetscInt)); // P(s, a, s')
-    // virtual PetscErrorCode generateTransitionProbabilityTensor(std::tuple<PetscInt, PetscInt*, PetscReal*> (*P)(PetscInt, PetscInt)); // (P(s, a) -> (nnz, action indices, probabilities) for more efficient allocation
-    // virtual PetscErrorCode generateTransitionProbabilityTensor(const PetscInt *colIndices, const PetscReal *values, PetscInt nnz);
     virtual PetscErrorCode generateTransitionProbabilityTensor(double (*P)(PetscInt, PetscInt, PetscInt), PetscInt d_nz, const PetscInt *d_nnz, PetscInt o_nz, const PetscInt *o_nnz);
+
+    virtual PetscErrorCode writeJSONmetadata();
 
     PetscErrorCode writeVec  (const Vec  &vec, const PetscChar *filename);
     PetscErrorCode writeIS(const IS &is, const PetscChar *filename);

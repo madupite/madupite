@@ -156,7 +156,7 @@ PetscErrorCode MDP::iterativePolicyEvaluation(const Mat &jacobian, const Vec &st
     ierr = KSPGetIterationNumber(ksp, &ctx.kspIterations); CHKERRQ(ierr);
     KSPType type;
     KSPGetType(ksp, &type);
-    jsonWriter_->add_data("KSPType", type);
+    jsonWriter_->add_data("KSPType", type); // must be written here since KSPType is only available after KSPSolve. Other data should be written in MDP::writeJSONmetadata
 
     ierr = KSPDestroy(&ksp); CHKERRQ(ierr);
     return ierr;
@@ -195,6 +195,7 @@ PetscErrorCode MDP::inexactPolicyIteration() {
     PetscErrorCode ierr;
     // if(rank_ == 0) LOG("Entering inexactPolicyIteration");
     jsonWriter_->add_solver_run();
+    writeJSONmetadata();
 
     // init guess V0
     Vec V0;
