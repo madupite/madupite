@@ -37,6 +37,21 @@ PetscErrorCode MDP::setValuesFromOptions() {
     PetscErrorCode ierr;
     PetscBool flg;
 
+    ierr = PetscOptionsGetInt(NULL, NULL, "-numStates", &numStates_, &flg); CHKERRQ(ierr);
+    if(!flg) {
+        SETERRQ(PETSC_COMM_WORLD, 1, "Number of states not specified. Use -numStates <int>.");
+    }
+    else { // set local num states here if numStates_ is set (e.g. not the case for loading from file)
+        localNumStates_ = (rank_ < numStates_ % size_) ? numStates_ / size_ + 1 : numStates_ / size_; // first numStates_ % size_ ranks get one more state
+    }
+    jsonWriter_->add_data("numStates", numStates_);
+    ierr = PetscOptionsGetInt(NULL, NULL, "-numActions", &numActions_, &flg); CHKERRQ(ierr);
+    if(!flg) {
+        SETERRQ(PETSC_COMM_WORLD, 1, "Number of actions not specified. Use -numActions <int>.");
+    }
+    jsonWriter_->add_data("numActions", numActions_);
+
+
     ierr = PetscOptionsGetReal(NULL, NULL, "-discountFactor", &discountFactor_, &flg); CHKERRQ(ierr);
     if(!flg) {
         SETERRQ(PETSC_COMM_WORLD, 1, "Discount factor not specified. Use -discountFactor <double>.");
@@ -275,3 +290,72 @@ PetscErrorCode MDP::writeIS(const IS &is, const char *filename) {
 
     return 0;
 }
+
+
+PetscErrorCode MDP::generateCostMatrix(double (*g)(PetscInt, PetscInt)) {
+    PetscErrorCode ierr;
+    
+    // assert numStates_ and numActions_ are set
+    if (numStates_ == 0 || numActions_ == 0) {
+        SETERRQ(PETSC_COMM_WORLD, 1, "Number of states and actions not set.");
+    }
+
+    // create stage cost matrix
+    // ierr = MatCreateDense(PETSC_COMM_WORLD, localNumStates_, PETSC_DECIDE, numStates_, numActions_, PETSC_NULLPTR, &stageCostMatrix_); CHKERRQ(ierr);
+    ierr = MatCreate(PETSC_COMM_WORLD, &stageCostMatrix_); CHKERRQ(ierr);
+    ierr = MatSetType(stageCostMatrix_, MATDENSE); CHKERRQ(ierr);
+    ierr = MatSetSizes(stageCostMatrix_, localNumStates_, PETSC_DECIDE, numStates_, numActions_); CHKERRQ(ierr);
+    MatSetFromOptions(stageCostMatrix_);
+    MatSetUp(stageCostMatrix_);
+
+    // fill stage cost matrix
+    MatGetOwnershipRange(stageCostMatrix_, &g_start_, &g_end_);
+    for (PetscInt i = g_start_; i < g_end_; ++i) {
+        for (PetscInt j = 0; j < numActions_; ++j) {
+            MatSetValue(stageCostMatrix_, i, j, g(i, j), INSERT_VALUES);
+        }
+    }
+
+    MatAssemblyBegin(stageCostMatrix_, MAT_FINAL_ASSEMBLY);
+    MatAssemblyEnd(stageCostMatrix_, MAT_FINAL_ASSEMBLY);
+    
+    return 0;
+}
+
+
+PetscErrorCode MDP::generateTransitionProbabilityTensor(double (*P)(PetscInt, PetscInt, PetscInt), PetscInt d_nz, const PetscInt *d_nnz, PetscInt o_nz, const PetscInt *o_nnz) {
+    PetscErrorCode ierr;
+
+    // assert numStates_ and numActions_ are set
+    if (numStates_ == 0 || numActions_ == 0) {
+        SETERRQ(PETSC_COMM_WORLD, 1, "Number of states and actions not set.");
+    }
+
+    // create transition probability tensor
+    ierr = MatCreate(PETSC_COMM_WORLD, &transitionProbabilityTensor_); CHKERRQ(ierr);
+    ierr = MatSetType(transitionProbabilityTensor_, MATMPIAIJ); CHKERRQ(ierr);
+    ierr = MatSetSizes(transitionProbabilityTensor_, localNumStates_*numActions_, localNumStates_, numStates_*numActions_, numStates_); CHKERRQ(ierr);
+    ierr = MatSetFromOptions(transitionProbabilityTensor_); CHKERRQ(ierr);
+    ierr = MatMPIAIJSetPreallocation(transitionProbabilityTensor_, d_nz, d_nnz, o_nz, o_nnz); CHKERRQ(ierr);
+    ierr = MatSetUp(transitionProbabilityTensor_); CHKERRQ(ierr);
+
+    // fill transition probability tensor
+    MatGetOwnershipRange(transitionProbabilityTensor_, &P_start_, &P_end_);
+    for (PetscInt stateInd = P_start_ / numActions_; stateInd < P_end_ / numActions_; ++stateInd) {
+        for (PetscInt actionInd = 0; actionInd < numActions_; ++actionInd) {
+            PetscInt row = stateInd * numActions_ + actionInd;
+            for (PetscInt nextStateInd = 0; nextStateInd < numStates_; ++nextStateInd) {
+                PetscReal prob = P(stateInd, actionInd, nextStateInd);
+                if (prob != 0.0) {
+                    ierr = MatSetValue(transitionProbabilityTensor_, row, nextStateInd, prob, INSERT_VALUES); CHKERRQ(ierr);
+                }
+            }
+        }
+    }
+
+    MatAssemblyBegin(transitionProbabilityTensor_, MAT_FINAL_ASSEMBLY);
+    MatAssemblyEnd(transitionProbabilityTensor_, MAT_FINAL_ASSEMBLY);
+
+    return 0;
+}
+
