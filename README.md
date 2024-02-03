@@ -1,0 +1,1 @@
+install sphinx in conda otherwise it does not find madupite

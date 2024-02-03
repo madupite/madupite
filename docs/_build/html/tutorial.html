@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tutorial &mdash; madupite 0.1 documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Benchmarks" href="benchmarks.html" />
+    <link rel="prev" title="Installation" href="install.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="index.html" class="icon icon-home"> madupite
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="install.html">Installation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="install.html#dependencies">Dependencies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="install.html#python-package">Python package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="install.html#c">C++</a></li>
+<li class="toctree-l2"><a class="reference internal" href="install.html#euler-eth-zurich-cluster">Euler (ETH Zurich Cluster)</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Tutorial</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#mpirun">mpirun</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#minimal-example">Minimal example</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#generate-an-artificial-mdp-and-solve-it-with-various-options">Generate an artificial MDP and solve it with various options</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#input-data-format">Input data format</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#the-options-json-file">The options.json file</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#metadata-format">Metadata format</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#generate-arbitrary-mdps">Generate arbitrary MDPs</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="benchmarks.html">Benchmarks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apiref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">madupite</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home"></a></li>
+      <li class="breadcrumb-item active">Tutorial</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/tutorial.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="tutorial">
+<h1>Tutorial<a class="headerlink" href="#tutorial" title="Permalink to this heading"></a></h1>
+<section id="mpirun">
+<h2>mpirun<a class="headerlink" href="#mpirun" title="Permalink to this heading"></a></h2>
+<p>The distributed sparse linear solvers for madupite rely on calls to MPI from PETSc. Therefore, you always need to use mpirun:</p>
+<div class="highlight-cython notranslate"><div class="highlight"><pre><span></span><span class="n">export</span> <span class="n">OMP_NUM_THREADS</span><span class="o">=</span><span class="mf">1</span> <span class="c"># optional, see explaination below</span>
+<span class="n">mpirun</span> <span class="o">-</span><span class="n">n</span> <span class="o">&lt;</span><span class="n">number</span> <span class="n">of</span> <span class="n">ranks</span><span class="o">&gt;</span> <span class="n">python</span> <span class="n">main</span><span class="o">.</span><span class="n">py</span>
+</pre></div>
+</div>
+<p>The number of MPI ranks is specified by the -n option. While PETSc’s parallelism is based solely on MPI, the underlying BLAS/LAPACK routines may be parallelized with OpenMP, which can be controlled by setting the environment variable <code class="docutils literal notranslate"><span class="pre">OMP_NUM_THREADS</span></code>. More details can be found in <a class="reference external" href="https://petsc.org/main/manual/blas-lapack/">the manual of PETSc</a> and the manual for mpirun of your MPI implementation.</p>
+</section>
+<section id="minimal-example">
+<h2>Minimal example<a class="headerlink" href="#minimal-example" title="Permalink to this heading"></a></h2>
+<p>This example demonstrates how to quickly load and solve a MDP.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">madupite</span> <span class="k">as</span> <span class="nn">md</span>
+<span class="k">with</span> <span class="n">md</span><span class="o">.</span><span class="n">PETScContextManager</span><span class="p">():</span>
+    <span class="c1"># create an mdp instance and load the transition probabilities and stage-costs</span>
+    <span class="n">mdp</span> <span class="o">=</span> <span class="n">md</span><span class="o">.</span><span class="n">PyMdp</span><span class="p">(</span><span class="s2">&quot;./transprob.bin&quot;</span><span class="p">,</span> <span class="s2">&quot;./stagecost.bin&quot;</span><span class="p">)</span>
+    <span class="c1"># generate an initial cost and solve the MDP according to the default options</span>
+    <span class="n">mdp</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="s2">&quot;./outputDirectory/&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="generate-an-artificial-mdp-and-solve-it-with-various-options">
+<h2>Generate an artificial MDP and solve it with various options<a class="headerlink" href="#generate-an-artificial-mdp-and-solve-it-with-various-options" title="Permalink to this heading"></a></h2>
+<p>Since the routines for MDP generating are sequential they need only be executed by the main rank, which is why they are contained inside the <code class="docutils literal notranslate"><span class="pre">if</span> <span class="pre">md.MPI_master()</span></code> statement.</p>
+<dl class="simple">
+<dt>TODO .. literalinclude :: ../examples/example1.py</dt><dd><dl class="field-list simple">
+<dt class="field-odd">language<span class="colon">:</span></dt>
+<dd class="field-odd"><p>python</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+<section id="input-data-format">
+<h2>Input data format<a class="headerlink" href="#input-data-format" title="Permalink to this heading"></a></h2>
+<p>The data for the MDP (transition probability tensor and stage cost matrix) must be provided in the PETSc binary format. The installation with pip provides a generator for artificial MDPs and a converter from numpy/scipy matrices to PETSc binary.</p>
+<div class="highlight-cython notranslate"><div class="highlight"><pre><span></span><span class="k">import</span> <span class="nn">madupite</span> <span class="k">as</span> <span class="nn">md</span>
+<span class="n">md</span><span class="o">.</span><span class="n">writePETScBinary</span><span class="p">(</span><span class="n">matrix</span><span class="p">,</span> <span class="s">&quot;path/to/matrix.bin&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>If you want to create your own MDP you must match the data layout of this solver:</p>
+<ul class="simple">
+<li><p>stagecost matrix: <span class="math notranslate nohighlight">\(G_{i,j}=\)</span> “expected stage-cost of applying input j in state i”.</p></li>
+<li><p>The transition probability is often expressed as a 3-dimensional tensor. In order to make use of the parallel matrix layout from PETSc, the first 2-dimensions must be combined:</p></li>
+</ul>
+<div class="math notranslate nohighlight">
+\[P_{i,j,k}= \text{&quot;transition probability from state i to k given input j&quot;}\]</div>
+<p>is flattened into a matrix:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}i&amp;=\left\lfloor\frac{x}{\# actions}\right\rfloor \\
+a&amp;=x\mod \# actions \\
+P'_{x,j}&amp;= \text{&quot;transition probability from state } i \text{ to state j given input } a.\end{split}\]</div>
+<p>It holds that <span class="math notranslate nohighlight">\(P_{i,j,k}=P'_{i*\#actions+j,k}\)</span> and can be implemented in Python as:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># combine first and second dimension of a 3d numpy array in python</span>
+<span class="mi">1</span><span class="n">stdim</span><span class="p">,</span> <span class="mi">2</span><span class="n">nddim</span><span class="p">,</span> <span class="mi">3</span><span class="n">rddim</span> <span class="o">=</span> <span class="n">transprobtensor</span><span class="o">.</span><span class="n">shape</span>
+<span class="n">transprobmat</span> <span class="o">=</span> <span class="n">transprobtensor</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">1</span><span class="n">stdim</span> <span class="o">*</span> <span class="mi">2</span><span class="n">nddim</span><span class="p">,</span> <span class="mi">3</span><span class="n">rddim</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="the-options-json-file">
+<h2>The options.json file<a class="headerlink" href="#the-options-json-file" title="Permalink to this heading"></a></h2>
+<p>Specify the details of the solver. Every call of mdp.solve(…) will solve the loaded mdp according to the details set in the solver. If you want to solve the same MDP multiple times with different settings just change the options in the json file. The repository contains a template optionstemplate.json.</p>
+<table class="docutils align-default">
+<tbody>
+<tr class="row-odd"><td colspan="4"><p>properties</p></td>
+</tr>
+<tr class="row-even"><td><ul class="simple">
+<li><p>initial cost type</p></li>
+</ul>
+</td>
+<td colspan="3"><p>constant number (without quotes) or ‘random’ for uniformly distributed initial guess</p></td>
+</tr>
+<tr class="row-odd"><td><ul class="simple">
+<li><p>discount factor</p></li>
+</ul>
+</td>
+<td colspan="3"><p>float between 0 and 1</p></td>
+</tr>
+<tr class="row-even"><td rowspan="7"><ul class="simple">
+<li><p>solver</p></li>
+</ul>
+</td>
+<td colspan="3"><p>properties</p></td>
+</tr>
+<tr class="row-odd"><td><ul class="simple">
+<li><p>ksptype</p></li>
+</ul>
+</td>
+<td colspan="2"><p>Sparse linear solver, e.g. ‘gmres’ from <a class="reference external" href="https://petsc.org/release/manualpages/KSP/KSPType/">KSPType</a></p></td>
+</tr>
+<tr class="row-even"><td><ul class="simple">
+<li><p>options</p></li>
+</ul>
+</td>
+<td colspan="2"><p>String that contains PETSc options for the solver, e.g. -ksp_gmres_restart 5</p></td>
+</tr>
+<tr class="row-odd"><td><ul class="simple">
+<li><p>preconditioner</p></li>
+</ul>
+</td>
+<td colspan="2"><p>Preconditioner, e.g. ‘jacobi’ from <a class="reference external" href="https://petsc.org/release/manualpages/PC/PCType/">PCType</a></p></td>
+</tr>
+<tr class="row-even"><td rowspan="3"><ul class="simple">
+<li><p>inner stopping criterion</p></li>
+</ul>
+</td>
+<td colspan="2"><p>properties</p></td>
+</tr>
+<tr class="row-odd"><td><ul class="simple">
+<li><p>alpha</p></li>
+</ul>
+</td>
+<td><p>default for inexact policy iteration (fast) or exact, which is equivalent to standard policy iteration (slow). The accuracy is controlled by the outer stopping criterion</p></td>
+</tr>
+<tr class="row-even"><td><ul class="simple">
+<li><p>decreasing</p></li>
+</ul>
+</td>
+<td><p>tbd</p></td>
+</tr>
+<tr class="row-odd"><td><ul class="simple">
+<li><p>outer stopping criterion</p></li>
+</ul>
+</td>
+<td colspan="3"><p>The maximum norm of the bellman residual function, e.g. 1e-9</p></td>
+</tr>
+<tr class="row-even"><td><ul class="simple">
+<li><p>policy filename</p></li>
+</ul>
+</td>
+<td colspan="3"><p>filename, can be empty</p></td>
+</tr>
+<tr class="row-odd"><td><ul class="simple">
+<li><p>cost filename</p></li>
+</ul>
+</td>
+<td colspan="3"><p>filename, can be empty</p></td>
+</tr>
+<tr class="row-even"><td><ul class="simple">
+<li><p>metadata filename</p></li>
+</ul>
+</td>
+<td colspan="3"><p>filename, can be empty</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="metadata-format">
+<h2>Metadata format<a class="headerlink" href="#metadata-format" title="Permalink to this heading"></a></h2>
+<p>The metadata provides insights about convergence and timings. It copies the options used during solving and adds the following.</p>
+<table class="docutils align-default">
+<tbody>
+<tr class="row-odd"><td colspan="4"><p>properties</p></td>
+</tr>
+<tr class="row-even"><td><ul class="simple">
+<li><p>number of actions</p></li>
+</ul>
+</td>
+<td colspan="3"><p>Number of actions</p></td>
+</tr>
+<tr class="row-odd"><td><ul class="simple">
+<li><p>number of states</p></li>
+</ul>
+</td>
+<td colspan="3"><p>Number of states</p></td>
+</tr>
+<tr class="row-even"><td><ul class="simple">
+<li><p>ranks</p></li>
+</ul>
+</td>
+<td colspan="3"><p>Number of available ranks to the solver</p></td>
+</tr>
+<tr class="row-odd"><td rowspan="6"><ul class="simple">
+<li><p>residual log (as array)</p></li>
+</ul>
+</td>
+<td colspan="3"><p>properties</p></td>
+</tr>
+<tr class="row-even"><td rowspan="3"><ul class="simple">
+<li><p>inner solver</p></li>
+</ul>
+</td>
+<td colspan="2"><p>properties</p></td>
+</tr>
+<tr class="row-odd"><td><ul class="simple">
+<li><p>iterations</p></li>
+</ul>
+</td>
+<td><p>Number of iteration in the inner solver</p></td>
+</tr>
+<tr class="row-even"><td><ul class="simple">
+<li><p>residual</p></li>
+</ul>
+</td>
+<td><p>Residual of the inner solver.</p></td>
+</tr>
+<tr class="row-odd"><td><ul class="simple">
+<li><p>residual</p></li>
+</ul>
+</td>
+<td colspan="2"><p>The bellman residual. Solve stops as soon as this value is below outer stopping criterion</p></td>
+</tr>
+<tr class="row-even"><td><ul class="simple">
+<li><p>time</p></li>
+</ul>
+</td>
+<td colspan="2"><p>Time in seconds since the solver started</p></td>
+</tr>
+<tr class="row-odd"><td><ul class="simple">
+<li><p>time and date</p></li>
+</ul>
+</td>
+<td colspan="3"><p>Fri Jul  7 09:57:40 2023</p></td>
+</tr>
+</tbody>
+</table>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">json</span>
+<span class="n">metadata</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;./metadata.json&quot;</span><span class="p">)</span>
+<span class="c1"># access the total execution time of the solver</span>
+<span class="n">totaltime</span> <span class="o">=</span> <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;residual log&quot;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s2">&quot;time&quot;</span><span class="p">]</span>
+<span class="c1"># get a list of the Bellman residuals for each iPI iteration</span>
+<span class="n">residuals</span> <span class="o">=</span> <span class="p">[</span><span class="n">d</span><span class="p">[</span><span class="s2">&quot;residual&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;residual log&quot;</span><span class="p">]]</span>
+</pre></div>
+</div>
+</section>
+<section id="generate-arbitrary-mdps">
+<h2>Generate arbitrary MDPs<a class="headerlink" href="#generate-arbitrary-mdps" title="Permalink to this heading"></a></h2>
+<p><a class="reference external" href="https://n.ethz.ch/~ppawlowsky/madupite/apiref.html#madupite.generateMDP">generateMDP()</a> allows generating arbitrary MDPs. Users have to specify a function that returns the transition probabilities for a state-action pair in form of an index array and the corresponding values. The stage-cost function should return the cost of a state-action pair. The following examples show how to create the MDPs for the <a class="reference external" href="https://pymdptoolbox.readthedocs.io/en/latest/api/example.html#mdptoolbox.example.forest">forest management scenario by PyMDPToolbox</a> and the <a class="reference external" href="https://github.com/Svalorzen/AI-Toolbox/blob/master/examples/MDP/tiger_antelope.cpp">tiger-antelope example by AI-Toolbox</a>.</p>
+<section id="forest-management-example">
+<h3>Forest management example<a class="headerlink" href="#forest-management-example" title="Permalink to this heading"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">madupite</span> <span class="k">as</span> <span class="nn">md</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="k">def</span> <span class="nf">probfunc</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">action</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">action</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">idx</span><span class="p">,</span> <span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+            <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="nb">min</span><span class="p">(</span><span class="n">state</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">nstates</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span>
+        <span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">p</span><span class="p">,</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">p</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">idx</span><span class="p">,</span> <span class="n">val</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">idx</span><span class="p">,</span> <span class="n">val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+            <span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">idx</span><span class="p">,</span> <span class="n">val</span>
+
+<span class="k">def</span> <span class="nf">costfunc</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">action</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">action</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">state</span> <span class="o">==</span> <span class="n">nstates</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">return</span> <span class="o">-</span><span class="n">r1</span>
+    <span class="k">if</span> <span class="n">action</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">state</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">state</span> <span class="o">==</span> <span class="n">nstates</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">return</span> <span class="o">-</span><span class="n">r2</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="o">-</span><span class="mi">1</span>
+    <span class="k">return</span> <span class="mi">0</span>
+
+<span class="n">md</span><span class="o">.</span><span class="n">generateMDP</span><span class="p">(</span>
+    <span class="n">nstates</span><span class="p">,</span>
+    <span class="n">mactions</span><span class="p">,</span>
+    <span class="n">probfunc</span><span class="p">,</span>
+    <span class="n">costfunc</span><span class="p">,</span>
+    <span class="s2">&quot;./data/sparse/P&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">nstates</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;.bin&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;./data/sparse/G&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">nstates</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;.bin&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>This will create the following MDP:</p>
+<div class="highlight-cython notranslate"><div class="highlight"><pre><span></span>           <span class="o">|</span> <span class="n">p</span> <span class="mf">1</span><span class="o">-</span><span class="n">p</span> <span class="mf">0.</span><span class="o">......</span><span class="mf">0</span>  <span class="o">|</span>
+           <span class="o">|</span> <span class="o">.</span>  <span class="mf">0</span> <span class="mf">1</span><span class="o">-</span><span class="n">p</span> <span class="mf">0.</span><span class="o">...</span><span class="mf">0</span>  <span class="o">|</span>
+<span class="n">P</span><span class="p">[:,</span><span class="mf">0</span><span class="p">,:]</span> <span class="o">=</span> <span class="o">|</span> <span class="o">.</span>  <span class="o">.</span>  <span class="mf">0</span>  <span class="o">.</span>       <span class="o">|</span>
+           <span class="o">|</span> <span class="o">.</span>  <span class="o">.</span>        <span class="o">.</span>    <span class="o">|</span>
+           <span class="o">|</span> <span class="o">.</span>  <span class="o">.</span>         <span class="mf">1</span><span class="o">-</span><span class="n">p</span> <span class="o">|</span>
+           <span class="o">|</span> <span class="n">p</span>  <span class="mf">0</span>  <span class="mf">0.</span><span class="o">...</span><span class="mf">0</span> <span class="mf">1</span><span class="o">-</span><span class="n">p</span> <span class="o">|</span>
+
+           <span class="o">|</span> <span class="mf">1</span> <span class="mf">0.</span><span class="o">.........</span><span class="mf">0</span> <span class="o">|</span>
+           <span class="o">|</span> <span class="o">.</span> <span class="o">.</span>          <span class="o">.</span> <span class="o">|</span>
+<span class="n">P</span><span class="p">[:,</span><span class="mf">1</span><span class="p">,:]</span> <span class="o">=</span> <span class="o">|</span> <span class="o">.</span> <span class="o">.</span>          <span class="o">.</span> <span class="o">|</span>
+           <span class="o">|</span> <span class="o">.</span> <span class="o">.</span>          <span class="o">.</span> <span class="o">|</span>
+           <span class="o">|</span> <span class="o">.</span> <span class="o">.</span>          <span class="o">.</span> <span class="o">|</span>
+           <span class="o">|</span> <span class="mf">1</span> <span class="mf">0.</span><span class="o">.........</span><span class="mf">0</span> <span class="o">|</span>
+
+         <span class="o">|</span>  <span class="mf">0</span>  <span class="o">|</span>
+         <span class="o">|</span>  <span class="o">.</span>  <span class="o">|</span>
+<span class="n">R</span><span class="p">[:,</span><span class="mf">0</span><span class="p">]</span> <span class="o">=</span> <span class="o">|</span>  <span class="o">.</span>  <span class="o">|</span>
+         <span class="o">|</span>  <span class="o">.</span>  <span class="o">|</span>
+         <span class="o">|</span>  <span class="mf">0</span>  <span class="o">|</span>
+         <span class="o">|</span>  <span class="n">r1</span> <span class="o">|</span>
+
+         <span class="o">|</span>  <span class="mf">0</span>  <span class="o">|</span>
+         <span class="o">|</span>  <span class="mf">1</span>  <span class="o">|</span>
+<span class="n">R</span><span class="p">[:,</span><span class="mf">1</span><span class="p">]</span> <span class="o">=</span> <span class="o">|</span>  <span class="o">.</span>  <span class="o">|</span>
+         <span class="o">|</span>  <span class="o">.</span>  <span class="o">|</span>
+         <span class="o">|</span>  <span class="mf">1</span>  <span class="o">|</span>
+         <span class="o">|</span>  <span class="n">r2</span> <span class="o">|</span>
+</pre></div>
+</div>
+</section>
+<section id="tiger-antelope-example">
+<h3>tiger-antelope example<a class="headerlink" href="#tiger-antelope-example" title="Permalink to this heading"></a></h3>
+<p>The tiger chases the antelope on a 2d-grid with periodic boundary conditions (“wrap-around world”). The tiger can choose to move by one field in any direction (left, right, up, down or stay). The antelope can move to the same fields, but moves randomly. It does not move to the cell where the tiger is at. The original formulation assigns a negative cost to the finnal absorbing state but an equivalent formulation could assign a positive cost to every state but the absorbing state.</p>
+<dl class="simple">
+<dt>TODO .. literalinclude :: ../benchmarks/aitoolbox/gen.py</dt><dd><dl class="field-list simple">
+<dt class="field-odd">language<span class="colon">:</span></dt>
+<dd class="field-odd"><p>python</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="install.html" class="btn btn-neutral float-left" title="Installation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="benchmarks.html" class="btn btn-neutral float-right" title="Benchmarks" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Philip Pawlowsky, Robin Sieber.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
