@@ -8,3 +8,5 @@ slurm-*
 data/
 out/
 output/
+madupite.egg*
+**/log*

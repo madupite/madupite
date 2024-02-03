@@ -28,7 +28,7 @@ public:
     MDP();
     ~MDP();
     virtual PetscErrorCode setValuesFromOptions();
-    virtual PetscErrorCode setOption(const char *option, const char *value);
+    virtual PetscErrorCode setOption(const char *option, const char *value, bool setValues = true);
 
     virtual PetscErrorCode extractGreedyPolicy(const Vec &V, PetscInt *policy, PetscReal &residualNorm);
     virtual PetscErrorCode constructFromPolicy(const PetscInt   *policy, Mat &transitionProbabilities, Vec &stageCosts);

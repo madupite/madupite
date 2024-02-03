@@ -116,12 +116,14 @@ PetscErrorCode MDP::setValuesFromOptions() {
     return 0;
 }
 
-PetscErrorCode MDP::setOption(const char *option, const char *value) {
+PetscErrorCode MDP::setOption(const char *option, const char *value, bool setValues) {
     // todo: should only be possible for:
     // -discountFactor, -maxIter_PI, -maxIter_KSP, -numPIRuns, -rtol_KSP, -atol_PI, -file_policy, -file_cost, -file_stats, -mode
     PetscErrorCode ierr;
     ierr = PetscOptionsSetValue(NULL, option, value); CHKERRQ(ierr);
-    ierr = setValuesFromOptions(); CHKERRQ(ierr);
+    if (setValues) {
+        ierr = setValuesFromOptions(); CHKERRQ(ierr);
+    }
     return 0;
 }
 

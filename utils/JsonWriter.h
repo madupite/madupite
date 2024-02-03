@@ -7,7 +7,8 @@
 
 #include <mpi.h>
 #include <vector>
-#include <nlohmann/json.hpp>
+// #include <nlohmann/json.hpp>
+#include "json.h"
 #include <fstream>
 
 class JsonWriter {
