@@ -4,6 +4,11 @@
 # Import necessary Cython and Python libraries
 import numpy as np
 cimport numpy as cnp
+from libcpp.string cimport string
+
+def pystr2cppstr(pystr):
+    cdef string cppstr = string(bytes(pystr, "utf-8"))
+    return cppstr
 
 from cpython.list cimport PyList_Check, PyList_Size, PyList_GetItem
 from cpython.float cimport PyFloat_AsDouble
@@ -67,9 +72,9 @@ cdef class PyMDP:
         self.c_mdp = new MDP()
         self._all_instances.append(self)
 
-    def __dealloc__(self):
-        if self.c_mdp is not NULL:
-            del self.c_mdp
+    # def __dealloc__(self):
+    #     if self.c_mdp is not NULL:
+    #         del self.c_mdp
 
     def __setitem__(self, key, value):
         cdef int result = self.c_mdp.setOption(py2cppstr(key), py2cppstr(value), True)
@@ -88,6 +93,14 @@ cdef class PyMDP:
         result = self.c_mdp.setValuesFromOptions()
         if result != 0:
             raise RuntimeError("setValuesFromOptions failed with error code %d" % result)
+        return result
+
+    def setOption(self, option, value):
+        cdef string cpp_option = py2cppstr(option)
+        cdef string cpp_value = py2cppstr(value)
+        cdef int result = self.c_mdp.setOption(cpp_option.c_str(), cpp_value.c_str(), False)
+        if result:
+            raise RuntimeError("setOption failed with error code %d" % result)
         return result
 
     def inexactPolicyIteration(self):

@@ -3,9 +3,10 @@
 //
 
 #include "MDP.h"
-#include "../utils/Logger.h"
+// #include "../utils/Logger.h"
 #include <mpi.h>
 #include <string>
+#include<iostream>
 
 MDP::MDP() {
     // MPI parallelization initialization
@@ -13,14 +14,17 @@ MDP::MDP() {
     MPI_Comm_size(PETSC_COMM_WORLD, &size_);
 
     jsonWriter_ = new JsonWriter(rank_);
-    jsonWriter_->add_data("numRanks", size_);
+    // jsonWriter_->add_data("numRanks", size_);
     transitionProbabilityTensor_ = nullptr;
     stageCostMatrix_ = nullptr;
     costMatrix_ = nullptr;
     costVector_ = nullptr;
 
-    Logger::setPrefix("[R" + std::to_string(rank_) + "] ");
-    Logger::setFilename("log_R" + std::to_string(rank_) + ".txt"); // remove if all ranks should output to the same file
+    numStates_ = -1;
+    numActions_ = -1;
+
+    // Logger::setPrefix("[R" + std::to_string(rank_) + "] ");
+    // Logger::setFilename("log_R" + std::to_string(rank_) + ".txt"); // remove if all ranks should output to the same file
 
 }
 
@@ -36,58 +40,65 @@ PetscErrorCode MDP::setValuesFromOptions() {
     PetscErrorCode ierr;
     PetscBool flg;
 
+    ierr = PetscOptionsGetInt(NULL, NULL, "-numStates", &numStates_, &flg); CHKERRQ(ierr);
+    if(flg) { // set local num states here if numStates_ is set (e.g. not the case for loading from file)
+        localNumStates_ = (rank_ < numStates_ % size_) ? numStates_ / size_ + 1 : numStates_ / size_; // first numStates_ % size_ ranks get one more state
+    }
+    // jsonWriter_->add_data("numStates", numStates_);
+    ierr = PetscOptionsGetInt(NULL, NULL, "-numActions", &numActions_, &flg); CHKERRQ(ierr);
+
     ierr = PetscOptionsGetReal(NULL, NULL, "-discountFactor", &discountFactor_, &flg); CHKERRQ(ierr);
     if(!flg) {
         SETERRQ(PETSC_COMM_WORLD, 1, "Discount factor not specified. Use -discountFactor <double>.");
     }
-    jsonWriter_->add_data("discountFactor", discountFactor_);
+    // jsonWriter_->add_data("discountFactor", discountFactor_);
     ierr = PetscOptionsGetInt(NULL, NULL, "-maxIter_PI", &maxIter_PI_, &flg); CHKERRQ(ierr);
     if(!flg) {
         SETERRQ(PETSC_COMM_WORLD, 1, "Maximum number of policy iterations not specified. Use -maxIter_PI <int>.");
     }
-    jsonWriter_->add_data("maxIter_PI", maxIter_PI_);
+    // jsonWriter_->add_data("maxIter_PI", maxIter_PI_);
     ierr = PetscOptionsGetInt(NULL, NULL, "-maxIter_KSP", &maxIter_KSP_, &flg); CHKERRQ(ierr);
     if(!flg) {
         SETERRQ(PETSC_COMM_WORLD, 1, "Maximum number of KSP iterations not specified. Use -maxIter_KSP <int>.");
     }
-    jsonWriter_->add_data("maxIter_KSP", maxIter_KSP_);
+    // jsonWriter_->add_data("maxIter_KSP", maxIter_KSP_);
     ierr = PetscOptionsGetInt(NULL, NULL, "-numPIRuns", &numPIRuns_, &flg); CHKERRQ(ierr);
     if(!flg) {
         //SETERRQ(PETSC_COMM_WORLD, 1, "Maximum number of KSP iterations not specified. Use -maxIter_KSP <int>.");
-        LOG("Number of PI runs for benchmarking not specified. Use -numPIRuns <int>. Default: 1");
+        // LOG("Number of PI runs for benchmarking not specified. Use -numPIRuns <int>. Default: 1");
         numPIRuns_ = 1;
     }
-    jsonWriter_->add_data("numPIRuns", numPIRuns_);
+    // jsonWriter_->add_data("numPIRuns", numPIRuns_);
     ierr = PetscOptionsGetReal(NULL, NULL, "-rtol_KSP", &rtol_KSP_, &flg); CHKERRQ(ierr);
     if(!flg) {
         SETERRQ(PETSC_COMM_WORLD, 1, "Relative tolerance for KSP not specified. Use -rtol_KSP <double>.");
     }
-    jsonWriter_->add_data("rtol_KSP", rtol_KSP_);
+    // jsonWriter_->add_data("rtol_KSP", rtol_KSP_);
     ierr = PetscOptionsGetReal(NULL, NULL, "-atol_PI", &atol_PI_, &flg); CHKERRQ(ierr);
     if(!flg) {
         SETERRQ(PETSC_COMM_WORLD, 1, "Absolute tolerance for policy iteration not specified. Use -atol_PI <double>.");
     }
-    jsonWriter_->add_data("atol_PI", atol_PI_);
+    // jsonWriter_->add_data("atol_PI", atol_PI_);
     ierr = PetscOptionsGetString(NULL, NULL, "-file_P", file_P_, PETSC_MAX_PATH_LEN, &flg); CHKERRQ(ierr);
     if(!flg) {
         //SETERRQ(PETSC_COMM_WORLD, 1, "Filename for transition probability tensor not specified. Use -file_P <string>. (max length: 4096 chars");
-        LOG("Warning: Filename for transition probability tensor not specified. Use -file_P <string>. (max length: 4096 chars");
+        // LOG("Warning: Filename for transition probability tensor not specified. Use -file_P <string>. (max length: 4096 chars");
         file_P_[0] = '\0';
     }
     ierr = PetscOptionsGetString(NULL, NULL, "-file_g", file_g_, PETSC_MAX_PATH_LEN, &flg); CHKERRQ(ierr);
     if(!flg) {
         //SETERRQ(PETSC_COMM_WORLD, 1, "Filename for stage cost matrix not specified. Use -file_g <string>. (max length: 4096 chars");
-        LOG("Warning: Filename for stage cost matrix not specified. Use -file_g <string>. (max length: 4096 chars");
+        // LOG("Warning: Filename for stage cost matrix not specified. Use -file_g <string>. (max length: 4096 chars");
         file_g_[0] = '\0';
     }
     ierr = PetscOptionsGetString(NULL, NULL, "-file_policy", file_policy_, PETSC_MAX_PATH_LEN, &flg); CHKERRQ(ierr);
     if(!flg) {
-        LOG("Filename for policy not specified. Optimal policy will not be written to file.");
+        // LOG("Filename for policy not specified. Optimal policy will not be written to file.");
         file_policy_[0] = '\0';
     }
     ierr = PetscOptionsGetString(NULL, NULL, "-file_cost", file_cost_, PETSC_MAX_PATH_LEN, &flg); CHKERRQ(ierr);
     if(!flg) {
-        LOG("Filename for cost not specified. Optimal cost will not be written to file.");
+        // LOG("Filename for cost not specified. Optimal cost will not be written to file.");
         file_cost_[0] = '\0';
     }
     ierr = PetscOptionsGetString(NULL, NULL, "-file_stats", file_stats_, PETSC_MAX_PATH_LEN, &flg); CHKERRQ(ierr);
@@ -101,10 +112,10 @@ PetscErrorCode MDP::setValuesFromOptions() {
     }
     if (strcmp(inputMode, "MINCOST") == 0) {
         mode_ = MINCOST;
-        jsonWriter_->add_data("mode", "MINCOST");
+        // jsonWriter_->add_data("mode", "MINCOST");
     } else if (strcmp(inputMode, "MAXREWARD") == 0) {
         mode_ = MAXREWARD;
-        jsonWriter_->add_data("mode", "MAXREWARD");
+        // jsonWriter_->add_data("mode", "MAXREWARD");
     } else {
         SETERRQ(PETSC_COMM_WORLD, 1, "Input mode not recognized. Use -mode MINCOST or MAXREWARD.");
     }
@@ -129,7 +140,8 @@ PetscErrorCode MDP::setOption(const char *option, const char *value, bool setVal
 
 
 PetscErrorCode MDP::loadFromBinaryFile() {
-    LOG("Loading MDP from binary file: " + std::string(file_P_) + ", " + std::string(file_g_));
+    // LOG("Loading MDP from binary file: " + std::string(file_P_) + ", " + std::string(file_g_));
+    std::cout << "Loading MDP from binary file: " << file_P_ << ", " << file_g_ << std::endl;
     PetscErrorCode ierr = 0;
     PetscViewer viewer;
 
@@ -153,9 +165,9 @@ PetscErrorCode MDP::loadFromBinaryFile() {
 
     // set local number of states (for this rank) 
     localNumStates_ = (rank_ < numStates_ % size_) ? numStates_ / size_ + 1 : numStates_ / size_; // first numStates_ % size_ ranks get one more state
-    LOG("owns " + std::to_string(localNumStates_) + " states.");
-    jsonWriter_->add_data("numStates", numStates_);
-    jsonWriter_->add_data("numActions", numActions_);
+    // LOG("owns " + std::to_string(localNumStates_) + " states.");
+    // jsonWriter_->add_data("numStates", numStates_);
+    // jsonWriter_->add_data("numActions", numActions_);
 
     // load transition probability tensor
     MatCreate(PETSC_COMM_WORLD, &transitionProbabilityTensor_);
@@ -181,8 +193,8 @@ PetscErrorCode MDP::loadFromBinaryFile() {
     // Information about distribution on processes
     MatGetOwnershipRange(transitionProbabilityTensor_, &P_start_, &P_end_);
     MatGetOwnershipRange(stageCostMatrix_, &g_start_, &g_end_);
-    LOG("owns rows " + std::to_string(P_start_) + " to " + std::to_string(P_end_) + " of P.");
-    LOG("owns rows " + std::to_string(g_start_) + " to " + std::to_string(g_end_) + " of g.");
+    // LOG("owns rows " + std::to_string(P_start_) + " to " + std::to_string(P_end_) + " of P.");
+    // LOG("owns rows " + std::to_string(g_start_) + " to " + std::to_string(g_end_) + " of g.");
 
     return ierr;
 }
@@ -275,3 +287,79 @@ PetscErrorCode MDP::writeIS(const IS &is, const char *filename) {
 
     return 0;
 }
+
+
+PetscErrorCode MDP::generateCostMatrix(double (*g)(PetscInt, PetscInt)) {
+    PetscErrorCode ierr;
+    
+    // assert numStates_ and numActions_ are set
+    if (numStates_ == 0 || numActions_ == 0) {
+        SETERRQ(PETSC_COMM_WORLD, 1, "Number of states and actions not set.");
+    }
+
+    // create stage cost matrix
+    // ierr = MatCreateDense(PETSC_COMM_WORLD, localNumStates_, PETSC_DECIDE, numStates_, numActions_, PETSC_NULLPTR, &stageCostMatrix_); CHKERRQ(ierr);
+    ierr = MatCreate(PETSC_COMM_WORLD, &stageCostMatrix_); CHKERRQ(ierr);
+    ierr = MatSetType(stageCostMatrix_, MATDENSE); CHKERRQ(ierr);
+    ierr = MatSetSizes(stageCostMatrix_, localNumStates_, PETSC_DECIDE, numStates_, numActions_); CHKERRQ(ierr);
+    MatSetFromOptions(stageCostMatrix_);
+    MatSetUp(stageCostMatrix_);
+
+    // fill stage cost matrix
+    MatGetOwnershipRange(stageCostMatrix_, &g_start_, &g_end_);
+    for (PetscInt i = g_start_; i < g_end_; ++i) {
+        for (PetscInt j = 0; j < numActions_; ++j) {
+            MatSetValue(stageCostMatrix_, i, j, g(i, j), INSERT_VALUES);
+        }
+    }
+
+    MatAssemblyBegin(stageCostMatrix_, MAT_FINAL_ASSEMBLY);
+    MatAssemblyEnd(stageCostMatrix_, MAT_FINAL_ASSEMBLY);
+    
+    return 0;
+}
+
+
+PetscErrorCode MDP::generateTransitionProbabilityTensor(double (*P)(PetscInt, PetscInt, PetscInt), PetscInt d_nz, const PetscInt *d_nnz, PetscInt o_nz, const PetscInt *o_nnz) {
+    PetscErrorCode ierr;
+
+    // assert numStates_ and numActions_ are set
+    if (numStates_ == -1 || numActions_ == -1) {
+        SETERRQ(PETSC_COMM_WORLD, 1, "Number of states and actions not set.");
+    }
+
+    // create transition probability tensor
+    ierr = MatCreate(PETSC_COMM_WORLD, &transitionProbabilityTensor_); CHKERRQ(ierr);
+    ierr = MatSetType(transitionProbabilityTensor_, MATMPIAIJ); CHKERRQ(ierr);
+    ierr = MatSetSizes(transitionProbabilityTensor_, localNumStates_*numActions_, localNumStates_, numStates_*numActions_, numStates_); CHKERRQ(ierr);
+    ierr = MatSetFromOptions(transitionProbabilityTensor_); CHKERRQ(ierr);
+    ierr = MatMPIAIJSetPreallocation(transitionProbabilityTensor_, d_nz, d_nnz, o_nz, o_nnz); CHKERRQ(ierr);
+    ierr = MatSetUp(transitionProbabilityTensor_); CHKERRQ(ierr);
+
+    // fill transition probability tensor
+    MatGetOwnershipRange(transitionProbabilityTensor_, &P_start_, &P_end_);
+    for (PetscInt stateInd = P_start_ / numActions_; stateInd < P_end_ / numActions_; ++stateInd) {
+        for (PetscInt actionInd = 0; actionInd < numActions_; ++actionInd) {
+            PetscInt row = stateInd * numActions_ + actionInd;
+            for (PetscInt nextStateInd = 0; nextStateInd < numStates_; ++nextStateInd) {
+                PetscReal prob = P(stateInd, actionInd, nextStateInd);
+                if (prob != 0.0) {
+                    ierr = MatSetValue(transitionProbabilityTensor_, row, nextStateInd, prob, INSERT_VALUES); CHKERRQ(ierr);
+                }
+            }
+        }
+    }
+
+    MatAssemblyBegin(transitionProbabilityTensor_, MAT_FINAL_ASSEMBLY);
+    MatAssemblyEnd(transitionProbabilityTensor_, MAT_FINAL_ASSEMBLY);
+
+    return 0;
+}
+
+PetscErrorCode MDP::writeJSONmetadata() {
+    jsonWriter_->add_data("numStates", numStates_);
+    jsonWriter_->add_data("numActions", numActions_);
+    jsonWriter_->add_data("discountFactor", discountFactor_);
+    return 0;
+}
+

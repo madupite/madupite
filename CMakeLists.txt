@@ -49,6 +49,7 @@ utils/Logger.cpp
 set_target_properties(madupite PROPERTIES
 LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
 )
+
 # Link the necessary libraries to your new library
 target_link_libraries(madupite PkgConfig::PETSC)
 target_link_libraries(madupite ${MPI_LIBRARIES})

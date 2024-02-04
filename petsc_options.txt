@@ -1,8 +1,6 @@
 -mat_type mpiaij
 -pc_type none
 -mode MINCOST
--states 5000
--actions 30
 -discountFactor 0.9
 -maxIter_PI 20
 -maxIter_KSP 1000
