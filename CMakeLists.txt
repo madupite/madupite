@@ -42,6 +42,7 @@ include_directories(MDP/)
 add_library(madupite SHARED
 MDP/MDP_algorithm.cpp
 MDP/MDP_setup.cpp
+MDP/MDP_change.cpp
 utils/Logger.cpp
 )
 # Specify the output directory for the shared library

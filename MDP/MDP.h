@@ -45,6 +45,11 @@ public:
     PetscErrorCode writeVec  (const Vec  &vec, const PetscChar *filename);
     PetscErrorCode writeIS(const IS &is, const PetscChar *filename);
 
+    std::pair<int, int> request_states(int nstates, int mactions, int matrix, int prealloc);  // matrix = 0: transitionProbabilityTensor_, matrix = 1: stageCostMatrix_
+    void fill_row(std::vector<int> &idxs, std::vector<double> &vals, int i, int matrix);
+    void mat_asssembly_end(int matrix);
+
+
     // user specified options
     enum mode {MINCOST, MAXREWARD};
     mode        mode_;

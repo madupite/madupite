@@ -5,7 +5,13 @@
 import numpy as np
 cimport numpy as cnp
 
+from cpython.list cimport PyList_Check, PyList_Size, PyList_GetItem
+from cpython.float cimport PyFloat_AsDouble
+from cpython.long cimport PyLong_AsLong
+
 from libcpp.string cimport string
+from libcpp.vector cimport vector
+from libcpp.pair cimport pair
 
 
 cdef py2cppstr (pystr):
@@ -32,11 +38,30 @@ cdef extern from "MDP.h":
         int setOption(const char *option, const char *value, bint setValues) except +
         int inexactPolicyIteration() except +
         void loadFromBinaryFile()
+        pair[int, int] request_states(int nstates, int mactions, int matrix, int prealloc)
+        void fill_row(vector[int] &idxs, vector[double] &vals, int i, int matrix)
+        void mat_asssembly_end(int matrix)
 
 # Cython wrapper for the MDP C++ class
 cdef class PyMDP:
     cdef MDP *c_mdp
     _all_instances = []
+
+    cdef fill_matrix_helper(self, list idxs, list vals, int row, int matrix):
+        cdef vector[int] cidxs
+        cdef vector[double] cvals
+        cdef Py_ssize_t i
+
+        if not PyList_Check(idxs) or not PyList_Check(vals):
+            raise ValueError("idxs and vals must be lists")
+
+        for i in range(len(idxs)):
+            cidxs.push_back(PyLong_AsLong(idxs[i]))
+        for i in range(len(vals)):
+            cvals.push_back(PyFloat_AsDouble(vals[i]))
+
+        self.c_mdp.fill_row(cidxs, cvals, row, matrix)
+
 
     def __cinit__(self):
         self.c_mdp = new MDP()
@@ -74,7 +99,25 @@ cdef class PyMDP:
 
     def loadFromBinaryFile(self):
         self.c_mdp.loadFromBinaryFile()
-    
+
+    def createTransitionProbabilities(self, nstates, mactions, func, pre_alloc=0):
+        # TODO: check if func has the correct signature
+        cdef pair[int, int] indices = self.c_mdp.request_states(nstates, mactions, 0, pre_alloc)
+        for i in range(indices.first  * mactions, indices.second * mactions):
+            idxs, vals = func(i // mactions, i % mactions)
+            self.fill_matrix_helper(idxs, vals, i, 0)
+        self.c_mdp.mat_asssembly_end(0)
+
+    def createStageCosts(self, nstates, mactions, func):
+        # TODO: check if func has the correct signature
+        cdef pair[int, int] indices = self.c_mdp.request_states(nstates, mactions, 1, 0)
+        for i in range(indices.first, indices.second):
+            idxs = list(range(mactions))
+            vals = []
+            for j in range(mactions):
+                vals.append(func(i, j))
+            self.fill_matrix_helper(idxs, vals, i, 1)
+        self.c_mdp.mat_asssembly_end(1)
 
     @classmethod
     def _get_all_instances(cls):

@@ -99,7 +99,7 @@ cython_ext = Extension(
     extra_compile_args=["-std=c++11"],
     extra_objects=["build/libmadupite.so"],
     extra_link_args=["-Wl,-rpath,$ORIGIN"],
-    compiler_directives={"embedsignature": True},
+    # compiler_directives={"embedsignature": True},
 )
 
 if __name__ == "__main__":
