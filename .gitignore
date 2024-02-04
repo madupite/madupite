@@ -1,7 +1,7 @@
 .vscode
 __pycache__
 cmake-*
-build
+**/*build
 release
 output
 slurm-*
