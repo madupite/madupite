@@ -97,7 +97,7 @@ cython_ext = Extension(
     include_dirs=["MDP", numpy.get_include(), "utils"],
     language="c++",
     extra_compile_args=["-std=c++11"],
-    extra_objects=["build/libmadupite.so"],
+    extra_objects=["build/temp.linux-x86_64-cpython-311/cmake_build/libmadupite.so"],
     extra_link_args=["-Wl,-rpath,$ORIGIN"],
     # compiler_directives={"embedsignature": True},
 )
