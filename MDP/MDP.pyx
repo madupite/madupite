@@ -66,6 +66,7 @@ cdef class PyMDP:
             cvals.push_back(PyFloat_AsDouble(vals[i]))
 
         self.c_mdp.fill_row(cidxs, cvals, row, matrix)
+        # TODO: do we need to free memory here?
 
 
     def __cinit__(self):

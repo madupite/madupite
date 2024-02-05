@@ -21,7 +21,7 @@ with md.PETScContextManager():
     mdp.createTransitionProbabilities(10000, 500, transprob)
     mdp.createStageCosts(10000, 500, stagecost)
     mdp.setOption("-ksp_type", "tfqmr")
-    mdp.setOption("-discountFactor", "0.999")
+    mdp["-discountFactor"] = "0.999"
     mdp.setValuesFromOptions()
     if md.MPI_master():
         print(time.time() - start)
