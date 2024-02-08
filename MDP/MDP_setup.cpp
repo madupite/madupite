@@ -3,10 +3,9 @@
 //
 
 #include "MDP.h"
-// #include "../utils/Logger.h"
 #include <mpi.h>
 #include <string>
-#include<iostream>
+#include<iostream> // todo: replace with logging
 
 MDP::MDP() {
     // MPI parallelization initialization
@@ -14,18 +13,17 @@ MDP::MDP() {
     MPI_Comm_size(PETSC_COMM_WORLD, &size_);
 
     jsonWriter_ = new JsonWriter(rank_);
-    // jsonWriter_->add_data("numRanks", size_);
+
     transitionProbabilityTensor_ = nullptr;
     stageCostMatrix_ = nullptr;
     costMatrix_ = nullptr;
     costVector_ = nullptr;
 
-    numStates_ = -1;
+    numStates_ = -1; // todo: change to unsigned int for better scalability? then remove -1
     numActions_ = -1;
 
     // Logger::setPrefix("[R" + std::to_string(rank_) + "] ");
     // Logger::setFilename("log_R" + std::to_string(rank_) + ".txt"); // remove if all ranks should output to the same file
-
 }
 
 MDP::~MDP() {

@@ -3,12 +3,9 @@
 //
 
 #include "MDP.h"
-#include <petscksp.h>
-#include <mpi.h>
-#include <iostream>
+#include <iostream> // TODO: replace with some logger
+#include <algorithm> // std::min_element, std::max_element
 // #include "../utils/Logger.h"
-#include <chrono>
-#include <algorithm>
 
 // find $\argmin_{\pi} \{ g^\pi + \gamma P^\pi V \}$
 // PRE: policy is a array of size localNumStates_ and must be allocated. Function will write into it but not allocate it.
@@ -16,7 +13,8 @@
 PetscErrorCode MDP::extractGreedyPolicy(const Vec &V, PetscInt *policy, PetscReal &residualNorm) {
     PetscErrorCode ierr;
 
-    ierr = MatMult(transitionProbabilityTensor_, V, costVector_); CHKERRQ(ierr); // costVector_ = P*V
+    // costVector_ = discountFactor * P * V
+    ierr = MatMult(transitionProbabilityTensor_, V, costVector_); CHKERRQ(ierr); 
     VecScale(costVector_, discountFactor_); // costVector_ = gamma * P*V
 
     // reshape costVector_ into costMatrix_ (fill matrix with values)

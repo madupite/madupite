@@ -77,6 +77,7 @@ cdef class PyMDP:
     #     if self.c_mdp is not NULL:
     #         del self.c_mdp
 
+    # [] operator
     def __setitem__(self, key, value):
         cdef int result = self.c_mdp.setOption(py2cppstr(key), py2cppstr(value), True)
         if result:
