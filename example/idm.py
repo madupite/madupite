@@ -80,13 +80,15 @@ with md.PETScContextManager():
     mdp.setOption("-rtol_KSP", "1e-4")
     mdp.setOption("-atol_PI", "1e-10")
     mdp.setOption("-file_stats", "idm_stats.out")
-    # mdp.setOption("-file_policy", "idm_policy.out")
-    # mdp.setOption("-file_cost", "idm_cost.out")
+    mdp.setOption("-file_policy", "idm_policy.out")
+    mdp.setOption("-file_cost", "idm_cost.out")
+    mdp.setOption("-numStates", str(idm.num_states))
+    mdp.setOption("-numActions", str(idm.num_actions))
     mdp.setValuesFromOptions()
 
 
-    mdp.createTransitionProbabilities(idm.num_states, idm.num_actions, idm.P)
-    mdp.createStageCosts(idm.num_states, idm.num_actions, idm.g)
+    mdp.createTransitionProbabilities(idm.P)
+    mdp.createStageCosts(idm.g)
 
     mdp.inexactPolicyIteration()
 

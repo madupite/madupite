@@ -34,13 +34,19 @@ MDP::~MDP() {
     //delete jsonWriter_; // todo fix this (double free or corruption error)
 }
 
+
+PetscErrorCode MDP::splitOwnership() {
+    localNumStates_ = (rank_ < numStates_ % size_) ? numStates_ / size_ + 1 : numStates_ / size_; // first numStates_ % size_ ranks get one more state
+    return 0;
+}
+
 PetscErrorCode MDP::setValuesFromOptions() {
     PetscErrorCode ierr;
     PetscBool flg;
 
     ierr = PetscOptionsGetInt(NULL, NULL, "-numStates", &numStates_, &flg); CHKERRQ(ierr);
     if(flg) { // set local num states here if numStates_ is set (e.g. not the case for loading from file)
-        localNumStates_ = (rank_ < numStates_ % size_) ? numStates_ / size_ + 1 : numStates_ / size_; // first numStates_ % size_ ranks get one more state
+        splitOwnership();
     }
     // jsonWriter_->add_data("numStates", numStates_);
     ierr = PetscOptionsGetInt(NULL, NULL, "-numActions", &numActions_, &flg); CHKERRQ(ierr);
@@ -162,7 +168,7 @@ PetscErrorCode MDP::loadFromBinaryFile() {
     // PetscPrintf(PETSC_COMM_WORLD, "%d %d %d %d\n", sizes[0], sizes[1], sizes[2], sizes[3]); // ClassID, Rows, Cols, NNZ
 
     // set local number of states (for this rank) 
-    localNumStates_ = (rank_ < numStates_ % size_) ? numStates_ / size_ + 1 : numStates_ / size_; // first numStates_ % size_ ranks get one more state
+    splitOwnership();
     // LOG("owns " + std::to_string(localNumStates_) + " states.");
     // jsonWriter_->add_data("numStates", numStates_);
     // jsonWriter_->add_data("numActions", numActions_);

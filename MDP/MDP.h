@@ -30,6 +30,7 @@ public:
     ~MDP();
 
     // MDP Setup
+    virtual PetscErrorCode splitOwnership();
     virtual PetscErrorCode setValuesFromOptions();
     virtual PetscErrorCode setOption(const char *option, const char *value, bool setValues = true);
     virtual PetscErrorCode loadFromBinaryFile(); // TODO split into P and g
@@ -38,8 +39,15 @@ public:
     
     // functions needed for parallel matrix generation
     std::pair<int, int> request_states(int nstates, int mactions, int matrix, int prealloc);  // matrix = 0: transitionProbabilityTensor_, matrix = 1: stageCostMatrix_
-    void fill_row(std::vector<int> &idxs, std::vector<double> &vals, int i, int matrix);
-    void mat_asssembly_end(int matrix);
+    void fillRow(std::vector<int> &idxs, std::vector<double> &vals, int i, int matrix);
+    void assembleMatrix(int matrix);
+
+    std::pair<int, int> getStateOwnershipRange();
+    std::pair<int, int> getMDPSize();
+    PetscErrorCode createCostMatrix(); // no preallocation needed since it's a dense matrix
+    PetscErrorCode createTransitionProbabilityTensor(PetscInt d_nz, const std::vector<int> &d_nnz, PetscInt o_nz, const std::vector<int> &o_nnz); // full preallocation freedom
+    PetscErrorCode createTransitionProbabilityTensor(); // no preallocation
+
 
     // MDP Algorithm
     virtual PetscErrorCode extractGreedyPolicy(const Vec &V, PetscInt *policy, PetscReal &residualNorm);

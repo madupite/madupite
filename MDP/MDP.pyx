@@ -4,6 +4,7 @@
 # Import necessary Cython and Python libraries
 import numpy as np
 cimport numpy as cnp
+import inspect
 from libcpp.string cimport string
 
 def pystr2cppstr(pystr):
@@ -23,18 +24,6 @@ cdef py2cppstr (pystr):
     cdef string cppstr = string(bytes(pystr, "utf-8"))
     return cppstr
 
-
-# Not necessary imo
-# Include the necessary C++ headers for PETSc
-# cdef extern from "<petscvec.h>":
-#     pass  # Include necessary PETSc declarations here
-
-# cdef extern from "<petscmat.h>":
-#     pass  # Include necessary PETSc declarations here
-
-# cdef extern from "<petscksp.h>":
-#     pass  # Include necessary PETSc declarations here
-
 # Declaration of the C++ structs and classes from MDP.h
 cdef extern from "MDP.h":
     cdef cppclass MDP:
@@ -43,9 +32,13 @@ cdef extern from "MDP.h":
         int setOption(const char *option, const char *value, bint setValues) except +
         int inexactPolicyIteration() except +
         void loadFromBinaryFile()
-        pair[int, int] request_states(int nstates, int mactions, int matrix, int prealloc)
-        void fill_row(vector[int] &idxs, vector[double] &vals, int i, int matrix)
-        void mat_asssembly_end(int matrix)
+        pair[int, int] getStateOwnershipRange()
+        pair[int, int] getMDPSize()
+        void fillRow(vector[int] &idxs, vector[double] &vals, int i, int matrix)
+        void assembleMatrix(int matrix)
+        int createCostMatrix()
+        int createTransitionProbabilityTensor(int d_nz, const vector[int] &d_nnz, int o_nz, const vector[int] &o_nnz)
+        int createTransitionProbabilityTensor()
 
 # Cython wrapper for the MDP C++ class
 cdef class PyMDP:
@@ -65,7 +58,7 @@ cdef class PyMDP:
         for i in range(len(vals)):
             cvals.push_back(PyFloat_AsDouble(vals[i]))
 
-        self.c_mdp.fill_row(cidxs, cvals, row, matrix)
+        self.c_mdp.fillRow(cidxs, cvals, row, matrix)
         # TODO: do we need to free memory here?
 
 
@@ -115,24 +108,82 @@ cdef class PyMDP:
     def loadFromBinaryFile(self):
         self.c_mdp.loadFromBinaryFile()
 
-    def createTransitionProbabilities(self, nstates, mactions, func, pre_alloc=0):
-        # TODO: check if func has the correct signature
-        cdef pair[int, int] indices = self.c_mdp.request_states(nstates, mactions, 0, pre_alloc)
-        for i in range(indices.first  * mactions, indices.second * mactions):
-            idxs, vals = func(i // mactions, i % mactions)
-            self.fill_matrix_helper(idxs, vals, i, 0)
-        self.c_mdp.mat_asssembly_end(0)
+    def createTransitionProbabilities(self, func, pre_alloc=None):
+        print("CreateTransitionProbabilities start")
+        # check function signature
+        params = inspect.signature(func).parameters
+        if len(params) != 2:
+            raise ValueError("func should have exactly two parameters: state and action. Function signature: func(state, action) -> (next_states, probs), where next_states contains indices of the next states and probs (correspondig transition probabilities) are lists")
 
-    def createStageCosts(self, nstates, mactions, func):
+        # user's choice to pre-allocate memory
+        # pre_alloc = [d_nz, d_nnz, o_nz, o_nnz] 
+        """
+        5 different modes TODO implement
+        0 - no preallocation
+        1 - use d_nz and o_nz
+        2 - use d_nz and o_nnz
+        3 - use d_nnz and o_nz
+        4 - use d_nnz and o_nnz
+        """
+
+        user_pre_alloc = False
+        if pre_alloc:
+            user_pre_alloc = True
+            # if pre_alloc[1] is [] or None, pass nullptr to C++ function; same for pre_alloc[3]
+            # pre_alloc[1] = NULL # not working
+            
+        else:
+            pre_alloc = [0, [0], 0, [0]]
+
+        print(f"{user_pre_alloc=}")
+        cdef vector[int] d_nnz = pre_alloc[1] # can't be defined within if statement
+        cdef vector[int] o_nnz = pre_alloc[3]
+        if user_pre_alloc:
+            if len(pre_alloc) != 4:
+                raise ValueError("pre_alloc should be a tuple [d_nz, d_nnz, o_nz, o_nnz] or None if no preallocation is desired (not recommended)")
+            # create c++ vector from d_nnz and o_nnz
+
+            self.c_mdp.createTransitionProbabilityTensor(pre_alloc[0], d_nnz, pre_alloc[2], o_nnz)
+        else:
+            self.c_mdp.createTransitionProbabilityTensor()
+
+        cdef pair[int, int] indices = self.c_mdp.getStateOwnershipRange()
+        print(f"finished getStateOwnershipRange, {indices.first=}, {indices.second=}")
+        cdef pair[int, int] size = self.c_mdp.getMDPSize() # (numStates, numActions)
+        print(f"finished getMDPSize, {size.first=}, {size.second=}")
+        print(f"start filling values - {indices.first=}, {indices.second=}")
+
+        for i in range(indices.first  * size.second, indices.second * size.second):
+            idxs, vals = func(i // size.second, i % size.second)
+            self.fill_matrix_helper(idxs, vals, i, 0)
+        print("finished filling values")
+        self.c_mdp.assembleMatrix(0)
+        print("CreateTransitionProbabilities end")
+
+    def createStageCosts(self, func):
+        print("CreateStageCosts start")
         # TODO: check if func has the correct signature
-        cdef pair[int, int] indices = self.c_mdp.request_states(nstates, mactions, 1, 0)
-        for i in range(indices.first, indices.second):
-            idxs = list(range(mactions))
-            vals = []
-            for j in range(mactions):
-                vals.append(func(i, j))
-            self.fill_matrix_helper(idxs, vals, i, 1)
-        self.c_mdp.mat_asssembly_end(1)
+        params = inspect.signature(func).parameters
+        if len(params) != 2:
+            raise ValueError("func should have exactly two parameters: state and action. Function signature: func(state, action) -> cost (double)")
+        
+        self.c_mdp.createCostMatrix()
+        print("created cost matrix")   
+
+        cdef pair[int, int] indices = self.c_mdp.getStateOwnershipRange()
+        cdef pair[int, int] size = self.c_mdp.getMDPSize() # (numStates, numActions)
+        print(f"{size.first=}, {size.second=}")
+        print(f"{indices.first=}, {indices.second=}")
+        
+
+        actionIndices = np.arange(size.second, dtype=np.int32)
+        for stateInd in range(indices.first, indices.second):
+            vals = np.array([func(stateInd, action) for action in actionIndices])
+            self.fill_matrix_helper(actionIndices.tolist(), vals.tolist(), stateInd, 1)
+
+        print("filled cost matrix")
+        self.c_mdp.assembleMatrix(1)
+        print("CreateStageCosts end")
 
     @classmethod
     def _get_all_instances(cls):
