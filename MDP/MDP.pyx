@@ -116,36 +116,53 @@ cdef class PyMDP:
             raise ValueError("func should have exactly two parameters: state and action. Function signature: func(state, action) -> (next_states, probs), where next_states contains indices of the next states and probs (correspondig transition probabilities) are lists")
 
         # user's choice to pre-allocate memory
-        # pre_alloc = [d_nz, d_nnz, o_nz, o_nnz] 
+        # pre_alloc = [d_nz | d_nnz, o_nz | o_nnz] 
         """
         5 different modes TODO implement
-        0 - no preallocation
-        1 - use d_nz and o_nz
-        2 - use d_nz and o_nnz
-        3 - use d_nnz and o_nz
-        4 - use d_nnz and o_nnz
+        -1 - no preallocation
+        0 - use d_nz and o_nz
+        1 - use d_nz and o_nnz
+        2 - use d_nnz and o_nz
+        3 - use d_nnz and o_nnz
         """
 
-        user_pre_alloc = False
-        if pre_alloc:
-            user_pre_alloc = True
-            # if pre_alloc[1] is [] or None, pass nullptr to C++ function; same for pre_alloc[3]
-            # pre_alloc[1] = NULL # not working
-            
-        else:
-            pre_alloc = [0, [0], 0, [0]]
+        """
+        pre_alloc: None => mode -1
+        pre_alloc[0]: int d_nz or list d_nnz => set LSB to 1 if list
+        pre_alloc[1]: int o_nz or list o_nnz => set Bit nr. 2 to 1 if list
+        """
 
-        print(f"{user_pre_alloc=}")
+
+        mode = 0
+        if pre_alloc is None:
+            # no preallocation
+            self.c_mdp.createTransitionProbabilityTensor()
+        else:
+            if len(pre_alloc) != 2:
+                raise ValueError("pre_alloc should be a tuple [d_nz | [d_nnz], o_nz | [o_nnz]] where d_nnz and o_nnz are lists or None if no preallocation is desired (not recommended)")
+            # create bit pair set according to pre_alloc
+            if isinstance(pre_alloc[0], list):
+                mode |= 1 # set LSB to 1
+            if isinstance(pre_alloc[1], list):
+                mode |= 2 # set Bit nr. 2 to 1
+
+        print(f"{mode=}")
+
         cdef vector[int] d_nnz = pre_alloc[1] # can't be defined within if statement
         cdef vector[int] o_nnz = pre_alloc[3]
-        if user_pre_alloc:
-            if len(pre_alloc) != 4:
-                raise ValueError("pre_alloc should be a tuple [d_nz, d_nnz, o_nz, o_nnz] or None if no preallocation is desired (not recommended)")
-            # create c++ vector from d_nnz and o_nnz
+        cdef vector[int] emptyVec = vector[int]()
 
-            self.c_mdp.createTransitionProbabilityTensor(pre_alloc[0], d_nnz, pre_alloc[2], o_nnz)
+        if mode == 0:
+            self.c_mdp.createTransitionProbabilityTensor(pre_alloc[0], emptyVec, pre_alloc[1], emptyVec)
+        elif mode == 1:
+            self.c_mdp.createTransitionProbabilityTensor(pre_alloc[0], emptyVec, 0, o_nnz)
+        elif mode == 2:
+            self.c_mdp.createTransitionProbabilityTensor(0, d_nnz, pre_alloc[1], emptyVec)
+        elif mode == 3:
+            self.c_mdp.createTransitionProbabilityTensor(0, d_nnz, 0, o_nnz)
         else:
             self.c_mdp.createTransitionProbabilityTensor()
+
 
         cdef pair[int, int] indices = self.c_mdp.getStateOwnershipRange()
         print(f"finished getStateOwnershipRange, {indices.first=}, {indices.second=}")
@@ -159,6 +176,7 @@ cdef class PyMDP:
         print("finished filling values")
         self.c_mdp.assembleMatrix(0)
         print("CreateTransitionProbabilities end")
+
 
     def createStageCosts(self, func):
         print("CreateStageCosts start")

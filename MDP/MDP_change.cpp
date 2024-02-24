@@ -1,6 +1,6 @@
 #include "MDP.h"
 #include <petscksp.h>
-#include <mpi.h>
+// #include <mpi.h>
 #include <iostream>
 #include "../utils/Logger.h"
 #include <chrono>
@@ -93,7 +93,7 @@ PetscErrorCode MDP::createCostMatrix(){
     MatCreate(PETSC_COMM_WORLD, &stageCostMatrix_);
     MatSetSizes(stageCostMatrix_, localNumStates_, PETSC_DECIDE, numStates_, numActions_);
     MatSetType(stageCostMatrix_, MATDENSE);
-    // MatSetFromOptions(costMatrix_);
+    //MatSetFromOptions(stageCostMatrix_);
     MatSetUp(stageCostMatrix_);
     MatGetOwnershipRange(stageCostMatrix_, &g_start_, &g_end_);
     return 0;
@@ -103,10 +103,13 @@ PetscErrorCode MDP::createTransitionProbabilityTensor(PetscInt d_nz, const std::
     if (transitionProbabilityTensor_ != nullptr) {
         MatDestroy(&transitionProbabilityTensor_);
     }
+    const PetscInt *d_nnz_ptr = d_nnz.data(), *o_nnz_ptr = o_nnz.data();
+    if (d_nnz.empty()) d_nnz_ptr = nullptr;
+    if (o_nnz.empty()) o_nnz_ptr = nullptr;
     MatCreate(PETSC_COMM_WORLD, &transitionProbabilityTensor_);
     MatSetSizes(transitionProbabilityTensor_, localNumStates_ * numActions_, PETSC_DECIDE, numStates_ * numActions_, numStates_);
     MatSetFromOptions(transitionProbabilityTensor_);
-    MatMPIAIJSetPreallocation(transitionProbabilityTensor_, d_nz, d_nnz.data(), o_nz, o_nnz.data());
+    MatMPIAIJSetPreallocation(transitionProbabilityTensor_, d_nz, d_nnz_ptr, o_nz, o_nnz_ptr);
     MatSetUp(transitionProbabilityTensor_);
     MatGetOwnershipRange(transitionProbabilityTensor_, &P_start_, &P_end_);
     return 0;

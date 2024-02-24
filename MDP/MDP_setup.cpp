@@ -3,7 +3,7 @@
 //
 
 #include "MDP.h"
-#include <mpi.h>
+// #include <mpi.h>
 #include <string>
 #include<iostream> // todo: replace with logging
 
