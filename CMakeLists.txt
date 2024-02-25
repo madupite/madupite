@@ -1,9 +1,9 @@
-# CMake version requirement and project details
 cmake_minimum_required(VERSION 3.10)
-project(distributed_inexact_policy_iteration)
+project(madupite VERSION 1.0)
 
-# C++ version specification
-set(CMAKE_CXX_STANDARD 17)
+# Specify the C++ standard
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # Compiler flags
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -O3 -march=native -funroll-loops -ffast-math -fopenmp -v")
@@ -19,81 +19,51 @@ include_directories($ENV{PETSC_DIR}/$ENV{PETSC_ARCH}/include)
 
 # MPI configuration
 find_package(MPI REQUIRED)
-#set(CMAKE_CXX_COMPILER ${MPI_CXX_COMPILER})
 include_directories(${MPI_INCLUDE_PATH})
 
 # Boost configuration
 find_package(Boost REQUIRED)
 include_directories(${Boost_INCLUDE_DIRS})
 
-# # nlohmann json configuration
-# include(FetchContent)
-# FetchContent_Declare(json
-#         GIT_REPOSITORY https://github.com/nlohmann/json.git
-#         GIT_TAG        v3.11.2
-#         )
-# FetchContent_MakeAvailable(json)
-# set_target_properties(nlohmann_json PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:nlohmann_json,INTERFACE_INCLUDE_DIRECTORIES>)
+# Add include directories
+include_directories(include)
 
-# Project files
-include_directories(MDP/)
-
-# Add a new library target
+# Define the shared library that compiles from the specified sources
 add_library(madupite SHARED
-MDP/MDP_algorithm.cpp
-MDP/MDP_setup.cpp
-MDP/MDP_change.cpp
-utils/Logger.cpp
+    src/MDP/MDP_algorithm.cpp
+    src/MDP/MDP_change.cpp
+    src/MDP/MDP_setup.cpp
 )
-# Specify the output directory for the shared library
+
+# Specify where the compiled shared library should be placed
 set_target_properties(madupite PROPERTIES
-LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
 )
 
-# Link the necessary libraries to your new library
-target_link_libraries(madupite PkgConfig::PETSC)
-target_link_libraries(madupite ${MPI_LIBRARIES})
-# target_link_libraries(madupite nlohmann_json::nlohmann_json)
+# Add an executable target for example/example.cpp
+add_executable(example example/example.cpp)
 
+# Link the "example" target with the madupite library, PETSc, MPI, and Boost libraries
+target_link_libraries(example
+    madupite
+    PkgConfig::PETSC
+    ${MPI_LIBRARIES}
+    ${Boost_LIBRARIES}
+)
 
-# add_executable(distributed_inexact_policy_iteration
-#         main.cpp
-#         utils/Logger.cpp
-#         MDP/MDP_algorithm.cpp
-#         MDP/MDP_setup.cpp
-#         )
-# # Linking libraries to the executable
-# target_link_libraries(distributed_inexact_policy_iteration PkgConfig::PETSC)
-# target_link_libraries(distributed_inexact_policy_iteration ${MPI_LIBRARIES})
-# target_link_libraries(distributed_inexact_policy_iteration nlohmann_json::nlohmann_json)
+# If the MPI compiler is used, specify that it should compile the "example" target
+if(MPI_COMPILE_FLAGS)
+  set_target_properties(example PROPERTIES
+    COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
+endif()
 
-# # Growth Model
-# include_directories(GrowthModel/)
-# add_executable(growth_model
-#         GrowthModel/main.cpp
-#         GrowthModel/GrowthModel.cpp
-#         MDP/MDP_algorithm.cpp
-#         MDP/MDP_setup.cpp
-#         utils/Logger.cpp
-#         )
+# If the MPI linker flags are needed, specify them for the "example" target
+if(MPI_LINK_FLAGS)
+  set_target_properties(example PROPERTIES
+    LINK_FLAGS "${MPI_LINK_FLAGS}")
+endif()
 
-# # Linking libraries to the second executable
-# target_link_libraries(growth_model PkgConfig::PETSC)
-# target_link_libraries(growth_model ${MPI_LIBRARIES})
-# target_link_libraries(growth_model nlohmann_json::nlohmann_json)
-
-# # Infectious Disease Model
-# include_directories(InfectiousDiseaseModel/)
-# add_executable(infectious_disease_model
-#         InfectiousDiseaseModel/main.cpp
-#         InfectiousDiseaseModel/InfectiousDiseaseModel.cpp
-#         MDP/MDP_algorithm.cpp
-#         MDP/MDP_setup.cpp
-#         utils/Logger.cpp
-#         )
-
-# # Linking libraries to the third executable
-# target_link_libraries(infectious_disease_model PkgConfig::PETSC)
-# target_link_libraries(infectious_disease_model ${MPI_LIBRARIES})
-# target_link_libraries(infectious_disease_model nlohmann_json::nlohmann_json)
-# target_link_libraries(infectious_disease_model PRIVATE ${Boost_LIBRARIES})
+# Ensure the "example" target can find the madupite library at runtime
+set_target_properties(example PROPERTIES
+    INSTALL_RPATH "${CMAKE_BINARY_DIR}/lib"
+)

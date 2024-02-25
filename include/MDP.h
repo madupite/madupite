@@ -10,7 +10,7 @@
 #include <petscmat.h>
 #include <petscksp.h>
 #include <vector>
-#include "../utils/JsonWriter.h"
+#include "JsonWriter.h"
 
 struct KSPContext {
     PetscInt maxIter;       // input
@@ -32,7 +32,7 @@ public:
     // MDP Setup
     virtual PetscErrorCode splitOwnership();
     virtual PetscErrorCode setValuesFromOptions();
-    virtual PetscErrorCode setOption(const char *option, const char *value, bool setValues = true);
+    virtual PetscErrorCode setOption(const char *option, const char *value, bool setValues = false);
     virtual PetscErrorCode loadFromBinaryFile(); // TODO split into P and g
     virtual PetscErrorCode generateCostMatrix(double (*g)(PetscInt, PetscInt));
     virtual PetscErrorCode generateTransitionProbabilityTensor(double (*P)(PetscInt, PetscInt, PetscInt), PetscInt d_nz, const PetscInt *d_nnz, PetscInt o_nz, const PetscInt *o_nnz);

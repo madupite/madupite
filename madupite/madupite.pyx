@@ -266,7 +266,7 @@ class PETScContextManager:
         _finalize_petsc()
 
 ###
-cdef extern from "utils.cpp":
+cdef extern from "../src/utils.cpp":
     cdef int rankPETSCWORLD()
 
 

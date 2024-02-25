@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "madupite"
-version = "0.1"
+version = "4.0"
 authors = [
   { name="Philip Pawlowsky", email="philip.pawlowsky@gmail.com" },
   { name="Robin Sieber", email="rjs02@hotmail.com"}

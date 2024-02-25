@@ -1,114 +1,59 @@
-import shutil
+import os
 import subprocess
-from pathlib import Path
-
-from Cython.Build import cythonize
-from setuptools import Extension, setup, find_packages
-from setuptools.command.build_ext import build_ext as build_ext
-
+import sys
+from setuptools import setup, Extension, find_packages
+from setuptools.command.build_ext import build_ext
 import numpy
+from Cython.Build import cythonize
+
+"""
+.
+├── CMakeLists.txt
+├── MANIFEST.in
+├── example
+│   └── idm.py
+├── include
+│   ├── JsonWriter.h
+│   ├── MDP.h
+│   └── json.h
+├── madupite
+│   ├── __init__.py
+│   └── libmadupite.so
+├── pyproject.toml
+├── setup.py
+├── src
+│   ├── MDP
+│   │   ├── MDP_algorithm.cpp
+│   │   ├── MDP_change.cpp
+│   │   └── MDP_setup.cpp
+│   ├── madupite_wrapper.cpp
+│   ├── madupite_wrapper.pyx
+│   └── utils.cpp
+"""
+
+# cython code: src/madupite_wrapper.pyx
+# libmadupite.so: madupite/libmadupite.so
 
 
-# Check if mpi is installed
-def check_mpi_installed():
-    try:
-        subprocess.check_output(["mpicc", "--version"])
-    except (subprocess.CalledProcessError, OSError):
-        raise RuntimeError(
-            "MPI is not installed. Please install MPI before running this setup script."
-        )
-
-
-# Check if cmake is installed
-def check_cmake_installed():
-    try:
-        subprocess.check_output(["cmake", "--version"])
-    except (subprocess.CalledProcessError, OSError):
-        raise RuntimeError(
-            "CMake is not installed. Please install CMake before running this setup script."
-        )
-
-
-# build extension class for compiling madupite with cmake. Before
-# wrapping with Cython
-class CMakeBuildExt(build_ext):
-    def run(self) -> None:
-        check_cmake_installed()
-        check_mpi_installed()
-        self.build_cmake()
-        super().run()
-
-    def build_cmake(self):
-        # create directory for cmake/make build
-        build_dir = Path(self.build_temp) / "cmake_build"
-        build_dir.mkdir(parents=True, exist_ok=True)
-
-        try:
-            cmake_command = ["cmake", "../../.."]
-            cmake_process = subprocess.Popen(
-                cmake_command,
-                cwd=build_dir,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
-            cmake_output, cmake_error = cmake_process.communicate()
-        except subprocess.CalledProcessError as e:
-            print(
-                f"Warning: Command {e.cmd} failed with exit status {e.returncode}, but continuing."
-            )
-
-        # if cmake_output:
-        #     print(cmake_output.decode())
-
-        # if cmake_error:
-        #     print(cmake_error.decode())
-        #     raise subprocess.CalledProcessError(cmake_process.returncode, cmake_command)
-
-        make_command = ["make"]
-        make_process = subprocess.Popen(
-            make_command, cwd=build_dir, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
-        )
-        for line in make_process.stdout:
-            print(line.decode(), end='')
-
-        # Check for errors in make
-        make_process.wait()
-        if make_process.returncode != 0:
-            raise subprocess.CalledProcessError(make_process.returncode, make_command)
-
-        # copy libmadupite.so to build_lib, s.t. setuptools finds and packages it
-        print("---------------------------")
-        shared_object_file = build_dir / "libmadupite.so"
-        # print(shared_object_file, Path(self.build_temp), Path(self.build_temp).parent)
-        # shutil.copy(shared_object_file, Path(self.build_temp).parent)
-        shared_object_file = build_dir / "libmadupite.so"
-        shutil.copy(shared_object_file, Path(self.build_lib))
-
-
-# nlohmann json library
-# nlohmann_json_include_path = "build/_deps/json-src/include/nlohmann/json.hpp"
-# nlohmann_json_include_path = os.path.join(os.getcwd(), "build/_deps/json-src/include/")
-
-
-# class for the cython wrapping
-cython_ext = Extension(
-    name="madupite",
-    sources=["MDP/MDP.pyx"],
-    include_dirs=["MDP", numpy.get_include(), "utils"],
-    language="c++",
-    extra_compile_args=["-std=c++11"],
-    extra_objects=["build/temp.linux-x86_64-cpython-311/cmake_build/libmadupite.so"],
-    extra_link_args=["-Wl,-rpath,$ORIGIN"],
-    # compiler_directives={"embedsignature": True},
-)
-
-if __name__ == "__main__":
-    setup(
-        name="madupite",
-        ext_modules=cythonize(cython_ext),
-        packages=find_packages(include=["MDP", "MDP.*"]),  # Include only MDP package
-        cmdclass={"build_ext": CMakeBuildExt},
-        package_data={"": ["*.so"]},
-        include_package_data=True,
-        zip_safe=False,
+extension = Extension(
+        "madupite.madupite",  # Name of the module
+        ["madupite/madupite.pyx"],  # Source file
+        include_dirs=[numpy.get_include(), "include"],  # Include directories for header files
+        library_dirs=["madupite"],  # Directory where the libmadupite.so file is located
+        libraries=["madupite"],  # The name of the library to link against, without the 'lib' prefix and '.so' suffix
+        runtime_library_dirs=["$ORIGIN"],  # Search path for runtime libraries
+        extra_link_args=["-Wl,-rpath,$ORIGIN"],
+        extra_objects=["madupite/libmadupite.so"],  
+        language="c++",  
     )
+
+setup(
+    name="madupite",
+    author="Philip & Robin",
+    packages=find_packages(),
+    package_dir={"madupite": "madupite"},
+    package_data={"madupite": ["libmadupite.so"], "src": ["wrapper.pyx"]},
+    ext_modules=cythonize(extension, language_level="3"),  # Use cythonize on the extension modules
+    include_package_data=True,
+    zip_safe=False,
+)
