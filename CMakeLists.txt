@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # Compiler flags
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -O3 -march=native -funroll-loops -ffast-math -fopenmp -v")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -O3 -funroll-loops -ffast-math -fopenmp -v")
 
 # PETSc configuration
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
@@ -33,6 +33,13 @@ add_library(madupite SHARED
     src/MDP/MDP_algorithm.cpp
     src/MDP/MDP_change.cpp
     src/MDP/MDP_setup.cpp
+)
+
+# Link the madupite library with PETSc, MPI, and Boost libraries
+target_link_libraries(madupite
+    PkgConfig::PETSC
+    ${MPI_LIBRARIES}
+    ${Boost_LIBRARIES}
 )
 
 # Specify where the compiled shared library should be placed

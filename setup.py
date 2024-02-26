@@ -18,6 +18,7 @@ from Cython.Build import cythonize
 │   └── json.h
 ├── madupite
 │   ├── __init__.py
+│   ├── madupite.pyx
 │   └── libmadupite.so
 ├── pyproject.toml
 ├── setup.py
@@ -26,8 +27,6 @@ from Cython.Build import cythonize
 │   │   ├── MDP_algorithm.cpp
 │   │   ├── MDP_change.cpp
 │   │   └── MDP_setup.cpp
-│   ├── madupite_wrapper.cpp
-│   ├── madupite_wrapper.pyx
 │   └── utils.cpp
 """
 
@@ -35,25 +34,30 @@ from Cython.Build import cythonize
 # libmadupite.so: madupite/libmadupite.so
 
 
-extension = Extension(
-        "madupite.madupite",  # Name of the module
-        ["madupite/madupite.pyx"],  # Source file
-        include_dirs=[numpy.get_include(), "include"],  # Include directories for header files
-        library_dirs=["madupite"],  # Directory where the libmadupite.so file is located
-        libraries=["madupite"],  # The name of the library to link against, without the 'lib' prefix and '.so' suffix
-        runtime_library_dirs=["$ORIGIN"],  # Search path for runtime libraries
-        extra_link_args=["-Wl,-rpath,$ORIGIN"],
-        extra_objects=["madupite/libmadupite.so"],  
-        language="c++",  
+# Define the extension module
+extensions = [
+    Extension(
+        name='madupite.madupite',  # Name of the module
+        sources=['madupite/madupite.pyx'],  # Source file
+        include_dirs=[numpy.get_include(), './include'],  # Include directories for C++ headers
+        libraries=['madupite'],  # Name of the library (without 'lib' prefix and '.so' suffix)
+        library_dirs=['./madupite'],  # Directory where the library is located
+        runtime_library_dirs=['$ORIGIN'],  # Search path for runtime libraries
+        extra_compile_args=['-std=c++11'],  # Additional flags for the compiler
+        # extra_link_args=['-Wl,-rpath,$ORIGIN'],  # Additional flags for the linker
+        language='c++',  # Specify the language
     )
+]
 
+# Setup function
 setup(
-    name="madupite",
-    author="Philip & Robin",
+    name='madupite',
+    version='5.0',
+    author='Your Name',
+    author_email='your.email@example.com',
+    description='A Python wrapper for the Madupite library',
     packages=find_packages(),
-    package_dir={"madupite": "madupite"},
-    package_data={"madupite": ["libmadupite.so"], "src": ["wrapper.pyx"]},
-    ext_modules=cythonize(extension, language_level="3"),  # Use cythonize on the extension modules
+    ext_modules=cythonize(extensions, language_level="3"),  # Cythonize the extension
     include_package_data=True,
     zip_safe=False,
 )

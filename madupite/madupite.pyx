@@ -1,5 +1,5 @@
-# distutils: language = c++
-# cython: language_level = 3
+# distutils: language=c++
+# cython: language_level=3
 
 # Import necessary Cython and Python libraries
 import numpy as np
@@ -108,12 +108,33 @@ cdef class PyMDP:
     def loadFromBinaryFile(self):
         self.c_mdp.loadFromBinaryFile()
 
+
+    def createTP0(self, pre_alloc):
+        cdef vector[int] emptyVec = vector[int]()
+        self.c_mdp.createTransitionProbabilityTensor(pre_alloc[0], emptyVec, pre_alloc[1], emptyVec)
+
+    def createTP1(self, pre_alloc):
+        cdef vector[int] o_nnz = pre_alloc[1]
+        cdef vector[int] emptyVec = vector[int]()
+        self.c_mdp.createTransitionProbabilityTensor(pre_alloc[0], emptyVec, 0, o_nnz)
+
+    def createTP2(self, pre_alloc):
+        cdef vector[int] d_nnz = pre_alloc[0]
+        cdef vector[int] emptyVec = vector[int]()
+        self.c_mdp.createTransitionProbabilityTensor(0, d_nnz, pre_alloc[1], emptyVec)
+
+    def createTP3(self, pre_alloc):
+        cdef vector[int] d_nnz = pre_alloc[0]
+        cdef vector[int] o_nnz = pre_alloc[1]
+        self.c_mdp.createTransitionProbabilityTensor(0, d_nnz, 0, o_nnz)
+
+
     def createTransitionProbabilities(self, func, pre_alloc=None):
         print("CreateTransitionProbabilities start")
         # check function signature
-        params = inspect.signature(func).parameters
-        if len(params) != 2:
-            raise ValueError("func should have exactly two parameters: state and action. Function signature: func(state, action) -> (next_states, probs), where next_states contains indices of the next states and probs (correspondig transition probabilities) are lists")
+        # params = inspect.signature(func).parameters
+        # if len(params) != 2:
+        #     raise ValueError("func should have exactly two parameters: state and action. Function signature: func(state, action) -> (next_states, probs), where next_states contains indices of the next states and probs (correspondig transition probabilities) are lists")
 
         # user's choice to pre-allocate memory
         # pre_alloc = [d_nz | d_nnz, o_nz | o_nnz] 
@@ -135,8 +156,9 @@ cdef class PyMDP:
 
         mode = 0
         if pre_alloc is None:
-            # no preallocation
+            print("no preallocation")
             self.c_mdp.createTransitionProbabilityTensor()
+
         else:
             if len(pre_alloc) != 2:
                 raise ValueError("pre_alloc should be a tuple [d_nz | [d_nnz], o_nz | [o_nnz]] where d_nnz and o_nnz are lists or None if no preallocation is desired (not recommended)")
@@ -146,23 +168,18 @@ cdef class PyMDP:
             if isinstance(pre_alloc[1], list):
                 mode |= 2 # set Bit nr. 2 to 1
 
-        print(f"{mode=}")
 
-        cdef vector[int] d_nnz = pre_alloc[1] # can't be defined within if statement
-        cdef vector[int] o_nnz = pre_alloc[3]
-        cdef vector[int] emptyVec = vector[int]()
-
-        if mode == 0:
-            self.c_mdp.createTransitionProbabilityTensor(pre_alloc[0], emptyVec, pre_alloc[1], emptyVec)
-        elif mode == 1:
-            self.c_mdp.createTransitionProbabilityTensor(pre_alloc[0], emptyVec, 0, o_nnz)
-        elif mode == 2:
-            self.c_mdp.createTransitionProbabilityTensor(0, d_nnz, pre_alloc[1], emptyVec)
-        elif mode == 3:
-            self.c_mdp.createTransitionProbabilityTensor(0, d_nnz, 0, o_nnz)
+        if pre_alloc is not None and mode == 0:
+            self.createTP0(pre_alloc)
+        elif pre_alloc is not None and mode == 1:
+            self.createTP1(pre_alloc)
+        elif pre_alloc is not None and mode == 2:
+            self.createTP2(pre_alloc)
+        elif pre_alloc is not None and mode == 3:
+            self.createTP3(pre_alloc)
         else:
             self.c_mdp.createTransitionProbabilityTensor()
-
+        print(f"{mode=}")
 
         cdef pair[int, int] indices = self.c_mdp.getStateOwnershipRange()
         print(f"finished getStateOwnershipRange, {indices.first=}, {indices.second=}")

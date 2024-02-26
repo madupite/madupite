@@ -13,3 +13,5 @@ madupite.egg*
 log*.txt
 MDP/MDP.cpp
 */*.out
+*.out
+dist/
