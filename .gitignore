@@ -15,3 +15,4 @@ MDP/MDP.cpp
 */*.out
 *.out
 dist/
+madupite/madupite.cpp
