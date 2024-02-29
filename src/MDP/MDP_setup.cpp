@@ -44,52 +44,52 @@ PetscErrorCode MDP::setValuesFromOptions() {
     PetscErrorCode ierr;
     PetscBool flg;
 
-    ierr = PetscOptionsGetInt(NULL, NULL, "-numStates", &numStates_, &flg); CHKERRQ(ierr);
+    ierr = PetscOptionsGetInt(NULL, NULL, "-num_states", &numStates_, &flg); CHKERRQ(ierr);
     if(flg) { // set local num states here if numStates_ is set (e.g. not the case for loading from file)
         splitOwnership();
     }
     // jsonWriter_->add_data("numStates", numStates_);
-    ierr = PetscOptionsGetInt(NULL, NULL, "-numActions", &numActions_, &flg); CHKERRQ(ierr);
+    ierr = PetscOptionsGetInt(NULL, NULL, "-num_actions", &numActions_, &flg); CHKERRQ(ierr);
 
-    ierr = PetscOptionsGetReal(NULL, NULL, "-discountFactor", &discountFactor_, &flg); CHKERRQ(ierr);
+    ierr = PetscOptionsGetReal(NULL, NULL, "-discount_factor", &discountFactor_, &flg); CHKERRQ(ierr);
     if(!flg) {
         SETERRQ(PETSC_COMM_WORLD, 1, "Discount factor not specified. Use -discountFactor <double>.");
     }
     // jsonWriter_->add_data("discountFactor", discountFactor_);
-    ierr = PetscOptionsGetInt(NULL, NULL, "-maxIter_PI", &maxIter_PI_, &flg); CHKERRQ(ierr);
+    ierr = PetscOptionsGetInt(NULL, NULL, "-max_iter_pi", &maxIter_PI_, &flg); CHKERRQ(ierr);
     if(!flg) {
         SETERRQ(PETSC_COMM_WORLD, 1, "Maximum number of policy iterations not specified. Use -maxIter_PI <int>.");
     }
     // jsonWriter_->add_data("maxIter_PI", maxIter_PI_);
-    ierr = PetscOptionsGetInt(NULL, NULL, "-maxIter_KSP", &maxIter_KSP_, &flg); CHKERRQ(ierr);
+    ierr = PetscOptionsGetInt(NULL, NULL, "-max_iter_ksp", &maxIter_KSP_, &flg); CHKERRQ(ierr);
     if(!flg) {
         SETERRQ(PETSC_COMM_WORLD, 1, "Maximum number of KSP iterations not specified. Use -maxIter_KSP <int>.");
     }
     // jsonWriter_->add_data("maxIter_KSP", maxIter_KSP_);
-    ierr = PetscOptionsGetInt(NULL, NULL, "-numPIRuns", &numPIRuns_, &flg); CHKERRQ(ierr);
+    ierr = PetscOptionsGetInt(NULL, NULL, "-num_pi_runs", &numPIRuns_, &flg); CHKERRQ(ierr);
     if(!flg) {
         //SETERRQ(PETSC_COMM_WORLD, 1, "Maximum number of KSP iterations not specified. Use -maxIter_KSP <int>.");
         // LOG("Number of PI runs for benchmarking not specified. Use -numPIRuns <int>. Default: 1");
         numPIRuns_ = 1;
     }
     // jsonWriter_->add_data("numPIRuns", numPIRuns_);
-    ierr = PetscOptionsGetReal(NULL, NULL, "-rtol_KSP", &rtol_KSP_, &flg); CHKERRQ(ierr);
+    ierr = PetscOptionsGetReal(NULL, NULL, "-rtol_ksp", &rtol_KSP_, &flg); CHKERRQ(ierr);
     if(!flg) {
         SETERRQ(PETSC_COMM_WORLD, 1, "Relative tolerance for KSP not specified. Use -rtol_KSP <double>.");
     }
     // jsonWriter_->add_data("rtol_KSP", rtol_KSP_);
-    ierr = PetscOptionsGetReal(NULL, NULL, "-atol_PI", &atol_PI_, &flg); CHKERRQ(ierr);
+    ierr = PetscOptionsGetReal(NULL, NULL, "-atol_pi", &atol_PI_, &flg); CHKERRQ(ierr);
     if(!flg) {
         SETERRQ(PETSC_COMM_WORLD, 1, "Absolute tolerance for policy iteration not specified. Use -atol_PI <double>.");
     }
     // jsonWriter_->add_data("atol_PI", atol_PI_);
-    ierr = PetscOptionsGetString(NULL, NULL, "-file_P", file_P_, PETSC_MAX_PATH_LEN, &flg); CHKERRQ(ierr);
+    ierr = PetscOptionsGetString(NULL, NULL, "-file_probabilities", file_P_, PETSC_MAX_PATH_LEN, &flg); CHKERRQ(ierr);
     if(!flg) {
         //SETERRQ(PETSC_COMM_WORLD, 1, "Filename for transition probability tensor not specified. Use -file_P <string>. (max length: 4096 chars");
         // LOG("Warning: Filename for transition probability tensor not specified. Use -file_P <string>. (max length: 4096 chars");
         file_P_[0] = '\0';
     }
-    ierr = PetscOptionsGetString(NULL, NULL, "-file_g", file_g_, PETSC_MAX_PATH_LEN, &flg); CHKERRQ(ierr);
+    ierr = PetscOptionsGetString(NULL, NULL, "-file_costs", file_g_, PETSC_MAX_PATH_LEN, &flg); CHKERRQ(ierr);
     if(!flg) {
         //SETERRQ(PETSC_COMM_WORLD, 1, "Filename for stage cost matrix not specified. Use -file_g <string>. (max length: 4096 chars");
         // LOG("Warning: Filename for stage cost matrix not specified. Use -file_g <string>. (max length: 4096 chars");

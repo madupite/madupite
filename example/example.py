@@ -19,15 +19,15 @@ with md.PETScContextManager():
     start = time.time() if md.MPI_master() else 0
 
     # create MDP using functions
-    mdp.setOption("-numStates", "10000")
-    mdp.setOption("-numActions", "500")
+    mdp.setOption("-num_states", "10000")
+    mdp.setOption("-num_actions", "500")
     mdp.setValuesFromOptions()
     mdp.createTransitionProbabilities(transprob)
     mdp.createStageCosts(stagecost)
 
     # change inner solver and discount factor
     mdp.setOption("-ksp_type", "tfqmr")
-    mdp["-discountFactor"] = "0.999"
+    mdp["-discount_factor"] = "0.999"
     mdp.setValuesFromOptions()
     end = time.time() if md.MPI_master() else 0
 
