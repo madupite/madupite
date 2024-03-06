@@ -1,16 +1,10 @@
-install sphinx in conda otherwise it does not find madupite
-
+For documentation: install sphinx in conda otherwise it does not find madupite
 
 To build madupite
 ```bash
-rm -rf cmake-build
-mkdir cmake-build
-cd cmake-build
-cmake ..
-make
-cp lib/libmadupite.so ../madupite/libmadupite.so
-cd ..
+conda env create -f environment.yml
+conda activate madupiteenv
 pip install .
 ```
 
-to test: `python example/idm.py`
+to test: `python example/idm.py` and `mpirun -n 4 python example/idm.py`
