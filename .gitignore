@@ -12,7 +12,10 @@ madupite.egg*
 **/log*
 log*.txt
 MDP/MDP.cpp
-*/*.out
-*.out
+**/*.out
 dist/
 madupite/madupite.cpp
+**/compile_commands.json
+petsc-env
+**/.cache
+**/stats.json
