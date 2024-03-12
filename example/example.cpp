@@ -24,7 +24,7 @@ double P(int s, int a, int s_prime) {
 int main(int argc, char** argv)
 {
     // Initialize PETSc
-    PetscInitialize(&argc, &argv, PETSC_NULL, PETSC_NULL);
+    PetscInitialize(&argc, &argv, PETSC_NULLPTR, PETSC_NULLPTR);
     
     MDP mdp;
     mdp.setOption("-mode", "MINCOST");
