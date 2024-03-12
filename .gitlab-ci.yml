@@ -1,0 +1,35 @@
+image: continuumio/miniconda3
+
+stages:
+  - prepare
+  - build
+  - test
+
+before_script:
+  - conda info --envs
+  - conda env create -f environment.yml || conda env update -f environment.yml
+  - conda activate madupiteenv
+
+create_environment:
+  stage: prepare
+  script:
+    - conda env create -f environment.yml || conda env update -f environment.yml
+    - echo "Environment created or updated"
+
+build:
+  stage: build
+  script:
+    - echo "Building the project"
+    - mkdir build
+    - cd build
+    - cmake ..
+
+test:
+  stage: test
+  script:
+    - echo "Running tests"
+    # Your test commands here
+    - cd build
+    - ./example
+    - echo "Finished with code $?"
+    
