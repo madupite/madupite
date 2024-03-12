@@ -5,12 +5,63 @@
 #ifndef DISTRIBUTED_INEXACT_POLICY_ITERATION_MDP_H
 #define DISTRIBUTED_INEXACT_POLICY_ITERATION_MDP_H
 
-#include <petsc.h>
+#include <mpi.h>
+#include <petscerror.h>
+#include <petscsystypes.h>
 #include <petscvec.h>
 #include <petscmat.h>
 #include <petscksp.h>
+
+#include <exception>
+#include <string>
 #include <vector>
+
 #include "JsonWriter.h"
+
+class PetscException : public std::exception {
+private:
+    int ierr;
+    std::string message;
+public:
+    PetscException(int ierr, const std::string& message) : ierr(ierr), message(message) {}
+
+    const char* what() const noexcept override {
+        return message.c_str();
+    }
+
+    int code() const noexcept {
+        return ierr;
+    }
+};
+
+#define PetscCallNoThrow(...) \
+do { \
+    PetscStackUpdateLine; \
+    PetscErrorCode ierr = __VA_ARGS__; \
+    if (PetscUnlikely(ierr != PETSC_SUCCESS)) { \
+        PetscError(PETSC_COMM_SELF, __LINE__, PETSC_FUNCTION_NAME, __FILE__, ierr, PETSC_ERROR_IN_CXX, PETSC_NULLPTR); \
+    } \
+} while (0)
+
+#define PetscCallThrow(...) \
+do { \
+    PetscStackUpdateLine; \
+    PetscErrorCode ierr = __VA_ARGS__; \
+    if (PetscUnlikely(ierr != PETSC_SUCCESS)) { \
+        char *msg; \
+        PetscError(PETSC_COMM_SELF, __LINE__, PETSC_FUNCTION_NAME, __FILE__, ierr, PETSC_ERROR_IN_CXX, PETSC_NULLPTR); \
+        PetscErrorMessage(ierr, PETSC_NULLPTR, &msg); \
+        throw PetscException(ierr, std::string(msg)); \
+    } \
+} while (0)
+
+#define PetscThrow(comm, ierr, ...) \
+do { \
+    char *msg; \
+    PetscError(comm, __LINE__, PETSC_FUNCTION_NAME, __FILE__, ierr, PETSC_ERROR_INITIAL, __VA_ARGS__); \
+    PetscErrorMessage(ierr, PETSC_NULLPTR, &msg); \
+    throw PetscException(ierr, std::string(msg)); \
+} while (0)
 
 struct KSPContext {
     PetscInt maxIter;       // input
