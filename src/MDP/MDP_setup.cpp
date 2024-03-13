@@ -27,10 +27,10 @@ MDP::MDP() {
 }
 
 MDP::~MDP() {
-    PetscCallThrow(MatDestroy(&transitionProbabilityTensor_));
-    PetscCallThrow(MatDestroy(&stageCostMatrix_));
-    PetscCallThrow(MatDestroy(&costMatrix_));
-    PetscCallThrow(VecDestroy(&costVector_));
+    PetscCallNoThrow(MatDestroy(&transitionProbabilityTensor_));
+    PetscCallNoThrow(MatDestroy(&stageCostMatrix_));
+    PetscCallNoThrow(MatDestroy(&costMatrix_));
+    PetscCallNoThrow(VecDestroy(&costVector_));
     //delete jsonWriter_; // todo fix this (double free or corruption error)
 }
 
@@ -39,76 +39,76 @@ void MDP::splitOwnership() {
     localNumStates_ = (rank_ < numStates_ % size_) ? numStates_ / size_ + 1 : numStates_ / size_; // first numStates_ % size_ ranks get one more state
 }
 
-void MDP::setValuesFromOptions() {
+PetscErrorCode MDP::setValuesFromOptions() {
     PetscBool flg;
 
-    PetscCallThrow(PetscOptionsGetInt(NULL, NULL, "-num_states", &numStates_, &flg));
+    PetscCall(PetscOptionsGetInt(NULL, NULL, "-num_states", &numStates_, &flg));
     if(flg) { // set local num states here if numStates_ is set (e.g. not the case for loading from file)
         splitOwnership();
     }
     // jsonWriter_->add_data("numStates", numStates_);
-    PetscCallThrow(PetscOptionsGetInt(NULL, NULL, "-num_actions", &numActions_, &flg));
+    PetscCall(PetscOptionsGetInt(NULL, NULL, "-num_actions", &numActions_, &flg));
 
-    PetscCallThrow(PetscOptionsGetReal(NULL, NULL, "-discount_factor", &discountFactor_, &flg));
+    PetscCall(PetscOptionsGetReal(NULL, NULL, "-discount_factor", &discountFactor_, &flg));
     if(!flg) {
         SETERRQ(PETSC_COMM_WORLD, 1, "Discount factor not specified. Use -discountFactor <double>.");
     }
     // jsonWriter_->add_data("discountFactor", discountFactor_);
-    PetscCallThrow(PetscOptionsGetInt(NULL, NULL, "-max_iter_pi", &maxIter_PI_, &flg));
+    PetscCall(PetscOptionsGetInt(NULL, NULL, "-max_iter_pi", &maxIter_PI_, &flg));
     if(!flg) {
         SETERRQ(PETSC_COMM_WORLD, 1, "Maximum number of policy iterations not specified. Use -maxIter_PI <int>.");
     }
     // jsonWriter_->add_data("maxIter_PI", maxIter_PI_);
-    PetscCallThrow(PetscOptionsGetInt(NULL, NULL, "-max_iter_ksp", &maxIter_KSP_, &flg));
+    PetscCall(PetscOptionsGetInt(NULL, NULL, "-max_iter_ksp", &maxIter_KSP_, &flg));
     if(!flg) {
         SETERRQ(PETSC_COMM_WORLD, 1, "Maximum number of KSP iterations not specified. Use -maxIter_KSP <int>.");
     }
     // jsonWriter_->add_data("maxIter_KSP", maxIter_KSP_);
-    PetscCallThrow(PetscOptionsGetInt(NULL, NULL, "-num_pi_runs", &numPIRuns_, &flg));
+    PetscCall(PetscOptionsGetInt(NULL, NULL, "-num_pi_runs", &numPIRuns_, &flg));
     if(!flg) {
         //SETERRQ(PETSC_COMM_WORLD, 1, "Maximum number of KSP iterations not specified. Use -maxIter_KSP <int>.");
         // LOG("Number of PI runs for benchmarking not specified. Use -numPIRuns <int>. Default: 1");
         numPIRuns_ = 1;
     }
     // jsonWriter_->add_data("numPIRuns", numPIRuns_);
-    PetscCallThrow(PetscOptionsGetReal(NULL, NULL, "-rtol_ksp", &rtol_KSP_, &flg));
+    PetscCall(PetscOptionsGetReal(NULL, NULL, "-rtol_ksp", &rtol_KSP_, &flg));
     if(!flg) {
         SETERRQ(PETSC_COMM_WORLD, 1, "Relative tolerance for KSP not specified. Use -rtol_KSP <double>.");
     }
     // jsonWriter_->add_data("rtol_KSP", rtol_KSP_);
-    PetscCallThrow(PetscOptionsGetReal(NULL, NULL, "-atol_pi", &atol_PI_, &flg));
+    PetscCall(PetscOptionsGetReal(NULL, NULL, "-atol_pi", &atol_PI_, &flg));
     if(!flg) {
         SETERRQ(PETSC_COMM_WORLD, 1, "Absolute tolerance for policy iteration not specified. Use -atol_PI <double>.");
     }
     // jsonWriter_->add_data("atol_PI", atol_PI_);
-    PetscCallThrow(PetscOptionsGetString(NULL, NULL, "-file_probabilities", file_P_, PETSC_MAX_PATH_LEN, &flg));
+    PetscCall(PetscOptionsGetString(NULL, NULL, "-file_probabilities", file_P_, PETSC_MAX_PATH_LEN, &flg));
     if(!flg) {
         //SETERRQ(PETSC_COMM_WORLD, 1, "Filename for transition probability tensor not specified. Use -file_P <string>. (max length: 4096 chars");
         // LOG("Warning: Filename for transition probability tensor not specified. Use -file_P <string>. (max length: 4096 chars");
         file_P_[0] = '\0';
     }
-    PetscCallThrow(PetscOptionsGetString(NULL, NULL, "-file_costs", file_g_, PETSC_MAX_PATH_LEN, &flg));
+    PetscCall(PetscOptionsGetString(NULL, NULL, "-file_costs", file_g_, PETSC_MAX_PATH_LEN, &flg));
     if(!flg) {
         //SETERRQ(PETSC_COMM_WORLD, 1, "Filename for stage cost matrix not specified. Use -file_g <string>. (max length: 4096 chars");
         // LOG("Warning: Filename for stage cost matrix not specified. Use -file_g <string>. (max length: 4096 chars");
         file_g_[0] = '\0';
     }
-    PetscCallThrow(PetscOptionsGetString(NULL, NULL, "-file_policy", file_policy_, PETSC_MAX_PATH_LEN, &flg));
+    PetscCall(PetscOptionsGetString(NULL, NULL, "-file_policy", file_policy_, PETSC_MAX_PATH_LEN, &flg));
     if(!flg) {
         // LOG("Filename for policy not specified. Optimal policy will not be written to file.");
         file_policy_[0] = '\0';
     }
-    PetscCallThrow(PetscOptionsGetString(NULL, NULL, "-file_cost", file_cost_, PETSC_MAX_PATH_LEN, &flg));
+    PetscCall(PetscOptionsGetString(NULL, NULL, "-file_cost", file_cost_, PETSC_MAX_PATH_LEN, &flg));
     if(!flg) {
         // LOG("Filename for cost not specified. Optimal cost will not be written to file.");
         file_cost_[0] = '\0';
     }
-    PetscCallThrow(PetscOptionsGetString(NULL, NULL, "-file_stats", file_stats_, PETSC_MAX_PATH_LEN, &flg));
+    PetscCall(PetscOptionsGetString(NULL, NULL, "-file_stats", file_stats_, PETSC_MAX_PATH_LEN, &flg));
     if(!flg) {
         SETERRQ(PETSC_COMM_WORLD, 1, "Filename for statistics not specified. Use -file_stats <string>. (max length: 4096 chars");
     }
     PetscChar inputMode[20];
-    PetscCallThrow(PetscOptionsGetString(NULL, NULL, "-mode", inputMode, 20, &flg));
+    PetscCall(PetscOptionsGetString(NULL, NULL, "-mode", inputMode, 20, &flg));
     if(!flg) {
         SETERRQ(PETSC_COMM_WORLD, 1, "Input mode not specified. Use -mode MINCOST or MAXREWARD.");
     }
@@ -125,6 +125,8 @@ void MDP::setValuesFromOptions() {
     // set local number of states (for this rank)
     // localNumStates_ = (rank_ < numStates_ % size_) ? numStates_ / size_ + 1 : numStates_ / size_; // first numStates_ % size_ ranks get one more state
     // LOG("owns " + std::to_string(localNumStates_) + " states.");
+
+    return 0;
 }
 
 void MDP::setOption(const char *option, const char *value, bool setValues) {
@@ -140,7 +142,6 @@ void MDP::setOption(const char *option, const char *value, bool setValues) {
 void MDP::loadFromBinaryFile() {
     // LOG("Loading MDP from binary file: " + std::string(file_P_) + ", " + std::string(file_g_));
     std::cout << "Loading MDP from binary file: " << file_P_ << ", " << file_g_ << std::endl;
-    PetscErrorCode ierr = 0;
     PetscViewer viewer;
 
     // Read number of states and actions from file
@@ -155,7 +156,7 @@ void MDP::loadFromBinaryFile() {
     PetscCallThrow(PetscViewerBinaryOpen(PETSC_COMM_WORLD, file_P_, FILE_MODE_READ, &viewer));
     PetscCallThrow(PetscViewerBinaryRead(viewer, sizes, 4, PETSC_NULLPTR, PETSC_INT));
     if (sizes[1] != numStates_ * numActions_ || sizes[2] != numStates_) {
-        SETERRQ(PETSC_COMM_WORLD, 1, "Sizes of cost matrix and transition probability tensor not compatible.\nIt should hold that P: nm x n, g: n x m,\nwhere n is the number of states and m is the number of actions.\n");
+        PetscThrow(PETSC_COMM_WORLD, 1, "Sizes of cost matrix and transition probability tensor not compatible.\nIt should hold that P: nm x n, g: n x m,\nwhere n is the number of states and m is the number of actions.\n");
     }
     PetscCallThrow(PetscViewerDestroy(&viewer));
 
@@ -282,7 +283,7 @@ void MDP::writeIS(const IS &is, const char *filename) {
 void MDP::generateCostMatrix(double (*g)(PetscInt, PetscInt)) {
     // assert numStates_ and numActions_ are set
     if (numStates_ == 0 || numActions_ == 0) {
-        SETERRQ(PETSC_COMM_WORLD, 1, "Number of states and actions not set.");
+        PetscThrow(PETSC_COMM_WORLD, 1, "Number of states and actions not set.");
     }
 
     // create stage cost matrix
@@ -309,7 +310,7 @@ void MDP::generateCostMatrix(double (*g)(PetscInt, PetscInt)) {
 void MDP::generateTransitionProbabilityTensor(double (*P)(PetscInt, PetscInt, PetscInt), PetscInt d_nz, const PetscInt *d_nnz, PetscInt o_nz, const PetscInt *o_nnz) {
     // assert numStates_ and numActions_ are set
     if (numStates_ == -1 || numActions_ == -1) {
-        SETERRQ(PETSC_COMM_WORLD, 1, "Number of states and actions not set.");
+        PetscThrow(PETSC_COMM_WORLD, 1, "Number of states and actions not set.");
     }
 
     // create transition probability tensor

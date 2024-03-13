@@ -82,7 +82,7 @@ public:
 
     // MDP Setup
     void splitOwnership();
-    void setValuesFromOptions();
+    PetscErrorCode setValuesFromOptions();
     void setOption(const char *option, const char *value, bool setValues = false);
     void loadFromBinaryFile(); // TODO split into P and g
     void generateCostMatrix(double (*g)(PetscInt, PetscInt));
