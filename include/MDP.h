@@ -30,12 +30,12 @@ public:
     ~MDP();
 
     // MDP Setup
-    virtual PetscErrorCode splitOwnership();
-    virtual PetscErrorCode setValuesFromOptions();
-    virtual PetscErrorCode setOption(const char *option, const char *value, bool setValues = false);
-    virtual PetscErrorCode loadFromBinaryFile(); // TODO split into P and g
-    virtual PetscErrorCode generateCostMatrix(double (*g)(PetscInt, PetscInt));
-    virtual PetscErrorCode generateTransitionProbabilityTensor(double (*P)(PetscInt, PetscInt, PetscInt), PetscInt d_nz, const PetscInt *d_nnz, PetscInt o_nz, const PetscInt *o_nnz);
+    PetscErrorCode splitOwnership();
+    PetscErrorCode setValuesFromOptions();
+    PetscErrorCode setOption(const char *option, const char *value, bool setValues = false);
+    PetscErrorCode loadFromBinaryFile(); // TODO split into P and g
+    PetscErrorCode generateCostMatrix(double (*g)(PetscInt, PetscInt));
+    PetscErrorCode generateTransitionProbabilityTensor(double (*P)(PetscInt, PetscInt, PetscInt), PetscInt d_nz, const PetscInt *d_nnz, PetscInt o_nz, const PetscInt *o_nnz);
     
     // functions needed for parallel matrix generation
     std::pair<int, int> request_states(int nstates, int mactions, int matrix, int prealloc);  // matrix = 0: transitionProbabilityTensor_, matrix = 1: stageCostMatrix_
@@ -50,11 +50,11 @@ public:
 
 
     // MDP Algorithm
-    virtual PetscErrorCode extractGreedyPolicy(const Vec &V, PetscInt *policy, PetscReal &residualNorm);
-    virtual PetscErrorCode constructFromPolicy(const PetscInt   *policy, Mat &transitionProbabilities, Vec &stageCosts);
-    virtual PetscErrorCode iterativePolicyEvaluation(const Mat &jacobian, const Vec &stageCosts, Vec &V, KSPContext &ctx);
-    virtual PetscErrorCode createJacobian(Mat &jacobian, const Mat &transitionProbabilities, JacobianContext &ctx);
-    virtual PetscErrorCode inexactPolicyIteration();
+    PetscErrorCode extractGreedyPolicy(const Vec &V, PetscInt *policy, PetscReal &residualNorm);
+    PetscErrorCode constructFromPolicy(const PetscInt   *policy, Mat &transitionProbabilities, Vec &stageCosts);
+    PetscErrorCode iterativePolicyEvaluation(const Mat &jacobian, const Vec &stageCosts, Vec &V, KSPContext &ctx);
+    PetscErrorCode createJacobian(Mat &jacobian, const Mat &transitionProbabilities, JacobianContext &ctx);
+    PetscErrorCode inexactPolicyIteration();
     // virtual PetscErrorCode benchmarkIPI(const Vec &V0, IS &policy, Vec &optimalCost);
 
     // maybe private, depends on usage of output / storing results
@@ -65,7 +65,7 @@ public:
     static PetscErrorCode cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason *reason, void *ctx); // Test if residual norm is smaller than alpha * r0_norm
     static void jacobianMultiplication(Mat mat, Vec x, Vec y);          // defines matrix vector product for jacobian shell
     static void jacobianMultiplicationTranspose(Mat mat, Vec x, Vec y); // defines tranposed matrix vector product for jacobian shell (needed for some KSP methods)
-    virtual PetscErrorCode writeJSONmetadata();
+    PetscErrorCode writeJSONmetadata();
 
 
     // user specified options
