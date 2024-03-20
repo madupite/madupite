@@ -81,12 +81,12 @@ public:
     ~MDP();
 
     // MDP Setup
-    PetscErrorCode splitOwnership();
-    PetscErrorCode setValuesFromOptions();
-    PetscErrorCode setOption(const char *option, const char *value, bool setValues = false);
-    PetscErrorCode loadFromBinaryFile(); // TODO split into P and g
-    PetscErrorCode generateCostMatrix(double (*g)(PetscInt, PetscInt));
-    PetscErrorCode generateTransitionProbabilityTensor(double (*P)(PetscInt, PetscInt, PetscInt), PetscInt d_nz, const PetscInt *d_nnz, PetscInt o_nz, const PetscInt *o_nnz);
+    void splitOwnership();
+    void setValuesFromOptions();
+    void setOption(const char *option, const char *value, bool setValues = false);
+    void loadFromBinaryFile(); // TODO split into P and g
+    void generateCostMatrix(double (*g)(PetscInt, PetscInt));
+    void generateTransitionProbabilityTensor(double (*P)(PetscInt, PetscInt, PetscInt), PetscInt d_nz, const PetscInt *d_nnz, PetscInt o_nz, const PetscInt *o_nnz);
     
     // functions needed for parallel matrix generation
     std::pair<int, int> request_states(int nstates, int mactions, int matrix, int prealloc);  // matrix = 0: transitionProbabilityTensor_, matrix = 1: stageCostMatrix_
@@ -95,28 +95,28 @@ public:
 
     std::pair<int, int> getStateOwnershipRange();
     std::pair<int, int> getMDPSize();
-    PetscErrorCode createCostMatrix(); // no preallocation needed since it's a dense matrix
-    PetscErrorCode createTransitionProbabilityTensor(PetscInt d_nz, const std::vector<int> &d_nnz, PetscInt o_nz, const std::vector<int> &o_nnz); // full preallocation freedom
-    PetscErrorCode createTransitionProbabilityTensor(); // no preallocation
+    void createCostMatrix(); // no preallocation needed since it's a dense matrix
+    void createTransitionProbabilityTensor(PetscInt d_nz, const std::vector<int> &d_nnz, PetscInt o_nz, const std::vector<int> &o_nnz); // full preallocation freedom
+    void createTransitionProbabilityTensor(); // no preallocation
 
 
     // MDP Algorithm
-    PetscErrorCode extractGreedyPolicy(const Vec &V, PetscInt *policy, PetscReal &residualNorm);
-    PetscErrorCode constructFromPolicy(const PetscInt   *policy, Mat &transitionProbabilities, Vec &stageCosts);
-    PetscErrorCode iterativePolicyEvaluation(const Mat &jacobian, const Vec &stageCosts, Vec &V, KSPContext &ctx);
-    PetscErrorCode createJacobian(Mat &jacobian, const Mat &transitionProbabilities, JacobianContext &ctx);
-    PetscErrorCode inexactPolicyIteration();
+    void extractGreedyPolicy(const Vec &V, PetscInt *policy, PetscReal &residualNorm);
+    void constructFromPolicy(const PetscInt   *policy, Mat &transitionProbabilities, Vec &stageCosts);
+    void iterativePolicyEvaluation(const Mat &jacobian, const Vec &stageCosts, Vec &V, KSPContext &ctx);
+    void createJacobian(Mat &jacobian, const Mat &transitionProbabilities, JacobianContext &ctx);
+    void inexactPolicyIteration();
     // virtual PetscErrorCode benchmarkIPI(const Vec &V0, IS &policy, Vec &optimalCost);
 
     // maybe private, depends on usage of output / storing results
-    PetscErrorCode writeVec  (const Vec  &vec, const PetscChar *filename);
-    PetscErrorCode writeIS(const IS &is, const PetscChar *filename);
+    void writeVec(const Vec  &vec, const PetscChar *filename);
+    void writeIS(const IS &is, const PetscChar *filename);
 
     // probably private
-    static PetscErrorCode cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason *reason, void *ctx); // Test if residual norm is smaller than alpha * r0_norm
+    static void cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason *reason, void *ctx); // Test if residual norm is smaller than alpha * r0_norm
     static void jacobianMultiplication(Mat mat, Vec x, Vec y);          // defines matrix vector product for jacobian shell
     static void jacobianMultiplicationTranspose(Mat mat, Vec x, Vec y); // defines tranposed matrix vector product for jacobian shell (needed for some KSP methods)
-    PetscErrorCode writeJSONmetadata();
+    void writeJSONmetadata();
 
 
     // user specified options
