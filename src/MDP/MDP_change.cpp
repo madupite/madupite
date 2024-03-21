@@ -22,18 +22,18 @@ std::pair<int, int> MDP::request_states(int nstates, int mactions, int matrix, i
     if (numStates_!=nstates){
         numStates_ = nstates;
         localNumStates_ = PETSC_DECIDE;
-        PetscSplitOwnership(PETSC_COMM_WORLD, &localNumStates_, &numStates_);
+        PetscCallThrow(PetscSplitOwnership(PETSC_COMM_WORLD, &localNumStates_, &numStates_));
     }
     numActions_ = mactions;
     if (matrix == 0) {
         if (transitionProbabilityTensor_ != nullptr) {
-            MatDestroy(&transitionProbabilityTensor_);
+            PetscCallThrow(MatDestroy(&transitionProbabilityTensor_));
         }
-        MatCreate(PETSC_COMM_WORLD, &transitionProbabilityTensor_);
-        MatSetSizes(transitionProbabilityTensor_, localNumStates_ * numActions_, PETSC_DECIDE, numStates_ * numActions_, numStates_);
-        MatSetFromOptions(transitionProbabilityTensor_);
-        MatSetUp(transitionProbabilityTensor_);
-        MatGetOwnershipRange(transitionProbabilityTensor_, &P_start_, &P_end_);
+        PetscCallThrow(MatCreate(PETSC_COMM_WORLD, &transitionProbabilityTensor_));
+        PetscCallThrow(MatSetSizes(transitionProbabilityTensor_, localNumStates_ * numActions_, PETSC_DECIDE, numStates_ * numActions_, numStates_));
+        PetscCallThrow(MatSetFromOptions(transitionProbabilityTensor_));
+        PetscCallThrow(MatSetUp(transitionProbabilityTensor_));
+        PetscCallThrow(MatGetOwnershipRange(transitionProbabilityTensor_, &P_start_, &P_end_));
         states.first = P_start_;
         states.second = P_end_;
         if (matrix==0) {
@@ -42,13 +42,13 @@ std::pair<int, int> MDP::request_states(int nstates, int mactions, int matrix, i
         }
     } else if (matrix == 1) {
         if (stageCostMatrix_ != nullptr) {
-            MatDestroy(&stageCostMatrix_);
+            PetscCallThrow(MatDestroy(&stageCostMatrix_));
         }
-        MatCreate(PETSC_COMM_WORLD, &stageCostMatrix_);
-        MatSetSizes(stageCostMatrix_, PETSC_DECIDE, PETSC_DECIDE, numStates_, numActions_);
-        MatSetFromOptions(stageCostMatrix_);
-        MatSetUp(stageCostMatrix_);
-        MatGetOwnershipRange(stageCostMatrix_, &g_start_, &g_end_);
+        PetscCallThrow(MatCreate(PETSC_COMM_WORLD, &stageCostMatrix_));
+        PetscCallThrow(MatSetSizes(stageCostMatrix_, PETSC_DECIDE, PETSC_DECIDE, numStates_, numActions_));
+        PetscCallThrow(MatSetFromOptions(stageCostMatrix_));
+        PetscCallThrow(MatSetUp(stageCostMatrix_));
+        PetscCallThrow(MatGetOwnershipRange(stageCostMatrix_, &g_start_, &g_end_));
         states.first = g_start_;
         states.second = g_end_;
     } else { 
@@ -70,60 +70,57 @@ void MDP::fillRow(std::vector<int> &idxs, std::vector<double> &vals, int i, int 
         std::cerr << "Invalid matrix type" << std::endl;
         exit(1); // todo: exit needed? other way to handle?
     }
-    MatSetValues(*mat_ptr, 1, &i, idxs.size(), idxs.data(), vals.data(), INSERT_VALUES);
+    PetscCallThrow(MatSetValues(*mat_ptr, 1, &i, idxs.size(), idxs.data(), vals.data(), INSERT_VALUES));
 }
 
 void MDP::assembleMatrix(int matrix){ // assembles the matrix; blocking call
     if (matrix == 0) { // transitionProbabilityTensor
-        MatAssemblyBegin(transitionProbabilityTensor_, MAT_FINAL_ASSEMBLY);
-        MatAssemblyEnd(transitionProbabilityTensor_, MAT_FINAL_ASSEMBLY);
+        PetscCallThrow(MatAssemblyBegin(transitionProbabilityTensor_, MAT_FINAL_ASSEMBLY));
+        PetscCallThrow(MatAssemblyEnd(transitionProbabilityTensor_, MAT_FINAL_ASSEMBLY));
     } else if (matrix == 1) { // stageCostMatrix
-        MatAssemblyBegin(stageCostMatrix_, MAT_FINAL_ASSEMBLY);
-        MatAssemblyEnd(stageCostMatrix_, MAT_FINAL_ASSEMBLY);
+        PetscCallThrow(MatAssemblyBegin(stageCostMatrix_, MAT_FINAL_ASSEMBLY));
+        PetscCallThrow(MatAssemblyEnd(stageCostMatrix_, MAT_FINAL_ASSEMBLY));
     } else {
         std::cerr << "Invalid matrix type" << std::endl;
         exit(1);
     }
 }
 
-PetscErrorCode MDP::createCostMatrix(){
+void MDP::createCostMatrix(){
     if (stageCostMatrix_ != nullptr) {
-        MatDestroy(&stageCostMatrix_);
+        PetscCallThrow(MatDestroy(&stageCostMatrix_));
     }
-    MatCreate(PETSC_COMM_WORLD, &stageCostMatrix_);
-    MatSetSizes(stageCostMatrix_, localNumStates_, PETSC_DECIDE, numStates_, numActions_);
-    MatSetType(stageCostMatrix_, MATDENSE);
+    PetscCallThrow(MatCreate(PETSC_COMM_WORLD, &stageCostMatrix_));
+    PetscCallThrow(MatSetSizes(stageCostMatrix_, localNumStates_, PETSC_DECIDE, numStates_, numActions_));
+    PetscCallThrow(MatSetType(stageCostMatrix_, MATDENSE));
     //MatSetFromOptions(stageCostMatrix_);
-    MatSetUp(stageCostMatrix_);
-    MatGetOwnershipRange(stageCostMatrix_, &g_start_, &g_end_);
-    return 0;
+    PetscCallThrow(MatSetUp(stageCostMatrix_));
+    PetscCallThrow(MatGetOwnershipRange(stageCostMatrix_, &g_start_, &g_end_));
 }
 
-PetscErrorCode MDP::createTransitionProbabilityTensor(PetscInt d_nz, const std::vector<int> &d_nnz, PetscInt o_nz, const std::vector<int> &o_nnz){
+void MDP::createTransitionProbabilityTensor(PetscInt d_nz, const std::vector<int> &d_nnz, PetscInt o_nz, const std::vector<int> &o_nnz){
     if (transitionProbabilityTensor_ != nullptr) {
-        MatDestroy(&transitionProbabilityTensor_);
+        PetscCallThrow(MatDestroy(&transitionProbabilityTensor_));
     }
     const PetscInt *d_nnz_ptr = d_nnz.data(), *o_nnz_ptr = o_nnz.data();
     if (d_nnz.empty()) d_nnz_ptr = nullptr;
     if (o_nnz.empty()) o_nnz_ptr = nullptr;
-    MatCreate(PETSC_COMM_WORLD, &transitionProbabilityTensor_);
-    MatSetSizes(transitionProbabilityTensor_, localNumStates_ * numActions_, PETSC_DECIDE, numStates_ * numActions_, numStates_);
-    MatSetFromOptions(transitionProbabilityTensor_);
-    MatMPIAIJSetPreallocation(transitionProbabilityTensor_, d_nz, d_nnz_ptr, o_nz, o_nnz_ptr);
-    MatSetUp(transitionProbabilityTensor_);
-    MatGetOwnershipRange(transitionProbabilityTensor_, &P_start_, &P_end_);
-    return 0;
+    PetscCallThrow(MatCreate(PETSC_COMM_WORLD, &transitionProbabilityTensor_));
+    PetscCallThrow(MatSetSizes(transitionProbabilityTensor_, localNumStates_ * numActions_, PETSC_DECIDE, numStates_ * numActions_, numStates_));
+    PetscCallThrow(MatSetFromOptions(transitionProbabilityTensor_));
+    PetscCallThrow(MatMPIAIJSetPreallocation(transitionProbabilityTensor_, d_nz, d_nnz_ptr, o_nz, o_nnz_ptr));
+    PetscCallThrow(MatSetUp(transitionProbabilityTensor_));
+    PetscCallThrow(MatGetOwnershipRange(transitionProbabilityTensor_, &P_start_, &P_end_));
 }
 
-PetscErrorCode MDP::createTransitionProbabilityTensor(){
+void MDP::createTransitionProbabilityTensor(){
     if (transitionProbabilityTensor_ != nullptr) {
-        MatDestroy(&transitionProbabilityTensor_);
+        PetscCallThrow(MatDestroy(&transitionProbabilityTensor_));
     }
-    MatCreate(PETSC_COMM_WORLD, &transitionProbabilityTensor_);
-    MatSetSizes(transitionProbabilityTensor_, localNumStates_ * numActions_, PETSC_DECIDE, numStates_ * numActions_, numStates_);
-    MatSetFromOptions(transitionProbabilityTensor_);
-    MatSetUp(transitionProbabilityTensor_);
-    MatGetOwnershipRange(transitionProbabilityTensor_, &P_start_, &P_end_);
-    return 0;
+    PetscCallThrow(MatCreate(PETSC_COMM_WORLD, &transitionProbabilityTensor_));
+    PetscCallThrow(MatSetSizes(transitionProbabilityTensor_, localNumStates_ * numActions_, PETSC_DECIDE, numStates_ * numActions_, numStates_));
+    PetscCallThrow(MatSetFromOptions(transitionProbabilityTensor_));
+    PetscCallThrow(MatSetUp(transitionProbabilityTensor_));
+    PetscCallThrow(MatGetOwnershipRange(transitionProbabilityTensor_, &P_start_, &P_end_));
 }
 

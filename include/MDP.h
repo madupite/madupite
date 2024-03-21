@@ -5,12 +5,63 @@
 #ifndef DISTRIBUTED_INEXACT_POLICY_ITERATION_MDP_H
 #define DISTRIBUTED_INEXACT_POLICY_ITERATION_MDP_H
 
-#include <petsc.h>
+#include <mpi.h>
+#include <petscerror.h>
+#include <petscsystypes.h>
 #include <petscvec.h>
 #include <petscmat.h>
 #include <petscksp.h>
+
+#include <exception>
+#include <string>
 #include <vector>
+
 #include "JsonWriter.h"
+
+class PetscException : public std::exception {
+private:
+    int ierr;
+    std::string message;
+public:
+    PetscException(int ierr, const std::string& message) : ierr(ierr), message(message) {}
+
+    const char* what() const noexcept override {
+        return message.c_str();
+    }
+
+    int code() const noexcept {
+        return ierr;
+    }
+};
+
+#define PetscCallNoThrow(...) \
+do { \
+    PetscStackUpdateLine; \
+    PetscErrorCode ierr = __VA_ARGS__; \
+    if (PetscUnlikely(ierr != PETSC_SUCCESS)) { \
+        PetscError(PETSC_COMM_SELF, __LINE__, PETSC_FUNCTION_NAME, __FILE__, ierr, PETSC_ERROR_IN_CXX, PETSC_NULLPTR); \
+    } \
+} while (0)
+
+#define PetscCallThrow(...) \
+do { \
+    PetscStackUpdateLine; \
+    PetscErrorCode ierr = __VA_ARGS__; \
+    if (PetscUnlikely(ierr != PETSC_SUCCESS)) { \
+        char *msg; \
+        PetscError(PETSC_COMM_SELF, __LINE__, PETSC_FUNCTION_NAME, __FILE__, ierr, PETSC_ERROR_IN_CXX, PETSC_NULLPTR); \
+        PetscErrorMessage(ierr, PETSC_NULLPTR, &msg); \
+        throw PetscException(ierr, std::string(msg)); \
+    } \
+} while (0)
+
+#define PetscThrow(comm, ierr, ...) \
+do { \
+    char *msg; \
+    PetscError(comm, __LINE__, PETSC_FUNCTION_NAME, __FILE__, ierr, PETSC_ERROR_INITIAL, __VA_ARGS__); \
+    PetscErrorMessage(ierr, PETSC_NULLPTR, &msg); \
+    throw PetscException(ierr, std::string(msg)); \
+} while (0)
 
 struct KSPContext {
     PetscInt maxIter;       // input
@@ -30,12 +81,12 @@ public:
     ~MDP();
 
     // MDP Setup
-    virtual PetscErrorCode splitOwnership();
-    virtual PetscErrorCode setValuesFromOptions();
-    virtual PetscErrorCode setOption(const char *option, const char *value, bool setValues = false);
-    virtual PetscErrorCode loadFromBinaryFile(); // TODO split into P and g
-    virtual PetscErrorCode generateCostMatrix(double (*g)(PetscInt, PetscInt));
-    virtual PetscErrorCode generateTransitionProbabilityTensor(double (*P)(PetscInt, PetscInt, PetscInt), PetscInt d_nz, const PetscInt *d_nnz, PetscInt o_nz, const PetscInt *o_nnz);
+    void splitOwnership();
+    PetscErrorCode setValuesFromOptions();
+    void setOption(const char *option, const char *value, bool setValues = false);
+    void loadFromBinaryFile(); // TODO split into P and g
+    void generateCostMatrix(double (*g)(PetscInt, PetscInt));
+    void generateTransitionProbabilityTensor(double (*P)(PetscInt, PetscInt, PetscInt), PetscInt d_nz, const PetscInt *d_nnz, PetscInt o_nz, const PetscInt *o_nnz);
     
     // functions needed for parallel matrix generation
     std::pair<int, int> request_states(int nstates, int mactions, int matrix, int prealloc);  // matrix = 0: transitionProbabilityTensor_, matrix = 1: stageCostMatrix_
@@ -44,28 +95,28 @@ public:
 
     std::pair<int, int> getStateOwnershipRange();
     std::pair<int, int> getMDPSize();
-    PetscErrorCode createCostMatrix(); // no preallocation needed since it's a dense matrix
-    PetscErrorCode createTransitionProbabilityTensor(PetscInt d_nz, const std::vector<int> &d_nnz, PetscInt o_nz, const std::vector<int> &o_nnz); // full preallocation freedom
-    PetscErrorCode createTransitionProbabilityTensor(); // no preallocation
+    void createCostMatrix(); // no preallocation needed since it's a dense matrix
+    void createTransitionProbabilityTensor(PetscInt d_nz, const std::vector<int> &d_nnz, PetscInt o_nz, const std::vector<int> &o_nnz); // full preallocation freedom
+    void createTransitionProbabilityTensor(); // no preallocation
 
 
     // MDP Algorithm
-    virtual PetscErrorCode extractGreedyPolicy(const Vec &V, PetscInt *policy, PetscReal &residualNorm);
-    virtual PetscErrorCode constructFromPolicy(const PetscInt   *policy, Mat &transitionProbabilities, Vec &stageCosts);
-    virtual PetscErrorCode iterativePolicyEvaluation(const Mat &jacobian, const Vec &stageCosts, Vec &V, KSPContext &ctx);
-    virtual PetscErrorCode createJacobian(Mat &jacobian, const Mat &transitionProbabilities, JacobianContext &ctx);
-    virtual PetscErrorCode inexactPolicyIteration();
+    void extractGreedyPolicy(const Vec &V, PetscInt *policy, PetscReal &residualNorm);
+    void constructFromPolicy(const PetscInt   *policy, Mat &transitionProbabilities, Vec &stageCosts);
+    void iterativePolicyEvaluation(const Mat &jacobian, const Vec &stageCosts, Vec &V, KSPContext &ctx);
+    void createJacobian(Mat &jacobian, const Mat &transitionProbabilities, JacobianContext &ctx);
+    void inexactPolicyIteration();
     // virtual PetscErrorCode benchmarkIPI(const Vec &V0, IS &policy, Vec &optimalCost);
 
     // maybe private, depends on usage of output / storing results
-    PetscErrorCode writeVec  (const Vec  &vec, const PetscChar *filename);
-    PetscErrorCode writeIS(const IS &is, const PetscChar *filename);
+    void writeVec(const Vec  &vec, const PetscChar *filename);
+    void writeIS(const IS &is, const PetscChar *filename);
 
     // probably private
-    static PetscErrorCode cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason *reason, void *ctx); // Test if residual norm is smaller than alpha * r0_norm
+    static void cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason *reason, void *ctx); // Test if residual norm is smaller than alpha * r0_norm
     static void jacobianMultiplication(Mat mat, Vec x, Vec y);          // defines matrix vector product for jacobian shell
     static void jacobianMultiplicationTranspose(Mat mat, Vec x, Vec y); // defines tranposed matrix vector product for jacobian shell (needed for some KSP methods)
-    virtual PetscErrorCode writeJSONmetadata();
+    void writeJSONmetadata();
 
 
     // user specified options
