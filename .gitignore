@@ -21,3 +21,4 @@ petsc-env
 **/stats.json
 bin/
 lib/
+petsc*-env
