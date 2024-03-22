@@ -279,66 +279,6 @@ void MDP::writeIS(const IS &is, const char *filename) {
     PetscCallThrow(ISRestoreIndices(is, &indices));
 }
 
-
-void MDP::generateCostMatrix(double (*g)(PetscInt, PetscInt)) {
-    // assert numStates_ and numActions_ are set
-    if (numStates_ == 0 || numActions_ == 0) {
-        PetscThrow(PETSC_COMM_WORLD, 1, "Number of states and actions not set.");
-    }
-
-    // create stage cost matrix
-    // ierr = MatCreateDense(PETSC_COMM_WORLD, localNumStates_, PETSC_DECIDE, numStates_, numActions_, PETSC_NULLPTR, &stageCostMatrix_); CHKERRQ(ierr);
-    PetscCallThrow(MatCreate(PETSC_COMM_WORLD, &stageCostMatrix_));
-    PetscCallThrow(MatSetType(stageCostMatrix_, MATDENSE));
-    PetscCallThrow(MatSetSizes(stageCostMatrix_, localNumStates_, PETSC_DECIDE, numStates_, numActions_));
-    PetscCallThrow(MatSetFromOptions(stageCostMatrix_));
-    PetscCallThrow(MatSetUp(stageCostMatrix_));
-
-    // fill stage cost matrix
-    PetscCallThrow(MatGetOwnershipRange(stageCostMatrix_, &g_start_, &g_end_));
-    for (PetscInt i = g_start_; i < g_end_; ++i) {
-        for (PetscInt j = 0; j < numActions_; ++j) {
-            PetscCallThrow(MatSetValue(stageCostMatrix_, i, j, g(i, j), INSERT_VALUES));
-        }
-    }
-
-    PetscCallThrow(MatAssemblyBegin(stageCostMatrix_, MAT_FINAL_ASSEMBLY));
-    PetscCallThrow(MatAssemblyEnd(stageCostMatrix_, MAT_FINAL_ASSEMBLY));
-}
-
-
-void MDP::generateTransitionProbabilityTensor(double (*P)(PetscInt, PetscInt, PetscInt), PetscInt d_nz, const PetscInt *d_nnz, PetscInt o_nz, const PetscInt *o_nnz) {
-    // assert numStates_ and numActions_ are set
-    if (numStates_ == -1 || numActions_ == -1) {
-        PetscThrow(PETSC_COMM_WORLD, 1, "Number of states and actions not set.");
-    }
-
-    // create transition probability tensor
-    PetscCallThrow(MatCreate(PETSC_COMM_WORLD, &transitionProbabilityTensor_));
-    PetscCallThrow(MatSetType(transitionProbabilityTensor_, MATMPIAIJ));
-    PetscCallThrow(MatSetSizes(transitionProbabilityTensor_, localNumStates_*numActions_, localNumStates_, numStates_*numActions_, numStates_));
-    PetscCallThrow(MatSetFromOptions(transitionProbabilityTensor_));
-    PetscCallThrow(MatMPIAIJSetPreallocation(transitionProbabilityTensor_, d_nz, d_nnz, o_nz, o_nnz));
-    PetscCallThrow(MatSetUp(transitionProbabilityTensor_));
-
-    // fill transition probability tensor
-    PetscCallThrow(MatGetOwnershipRange(transitionProbabilityTensor_, &P_start_, &P_end_));
-    for (PetscInt stateInd = P_start_ / numActions_; stateInd < P_end_ / numActions_; ++stateInd) {
-        for (PetscInt actionInd = 0; actionInd < numActions_; ++actionInd) {
-            PetscInt row = stateInd * numActions_ + actionInd;
-            for (PetscInt nextStateInd = 0; nextStateInd < numStates_; ++nextStateInd) {
-                PetscReal prob = P(stateInd, actionInd, nextStateInd);
-                if (prob != 0.0) {
-                    PetscCallThrow(MatSetValue(transitionProbabilityTensor_, row, nextStateInd, prob, INSERT_VALUES));
-                }
-            }
-        }
-    }
-
-    PetscCallThrow(MatAssemblyBegin(transitionProbabilityTensor_, MAT_FINAL_ASSEMBLY));
-    PetscCallThrow(MatAssemblyEnd(transitionProbabilityTensor_, MAT_FINAL_ASSEMBLY));
-}
-
 void MDP::writeJSONmetadata() {
     jsonWriter_->add_data("numStates", numStates_);
     jsonWriter_->add_data("numActions", numActions_);

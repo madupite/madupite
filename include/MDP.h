@@ -85,8 +85,6 @@ public:
     PetscErrorCode setValuesFromOptions();
     void setOption(const char *option, const char *value, bool setValues = false);
     void loadFromBinaryFile(); // TODO split into P and g
-    void generateCostMatrix(double (*g)(PetscInt, PetscInt));
-    void generateTransitionProbabilityTensor(double (*P)(PetscInt, PetscInt, PetscInt), PetscInt d_nz, const PetscInt *d_nnz, PetscInt o_nz, const PetscInt *o_nnz);
     
     // functions needed for parallel matrix generation
     std::pair<int, int> request_states(int nstates, int mactions, int matrix, int prealloc);  // matrix = 0: transitionProbabilityTensor_, matrix = 1: stageCostMatrix_
@@ -98,6 +96,11 @@ public:
     void createCostMatrix(); // no preallocation needed since it's a dense matrix
     void createTransitionProbabilityTensor(PetscInt d_nz, const std::vector<int> &d_nnz, PetscInt o_nz, const std::vector<int> &o_nnz); // full preallocation freedom
     void createTransitionProbabilityTensor(); // no preallocation
+
+    template <typename Func>
+    void generateStageCostMatrix(Func g);
+    template <typename Func>
+    void generateTransitionProbabilityTensor(Func P, PetscInt d_nz, const std::vector<int> &d_nnz, PetscInt o_nz, const std::vector<int> &o_nnz);
 
 
     // MDP Algorithm
@@ -150,5 +153,7 @@ public:
 
     JsonWriter *jsonWriter_;            // used to write statistics (residual norm, times etc.) to file
 };
+
+#include "../src/MDP/MDP_setup.tpp"
 
 #endif //DISTRIBUTED_INEXACT_POLICY_ITERATION_MDP_H

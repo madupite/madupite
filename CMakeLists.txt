@@ -58,6 +58,13 @@ target_link_libraries(example
     ${Boost_LIBRARIES}
 )
 
+# CI Test
+add_executable(ci-test test/ci_test.cpp)
+target_link_libraries(ci-test
+    madupite
+    PkgConfig::PETSC
+)
+
 # Ensure the "example" target can find the madupite library at runtime
 set_target_properties(example PROPERTIES
     INSTALL_RPATH "${CMAKE_BINARY_DIR}/lib"
