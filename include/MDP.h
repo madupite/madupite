@@ -100,6 +100,8 @@ public:
     template <typename Func>
     void generateStageCostMatrix(Func g);
     template <typename Func>
+    void generateTransitionProbabilityTensor(Func P);
+    template <typename Func>
     void generateTransitionProbabilityTensor(Func P, PetscInt d_nz, const std::vector<int> &d_nnz, PetscInt o_nz, const std::vector<int> &o_nnz);
 
 
@@ -138,6 +140,7 @@ public:
     PetscChar   file_policy_[PETSC_MAX_PATH_LEN]; // output
     PetscChar   file_cost_  [PETSC_MAX_PATH_LEN]; // output
     PetscChar   file_stats_ [PETSC_MAX_PATH_LEN]; // output
+    static constexpr std::vector<PetscInt> emptyVec = {};   // can be used by the user for d_nnz and o_nnz
 
     // derived parameters
     PetscInt localNumStates_;           // number of states owned by this rank

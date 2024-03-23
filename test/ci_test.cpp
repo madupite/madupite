@@ -5,18 +5,13 @@
 #include<utility>
 #include<vector>
 
-// MDP: circle world, 50 states, 3 actions (stay, left, right), 
-// P(s, 0, s') = 0.9 if s' = s, 0.05 if s' = s-1, 0.05 if s' = s+1
-// P(s, 1, s') = 0.1 if s' = s, 0.9 s' = s-1
-// P(s, 2, s') = 0.1 if s' = s, 0.9 s' = s+1
-// goal state: 42
-// cost function: g(s, a) = 1 if s != 42, 0 if s = 42
-
+// MDP: 1d grid world (=circle); 50 states; 3 actions (stay, left, right), 
+// 0: 90% stay, 5% left, 5% right
+// 1: 10% stay, 90% left
+// 2: 10% stay, 90% right
+// goal state: 42 (index 41)
 
 double r(int s, int a) {
-    // return (s == 41) ? 0.0 : 10.0;
-    // return std::abs(s - 41);
-    // reward of 1 for goal state, 0 otherwise
     return (s == 41) ? 1.0 : 0.0;
 }
 
@@ -48,7 +43,7 @@ int main(int argc, char** argv)
     
     MDP mdp;
     mdp.setOption("-mode", "MAXREWARD");
-    mdp.setOption("-discount_factor", "0.99999");
+    mdp.setOption("-discount_factor", "0.99");
     mdp.setOption("-max_iter_pi", "200");
     mdp.setOption("-max_iter_ksp", "1000");
     mdp.setOption("-num_pi_runs", "1");
@@ -62,8 +57,7 @@ int main(int argc, char** argv)
     mdp.setOption("-ksp_type", "gmres");
     mdp.setValuesFromOptions();
     mdp.generateStageCostMatrix(r);
-    std::vector<int> empty = {};
-    mdp.generateTransitionProbabilityTensor(P, 3, empty, 3, empty);
+    mdp.generateTransitionProbabilityTensor(P, 3, MDP::emptyVec, 3, MDP::emptyVec);
 
     mdp.inexactPolicyIteration();
 
