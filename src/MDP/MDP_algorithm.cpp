@@ -19,8 +19,8 @@ void MDP::extractGreedyPolicy(const Vec &V, PetscInt *policy, PetscReal &residua
     const PetscReal *costVectorValues;
     PetscCallThrow(VecGetArrayRead(costVector_, &costVectorValues));
     IS rows, cols;
-    PetscCallThrow(ISCreateStride(PETSC_COMM_WORLD, localNumStates_, g_start_, 1, &rows));
-    PetscCallThrow(ISCreateStride(PETSC_COMM_WORLD, numActions_, 0, 1, &cols));
+    PetscCallThrow(ISCreateStride(comm_, localNumStates_, g_start_, 1, &rows));
+    PetscCallThrow(ISCreateStride(comm_, numActions_, 0, 1, &cols));
     const PetscInt *rowIndices, *colIndices;
     PetscCallThrow(ISGetIndices(rows, &rowIndices));
     PetscCallThrow(ISGetIndices(cols, &colIndices));
@@ -39,7 +39,7 @@ void MDP::extractGreedyPolicy(const Vec &V, PetscInt *policy, PetscReal &residua
 
     // find minimum for each row and compute Bellman residual norm
     Vec residual;
-    PetscCallThrow(VecCreateMPI(PETSC_COMM_WORLD, localNumStates_, numStates_, &residual));
+    PetscCallThrow(VecCreateMPI(comm_, localNumStates_, numStates_, &residual));
 
     PetscInt nnz;
     const PetscInt *colIdx;
@@ -100,15 +100,15 @@ void MDP::constructFromPolicy(const PetscInt *policy, Mat &transitionProbabiliti
 
     // generate index sets
     IS P_rowIndices;
-    PetscCallThrow(ISCreateGeneral(PETSC_COMM_WORLD, localNumStates_, P_rowIndexValues, PETSC_COPY_VALUES, &P_rowIndices));
+    PetscCallThrow(ISCreateGeneral(comm_, localNumStates_, P_rowIndexValues, PETSC_COPY_VALUES, &P_rowIndices));
     IS g_pi_rowIndices;
-    PetscCallThrow(ISCreateStride(PETSC_COMM_WORLD, localNumStates_, g_start_, 1, &g_pi_rowIndices));
+    PetscCallThrow(ISCreateStride(comm_, localNumStates_, g_start_, 1, &g_pi_rowIndices));
 
     //LOG("Creating transitionProbabilities submatrix");
     PetscCallThrow(MatCreateSubMatrix(transitionProbabilityTensor_, P_rowIndices, NULL, MAT_INITIAL_MATRIX, &transitionProbabilities));
 
     //LOG("Creating stageCosts vector");
-    PetscCallThrow(VecCreateMPI(PETSC_COMM_WORLD, localNumStates_, numStates_, &stageCosts));
+    PetscCallThrow(VecCreateMPI(comm_, localNumStates_, numStates_, &stageCosts));
     const PetscInt *g_pi_rowIndexValues; // global indices
     PetscCallThrow(ISGetIndices(g_pi_rowIndices, &g_pi_rowIndexValues));
     PetscCallThrow(VecSetValues(stageCosts, localNumStates_, g_pi_rowIndexValues, g_pi_values, INSERT_VALUES));
@@ -132,7 +132,7 @@ void MDP::iterativePolicyEvaluation(const Mat &jacobian, const Vec &stageCosts, 
 
     // KSP setup
     KSP ksp;
-    PetscCallThrow(KSPCreate(PETSC_COMM_WORLD, &ksp));
+    PetscCallThrow(KSPCreate(comm_, &ksp));
     PetscCallThrow(KSPSetOperators(ksp, jacobian, jacobian));
     PetscCallThrow(KSPSetFromOptions(ksp));
     PetscCallThrow(KSPSetInitialGuessNonzero(ksp, PETSC_TRUE));
@@ -174,7 +174,7 @@ void MDP::jacobianMultiplicationTranspose(Mat mat, Vec x, Vec y) {
 
 // creates MPIAIJ matrix and computes jacobian = I - gamma * P_pi
 void MDP::createJacobian(Mat &jacobian, const Mat &transitionProbabilities, JacobianContext &ctx) {
-    PetscCallThrow(MatCreateShell(PETSC_COMM_WORLD, localNumStates_, localNumStates_, numStates_, numStates_, &ctx, &jacobian));
+    PetscCallThrow(MatCreateShell(comm_, localNumStates_, localNumStates_, numStates_, numStates_, &ctx, &jacobian));
     PetscCallThrow(MatShellSetOperation(jacobian, MATOP_MULT, (void (*)(void)) jacobianMultiplication));
     PetscCallThrow(MatShellSetOperation(jacobian, MATOP_MULT_TRANSPOSE, (void (*)(void)) jacobianMultiplicationTranspose));
 }
@@ -186,15 +186,15 @@ void MDP::inexactPolicyIteration() {
 
     // init guess V0
     Vec V0;
-    PetscCallThrow(VecCreateMPI(PETSC_COMM_WORLD, localNumStates_, numStates_, &V0));
+    PetscCallThrow(VecCreateMPI(comm_, localNumStates_, numStates_, &V0));
     PetscCallThrow(VecSet(V0, 1.0));
     
     // allocation for extractGreedyPolicy
-    PetscCallThrow(MatCreate(PETSC_COMM_WORLD, &costMatrix_));
+    PetscCallThrow(MatCreate(comm_, &costMatrix_));
     PetscCallThrow(MatSetType(costMatrix_, MATDENSE));
     PetscCallThrow(MatSetSizes(costMatrix_, localNumStates_, PETSC_DECIDE, numStates_, numActions_));
     PetscCallThrow(MatSetUp(costMatrix_));
-    PetscCallThrow(VecCreateMPI(PETSC_COMM_WORLD, localNumStates_*numActions_, numStates_*numActions_, &costVector_));
+    PetscCallThrow(VecCreateMPI(comm_, localNumStates_*numActions_, numStates_*numActions_, &costVector_));
 
     Vec V;
     PetscCallThrow(VecDuplicate(V0, &V));
@@ -255,7 +255,7 @@ void MDP::inexactPolicyIteration() {
     // output results
     PetscCallThrow(PetscTime(&startTime));
     IS optimalPolicy;
-    PetscCallThrow(ISCreateGeneral(PETSC_COMM_WORLD, localNumStates_, policyValues, PETSC_COPY_VALUES, &optimalPolicy));
+    PetscCallThrow(ISCreateGeneral(comm_, localNumStates_, policyValues, PETSC_COPY_VALUES, &optimalPolicy));
 
     writeVec(V, file_cost_);
     writeIS(optimalPolicy, file_policy_);
@@ -281,7 +281,7 @@ void MDP::cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason *rea
     PetscCallThrow(VecNorm(res, NORM_INFINITY, &norm));
     PetscCallThrow(VecDestroy(&res));
 
-    //PetscPrintf(PETSC_COMM_WORLD, "it = %d: residual norm = %f\n", it, norm);
+    //PetscPrintf(comm_, "it = %d: residual norm = %f\n", it, norm);
 
     if(it == 0) *reason = KSP_CONVERGED_ITERATING;
     else if(norm < threshold) *reason = KSP_CONVERGED_RTOL;

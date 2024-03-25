@@ -77,7 +77,7 @@ struct JacobianContext {
 class MDP {
 public:
 
-    MDP();
+    MDP(MPI_Comm comm = PETSC_COMM_WORLD);
     ~MDP();
 
     // MDP Setup
@@ -135,6 +135,7 @@ public:
     PetscChar   file_policy_[PETSC_MAX_PATH_LEN]; // output
     PetscChar   file_cost_  [PETSC_MAX_PATH_LEN]; // output
     PetscChar   file_stats_ [PETSC_MAX_PATH_LEN]; // output
+    const MPI_Comm    comm_;           // MPI communicator
 
     // derived parameters
     PetscInt localNumStates_;           // number of states owned by this rank
