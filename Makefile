@@ -87,6 +87,10 @@ example: $(MADUPITE_BIN)
 run_example: example
 	$(MADUPITE_BIN)
 
+format:
+	# Let's stick to 18 for now - should be compatible with the commit hook
+	clang-format-18 -i $(SRCS) example/example.cpp include/MDP.h
+
 clean:
 	rm -f $(OBJS) $(BUILD_DIR)/example.o $(DEPS) $(MADUPITE_LIB) $(MADUPITE_BIN)
 
