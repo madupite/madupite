@@ -36,6 +36,7 @@ test:
     - echo "Running tests"
     # Your test commands here
     - cd build
-    - ./example
+    - ./ci-test
+    - mpirun -n 2 ./ci-test
     - echo "Finished with code $?"
     
