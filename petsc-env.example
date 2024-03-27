@@ -1,0 +1,18 @@
+# First,
+#   cp petsc-env.example petsc-env
+# and adjust the latter as needed.
+# Please don't commit changes to this file.
+#
+# You can also switch between different PETSc instances using symlinks, e.g.
+#   cp petsc-env.example petsc-env-release-debug
+#   cp petsc-env.example petsc-env-main-debug
+#   # select active env file
+#   ln -sf petsc-env-main-debug petsc-env
+#
+PETSC_DIR=/home/vaclav-shared/madupite/petsc/release
+export PETSC_DIR=$(realpath $PETSC_DIR)
+export PETSC_ARCH=arch-ci-linux-pkgs
+export PATH=$PETSC_DIR/$PETSC_ARCH/bin:$PATH
+echo PETSC_DIR=$PETSC_DIR
+echo PETSC_ARCH=$PETSC_ARCH
+echo PATH=$PATH

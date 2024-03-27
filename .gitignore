@@ -19,3 +19,6 @@ madupite/madupite.cpp
 petsc-env
 **/.cache
 **/stats.json
+bin/
+lib/
+petsc*-env
