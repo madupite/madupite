@@ -22,10 +22,8 @@ build:
   stage: build
   script:
     - echo "Building the project"
-    - mkdir build
-    - cd build
-    - cmake ..
-    - make
+    - cmake -S . -B build
+    - make -C build
   artifacts:
     paths:
       - build/

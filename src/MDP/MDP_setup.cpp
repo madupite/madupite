@@ -7,10 +7,10 @@
 #include <string>
 #include<iostream> // todo: replace with logging
 
-MDP::MDP() {
+MDP::MDP(MPI_Comm comm) : comm_(comm){
     // MPI parallelization initialization
-    MPI_Comm_rank(PETSC_COMM_WORLD, &rank_);
-    MPI_Comm_size(PETSC_COMM_WORLD, &size_);
+    MPI_Comm_rank(comm_, &rank_);
+    MPI_Comm_size(comm_, &size_);
 
     jsonWriter_ = new JsonWriter(rank_);
 
@@ -51,45 +51,45 @@ PetscErrorCode MDP::setValuesFromOptions() {
 
     PetscCall(PetscOptionsGetReal(NULL, NULL, "-discount_factor", &discountFactor_, &flg));
     if(!flg) {
-        SETERRQ(PETSC_COMM_WORLD, 1, "Discount factor not specified. Use -discountFactor <double>.");
+        SETERRQ(comm_, 1, "Discount factor not specified. Use -discountFactor <double>.");
     }
     // jsonWriter_->add_data("discountFactor", discountFactor_);
     PetscCall(PetscOptionsGetInt(NULL, NULL, "-max_iter_pi", &maxIter_PI_, &flg));
     if(!flg) {
-        SETERRQ(PETSC_COMM_WORLD, 1, "Maximum number of policy iterations not specified. Use -maxIter_PI <int>.");
+        SETERRQ(comm_, 1, "Maximum number of policy iterations not specified. Use -maxIter_PI <int>.");
     }
     // jsonWriter_->add_data("maxIter_PI", maxIter_PI_);
     PetscCall(PetscOptionsGetInt(NULL, NULL, "-max_iter_ksp", &maxIter_KSP_, &flg));
     if(!flg) {
-        SETERRQ(PETSC_COMM_WORLD, 1, "Maximum number of KSP iterations not specified. Use -maxIter_KSP <int>.");
+        SETERRQ(comm_, 1, "Maximum number of KSP iterations not specified. Use -maxIter_KSP <int>.");
     }
     // jsonWriter_->add_data("maxIter_KSP", maxIter_KSP_);
     PetscCall(PetscOptionsGetInt(NULL, NULL, "-num_pi_runs", &numPIRuns_, &flg));
     if(!flg) {
-        //SETERRQ(PETSC_COMM_WORLD, 1, "Maximum number of KSP iterations not specified. Use -maxIter_KSP <int>.");
+        //SETERRQ(comm_, 1, "Maximum number of KSP iterations not specified. Use -maxIter_KSP <int>.");
         // LOG("Number of PI runs for benchmarking not specified. Use -numPIRuns <int>. Default: 1");
         numPIRuns_ = 1;
     }
     // jsonWriter_->add_data("numPIRuns", numPIRuns_);
     PetscCall(PetscOptionsGetReal(NULL, NULL, "-rtol_ksp", &rtol_KSP_, &flg));
     if(!flg) {
-        SETERRQ(PETSC_COMM_WORLD, 1, "Relative tolerance for KSP not specified. Use -rtol_KSP <double>.");
+        SETERRQ(comm_, 1, "Relative tolerance for KSP not specified. Use -rtol_KSP <double>.");
     }
     // jsonWriter_->add_data("rtol_KSP", rtol_KSP_);
     PetscCall(PetscOptionsGetReal(NULL, NULL, "-atol_pi", &atol_PI_, &flg));
     if(!flg) {
-        SETERRQ(PETSC_COMM_WORLD, 1, "Absolute tolerance for policy iteration not specified. Use -atol_PI <double>.");
+        SETERRQ(comm_, 1, "Absolute tolerance for policy iteration not specified. Use -atol_PI <double>.");
     }
     // jsonWriter_->add_data("atol_PI", atol_PI_);
     PetscCall(PetscOptionsGetString(NULL, NULL, "-file_probabilities", file_P_, PETSC_MAX_PATH_LEN, &flg));
     if(!flg) {
-        //SETERRQ(PETSC_COMM_WORLD, 1, "Filename for transition probability tensor not specified. Use -file_P <string>. (max length: 4096 chars");
+        //SETERRQ(comm_, 1, "Filename for transition probability tensor not specified. Use -file_P <string>. (max length: 4096 chars");
         // LOG("Warning: Filename for transition probability tensor not specified. Use -file_P <string>. (max length: 4096 chars");
         file_P_[0] = '\0';
     }
     PetscCall(PetscOptionsGetString(NULL, NULL, "-file_costs", file_g_, PETSC_MAX_PATH_LEN, &flg));
     if(!flg) {
-        //SETERRQ(PETSC_COMM_WORLD, 1, "Filename for stage cost matrix not specified. Use -file_g <string>. (max length: 4096 chars");
+        //SETERRQ(comm_, 1, "Filename for stage cost matrix not specified. Use -file_g <string>. (max length: 4096 chars");
         // LOG("Warning: Filename for stage cost matrix not specified. Use -file_g <string>. (max length: 4096 chars");
         file_g_[0] = '\0';
     }
@@ -105,12 +105,12 @@ PetscErrorCode MDP::setValuesFromOptions() {
     }
     PetscCall(PetscOptionsGetString(NULL, NULL, "-file_stats", file_stats_, PETSC_MAX_PATH_LEN, &flg));
     if(!flg) {
-        SETERRQ(PETSC_COMM_WORLD, 1, "Filename for statistics not specified. Use -file_stats <string>. (max length: 4096 chars");
+        SETERRQ(comm_, 1, "Filename for statistics not specified. Use -file_stats <string>. (max length: 4096 chars");
     }
     PetscChar inputMode[20];
     PetscCall(PetscOptionsGetString(NULL, NULL, "-mode", inputMode, 20, &flg));
     if(!flg) {
-        SETERRQ(PETSC_COMM_WORLD, 1, "Input mode not specified. Use -mode MINCOST or MAXREWARD.");
+        SETERRQ(comm_, 1, "Input mode not specified. Use -mode MINCOST or MAXREWARD.");
     }
     if (strcmp(inputMode, "MINCOST") == 0) {
         mode_ = MINCOST;
@@ -119,7 +119,7 @@ PetscErrorCode MDP::setValuesFromOptions() {
         mode_ = MAXREWARD;
         // jsonWriter_->add_data("mode", "MAXREWARD");
     } else {
-        SETERRQ(PETSC_COMM_WORLD, 1, "Input mode not recognized. Use -mode MINCOST or MAXREWARD.");
+        SETERRQ(comm_, 1, "Input mode not recognized. Use -mode MINCOST or MAXREWARD.");
     }
 
     // set local number of states (for this rank)
@@ -145,7 +145,7 @@ void MDP::loadFromBinaryFile() {
     PetscViewer viewer;
 
     // Read number of states and actions from file
-    PetscCallThrow(PetscViewerBinaryOpen(PETSC_COMM_WORLD, file_g_, FILE_MODE_READ, &viewer));
+    PetscCallThrow(PetscViewerBinaryOpen(comm_, file_g_, FILE_MODE_READ, &viewer));
     PetscInt sizes[4]; // ClassID, Rows, Cols, NNZ
     PetscCallThrow(PetscViewerBinaryRead(viewer, sizes, 4, PETSC_NULLPTR, PETSC_INT));
     numStates_ = sizes[1];
@@ -153,14 +153,14 @@ void MDP::loadFromBinaryFile() {
     PetscCallThrow(PetscViewerDestroy(&viewer));
     
     // assert P and g are compatible (P: nm x n, g: n x m)
-    PetscCallThrow(PetscViewerBinaryOpen(PETSC_COMM_WORLD, file_P_, FILE_MODE_READ, &viewer));
+    PetscCallThrow(PetscViewerBinaryOpen(comm_, file_P_, FILE_MODE_READ, &viewer));
     PetscCallThrow(PetscViewerBinaryRead(viewer, sizes, 4, PETSC_NULLPTR, PETSC_INT));
     if (sizes[1] != numStates_ * numActions_ || sizes[2] != numStates_) {
-        PetscThrow(PETSC_COMM_WORLD, 1, "Sizes of cost matrix and transition probability tensor not compatible.\nIt should hold that P: nm x n, g: n x m,\nwhere n is the number of states and m is the number of actions.\n");
+        PetscThrow(comm_, 1, "Sizes of cost matrix and transition probability tensor not compatible.\nIt should hold that P: nm x n, g: n x m,\nwhere n is the number of states and m is the number of actions.\n");
     }
     PetscCallThrow(PetscViewerDestroy(&viewer));
 
-    // PetscPrintf(PETSC_COMM_WORLD, "%d %d %d %d\n", sizes[0], sizes[1], sizes[2], sizes[3]); // ClassID, Rows, Cols, NNZ
+    // PetscPrintf(comm_, "%d %d %d %d\n", sizes[0], sizes[1], sizes[2], sizes[3]); // ClassID, Rows, Cols, NNZ
 
     // set local number of states (for this rank) 
     splitOwnership();
@@ -169,20 +169,20 @@ void MDP::loadFromBinaryFile() {
     // jsonWriter_->add_data("numActions", numActions_);
 
     // load transition probability tensor
-    PetscCallThrow(MatCreate(PETSC_COMM_WORLD, &transitionProbabilityTensor_));
+    PetscCallThrow(MatCreate(comm_, &transitionProbabilityTensor_));
     PetscCallThrow(MatSetFromOptions(transitionProbabilityTensor_));
     PetscCallThrow(MatSetSizes(transitionProbabilityTensor_, localNumStates_*numActions_, localNumStates_, numStates_*numActions_, numStates_));
     PetscCallThrow(MatSetUp(transitionProbabilityTensor_));
-    PetscCallThrow(PetscViewerBinaryOpen(PETSC_COMM_WORLD, file_P_, FILE_MODE_READ, &viewer));
+    PetscCallThrow(PetscViewerBinaryOpen(comm_, file_P_, FILE_MODE_READ, &viewer));
     PetscCallThrow(MatLoad(transitionProbabilityTensor_, viewer));
     PetscCallThrow(PetscViewerDestroy(&viewer));
 
     // load stage cost matrix
-    PetscCallThrow(MatCreate(PETSC_COMM_WORLD, &stageCostMatrix_));
+    PetscCallThrow(MatCreate(comm_, &stageCostMatrix_));
     PetscCallThrow(MatSetFromOptions(stageCostMatrix_));
     PetscCallThrow(MatSetSizes(stageCostMatrix_, localNumStates_, PETSC_DECIDE, numStates_, numActions_));
     PetscCallThrow(MatSetUp(stageCostMatrix_));
-    PetscCallThrow(PetscViewerBinaryOpen(PETSC_COMM_WORLD, file_g_, FILE_MODE_READ, &viewer));
+    PetscCallThrow(PetscViewerBinaryOpen(comm_, file_g_, FILE_MODE_READ, &viewer));
     PetscCallThrow(MatLoad(stageCostMatrix_, viewer));
     PetscCallThrow(PetscViewerDestroy(&viewer));
 
@@ -213,7 +213,7 @@ void MDP::writeVec(const Vec &vec, const char *filename) {
     PetscCallThrow(VecGetArrayRead(MPIVec, &values));
 
     PetscMPIInt rank;
-    PetscCallThrow(MPI_Comm_rank(PETSC_COMM_WORLD, &rank));
+    PetscCallThrow(MPI_Comm_rank(comm_, &rank));
 
     // Rank 0 writes to file
     if(rank == 0) {
@@ -244,21 +244,21 @@ void MDP::writeIS(const IS &is, const char *filename) {
     PetscCallThrow(ISGetIndices(is, &indices));
 
     PetscMPIInt rank;
-    PetscCallThrow(MPI_Comm_rank(PETSC_COMM_WORLD, &rank));
+    PetscCallThrow(MPI_Comm_rank(comm_, &rank));
 
     if(rank == 0) {
         PetscCallThrow(PetscMalloc1(size, &allIndices));
         PetscCallThrow(PetscMalloc1(size, &recvcounts));
         PetscCallThrow(PetscMalloc1(size, &displs));
 
-        PetscCallThrow(MPI_Gather(&localSize, 1, MPI_INT, recvcounts, 1, MPI_INT, 0, PETSC_COMM_WORLD));
+        PetscCallThrow(MPI_Gather(&localSize, 1, MPI_INT, recvcounts, 1, MPI_INT, 0, comm_));
 
         displs[0] = 0;
         for(PetscInt i = 1; i < size; ++i) {
             displs[i] = displs[i-1] + recvcounts[i-1];
         }
 
-        PetscCallThrow(MPI_Gatherv(indices, localSize, MPI_INT, allIndices, recvcounts, displs, MPI_INT, 0, PETSC_COMM_WORLD));
+        PetscCallThrow(MPI_Gatherv(indices, localSize, MPI_INT, allIndices, recvcounts, displs, MPI_INT, 0, comm_));
 
         // Rank 0 writes to file
         std::ofstream out(filename);
@@ -272,8 +272,8 @@ void MDP::writeIS(const IS &is, const char *filename) {
         PetscCallThrow(PetscFree(displs));
     }
     else {
-        PetscCallThrow(MPI_Gather(&localSize, 1, MPI_INT, NULL, 0, MPI_INT, 0, PETSC_COMM_WORLD));
-        PetscCallThrow(MPI_Gatherv(indices, localSize, MPI_INT, NULL, NULL, NULL, MPI_INT, 0, PETSC_COMM_WORLD));
+        PetscCallThrow(MPI_Gather(&localSize, 1, MPI_INT, NULL, 0, MPI_INT, 0, comm_));
+        PetscCallThrow(MPI_Gatherv(indices, localSize, MPI_INT, NULL, NULL, NULL, MPI_INT, 0, comm_));
     }
 
     PetscCallThrow(ISRestoreIndices(is, &indices));
