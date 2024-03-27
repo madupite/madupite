@@ -157,6 +157,6 @@ public:
     JsonWriter *jsonWriter_;            // used to write statistics (residual norm, times etc.) to file
 };
 
-#include "../src/MDP/MDP_setup.tpp"
+#include "MDP/MDP_setup.tpp"
 
 #endif //DISTRIBUTED_INEXACT_POLICY_ITERATION_MDP_H
