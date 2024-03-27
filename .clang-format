@@ -1,0 +1,12 @@
+BasedOnStyle: WebKit
+
+# Please sort alphabetically
+AlignConsecutiveAssignments: Consecutive
+AlignConsecutiveBitFields: Consecutive
+AlignConsecutiveDeclarations: Consecutive
+AlignConsecutiveMacros: Consecutive
+AlignTrailingComments:
+  Kind: Always
+  OverEmptyLines: 0
+ColumnLimit: 150
+IndentWidth: 4
