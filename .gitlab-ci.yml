@@ -22,10 +22,8 @@ build:
   stage: build
   script:
     - echo "Building the project"
-    - mkdir build
-    - cd build
-    - cmake ..
-    - make
+    - cmake -S . -B build
+    - make -C build
   artifacts:
     paths:
       - build/
@@ -35,7 +33,6 @@ test:
   script:
     - echo "Running tests"
     # Your test commands here
-    - cd build
-    - ./example
+    - build/example
     - echo "Finished with code $?"
     
