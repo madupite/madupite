@@ -1,8 +1,10 @@
 # -*- mode: makefile -*-
 
 #  Adapted from the PETSc sample GNU makefile $PETSC_DIR/share/petsc/Makefile.user
+#
 #  You must set the environmental variable(s) PETSC_DIR (and PETSC_ARCH if PETSc was not configured with the --prefix option)
-
+#  See also the petsc-env.example file in this directory.
+#
 #  The following variable must either be a path to petsc.pc or just "petsc" if petsc.pc
 #  has been installed to a system location or can be found in PKG_CONFIG_PATH.
 petsc.pc := $(PETSC_DIR)/$(PETSC_ARCH)/lib/pkgconfig/petsc.pc
