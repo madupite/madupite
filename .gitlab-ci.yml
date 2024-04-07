@@ -1,6 +1,7 @@
 image: continuumio/miniconda3
 
 stages:
+  - pre-commit
   - prepare
   - build
   - test
@@ -11,6 +12,12 @@ before_script:
   - conda info --envs
   - conda env create -f environment.yml || conda env update -f environment.yml
   - conda activate madupiteenv
+
+pre-commit:
+  stage: pre-commit
+  script:
+    - conda install -c conda-forge pre-commit
+    - pre-commit run --all-files
 
 create_environment:
   stage: prepare
@@ -37,4 +44,3 @@ test:
     - ./ci-test
     - mpirun -n 2 ./ci-test
     - echo "Finished with code $?"
-    

@@ -1,23 +1,22 @@
 # distutils: language=c++
 # cython: language_level=3
 
+import inspect
+
 # Import necessary Cython and Python libraries
 import numpy as np
-cimport numpy as cnp
-import inspect
+
+from cpython.float cimport PyFloat_AsDouble
+from cpython.list cimport PyList_Check
+from cpython.long cimport PyLong_AsLong
+from libcpp.pair cimport pair
 from libcpp.string cimport string
+from libcpp.vector cimport vector
+
 
 def pystr2cppstr(pystr):
     cdef string cppstr = string(bytes(pystr, "utf-8"))
     return cppstr
-
-from cpython.list cimport PyList_Check, PyList_Size, PyList_GetItem
-from cpython.float cimport PyFloat_AsDouble
-from cpython.long cimport PyLong_AsLong
-
-from libcpp.string cimport string
-from libcpp.vector cimport vector
-from libcpp.pair cimport pair
 
 
 cdef py2cppstr (pystr):
@@ -61,7 +60,6 @@ cdef class PyMDP:
         self.c_mdp.fillRow(cidxs, cvals, row, matrix)
         # TODO: do we need to free memory here?
 
-
     def __cinit__(self):
         self.c_mdp = new MDP()
         self._all_instances.append(self)
@@ -77,7 +75,7 @@ cdef class PyMDP:
             raise RuntimeError("setOption failed with error code %d" % result)
 
     def setValuesFromFile(self, filename):
-        with open(filename, 'r') as f:
+        with open(filename, "r") as f:
             for line in f:
                 key, value = line.split()
                 self.c_mdp.setOption(py2cppstr(key), py2cppstr(value), False)
@@ -108,7 +106,6 @@ cdef class PyMDP:
     def loadFromBinaryFile(self):
         self.c_mdp.loadFromBinaryFile()
 
-
     def createTP0(self, pre_alloc):
         cdef vector[int] emptyVec = vector[int]()
         self.c_mdp.createTransitionProbabilityTensor(pre_alloc[0], emptyVec, pre_alloc[1], emptyVec)
@@ -128,16 +125,7 @@ cdef class PyMDP:
         cdef vector[int] o_nnz = pre_alloc[1]
         self.c_mdp.createTransitionProbabilityTensor(0, d_nnz, 0, o_nnz)
 
-
     def createTransitionProbabilities(self, func, pre_alloc=None):
-        print("CreateTransitionProbabilities start")
-        # check function signature
-        # params = inspect.signature(func).parameters
-        # if len(params) != 2:
-        #     raise ValueError("func should have exactly two parameters: state and action. Function signature: func(state, action) -> (next_states, probs), where next_states contains indices of the next states and probs (correspondig transition probabilities) are lists")
-
-        # user's choice to pre-allocate memory
-        # pre_alloc = [d_nz | d_nnz, o_nz | o_nnz] 
         """
         5 different modes TODO implement
         -1 - no preallocation
@@ -145,15 +133,21 @@ cdef class PyMDP:
         1 - use d_nz and o_nnz
         2 - use d_nnz and o_nz
         3 - use d_nnz and o_nnz
-        """
 
-        """
         pre_alloc: None => mode -1
         pre_alloc[0]: int d_nz or list d_nnz => set LSB to 1 if list
         pre_alloc[1]: int o_nz or list o_nnz => set Bit nr. 2 to 1 if list
         """
+        print("CreateTransitionProbabilities start")
+        # check function signature
+        # params = inspect.signature(func).parameters
+        # if len(params) != 2:
+        #     raise ValueError("func should have exactly two parameters: state and action. Function signature:
+        # func(state, action) -> (next_states, probs), where next_states contains indices of the next states and probs
+        # (correspondig transition probabilities) are lists")
 
-
+        # user's choice to pre-allocate memory
+        # pre_alloc = [d_nz | d_nnz, o_nz | o_nnz]
         mode = 0
         if pre_alloc is None:
             print("no preallocation")
@@ -161,13 +155,13 @@ cdef class PyMDP:
 
         else:
             if len(pre_alloc) != 2:
-                raise ValueError("pre_alloc should be a tuple [d_nz | [d_nnz], o_nz | [o_nnz]] where d_nnz and o_nnz are lists or None if no preallocation is desired (not recommended)")
+                raise ValueError("pre_alloc should be a tuple [d_nz | [d_nnz], o_nz | [o_nnz]] where d_nnz and o_nnz \
+                are lists or None if no preallocation is desired (not recommended)")
             # create bit pair set according to pre_alloc
             if isinstance(pre_alloc[0], list):
-                mode |= 1 # set LSB to 1
+                mode |= 1  # set LSB to 1
             if isinstance(pre_alloc[1], list):
-                mode |= 2 # set Bit nr. 2 to 1
-
+                mode |= 2  # set Bit nr. 2 to 1
 
         if pre_alloc is not None and mode == 0:
             self.createTP0(pre_alloc)
@@ -183,17 +177,16 @@ cdef class PyMDP:
 
         cdef pair[int, int] indices = self.c_mdp.getStateOwnershipRange()
         print(f"finished getStateOwnershipRange, {indices.first=}, {indices.second=}")
-        cdef pair[int, int] size = self.c_mdp.getMDPSize() # (numStates, numActions)
+        cdef pair[int, int] size = self.c_mdp.getMDPSize()  # (numStates, numActions)
         print(f"finished getMDPSize, {size.first=}, {size.second=}")
         print(f"start filling values - {indices.first=}, {indices.second=}")
 
-        for i in range(indices.first  * size.second, indices.second * size.second):
+        for i in range(indices.first * size.second, indices.second * size.second):
             idxs, vals = func(i // size.second, i % size.second)
             self.fill_matrix_helper(idxs, vals, i, 0)
         print("finished filling values")
         self.c_mdp.assembleMatrix(0)
         print("CreateTransitionProbabilities end")
-
 
     def createStageCosts(self, func):
         print("CreateStageCosts start")
@@ -201,15 +194,14 @@ cdef class PyMDP:
         params = inspect.signature(func).parameters
         if len(params) != 2:
             raise ValueError("func should have exactly two parameters: state and action. Function signature: func(state, action) -> cost (double)")
-        
+
         self.c_mdp.createCostMatrix()
-        print("created cost matrix")   
+        print("created cost matrix")
 
         cdef pair[int, int] indices = self.c_mdp.getStateOwnershipRange()
-        cdef pair[int, int] size = self.c_mdp.getMDPSize() # (numStates, numActions)
+        cdef pair[int, int] size = self.c_mdp.getMDPSize()  # (numStates, numActions)
         print(f"{size.first=}, {size.second=}")
         print(f"{indices.first=}, {indices.second=}")
-        
 
         actionIndices = np.arange(size.second, dtype=np.int32)
         for stateInd in range(indices.first, indices.second):
@@ -222,7 +214,8 @@ cdef class PyMDP:
 
     @classmethod
     def _get_all_instances(cls):
-        """helper function for garbage collection in PETScContextManager. This function returns all PyMdp instances, s.t. the context manager can explicitly delete them before calling PetscFinalize.
+        """helper function for garbage collection in PETScContextManager. This function returns all PyMdp instances,
+        s.t. the context manager can explicitly delete them before calling PetscFinalize.
 
         Returns
         -------
@@ -232,10 +225,8 @@ cdef class PyMDP:
         return cls._all_instances
 
 
-
 # Additional utility functions or classes can be added here as needed
-
-### new 
+# new
 cdef extern from "petsc.h":
     cdef int PetscInitialize(int *argc, char ***argv, const char *file, const char *help)
 
@@ -282,13 +273,14 @@ class PETScContextManager:
 
         _finalize_petsc()
 
-###
+
 cdef extern from "../src/utils.cpp":
     cdef int rankPETSCWORLD()
 
 
 def MPI_master():
-    """This helper function allows calling functions only by the master rank, e.g. if you want to write to file by only one process. This function must be called within the PETScContextManager.
+    """This helper function allows calling functions only by the master rank, e.g. if you want to write to file by only
+    one process. This function must be called within the PETScContextManager.
 
     Returns
     -------
@@ -299,7 +291,8 @@ def MPI_master():
 
 
 def generateArtificialMDP(nstates, mactions, transition_rate, seed=None):
-    """Generate an artificial MDP, whose nonzero transition probabilities are sampled from a uniform distribution. Returns the transition probability in the correct format for PyMdp.loadP().
+    """Generate an artificial MDP, whose nonzero transition probabilities are sampled from a uniform distribution.
+    Returns the transition probability in the correct format for PyMdp.loadP().
 
     Parameters
     ----------
@@ -308,7 +301,8 @@ def generateArtificialMDP(nstates, mactions, transition_rate, seed=None):
     mactions : int
         Number of actions
     transition_rate : float in (0,1]
-        average rate of transitions to other states. 0.3 means that on average a state has a nonzero probability of transitioning to 30% of the other states.
+        average rate of transitions to other states. 0.3 means that on average a state has a nonzero probability of
+        transitioning to 30% of the other states.
     seed : int, optional
         random seed, by default None
     Returns
@@ -379,7 +373,8 @@ def writePETScBinary(matrix, filename):
 
 
 def generateMDP(nstates, mactions, probfunction, costfunction, transprobfilename, stagecostfilename, verbose=False):
-    """ Generate the transition probability tensor and stage cost matrix from a probability function and a stagecost function. Output in a PetscBinary file which can be read by the solver.
+    """ Generate the transition probability tensor and stage cost matrix from a probability function and a stagecost function.
+    Output in a PetscBinary file which can be read by the solver.
     This function must be wrapped in a if madupite.MPI_master() statement.
     Note: defining probfunction in a numba compatible way provides a significant speedup.
 
@@ -390,7 +385,9 @@ def generateMDP(nstates, mactions, probfunction, costfunction, transprobfilename
     mactions : int
         Number of actions
     probfunction : func
-        A function that returns the transition probability to every other state given a state-action pair: :math:`\\mathcal{P}(s\\vert s,a)`. Since this is often sparse probfunction(state,action) should return a tuple which consists of an array of the indices of nonzero entries and an array of the values of the nonzero entries.
+        A function that returns the transition probability to every other state given a state-action pair: :math:`\\mathcal{P}(s\\vert s,a)`.
+        Since this is often sparse probfunction(state,action) should return a tuple which consists of an array of the indices of nonzero entries
+        and an array of the values of the nonzero entries.
     costfunction : func
         A function that returns the stage cost for a state-action pair. costfunction(state, action) returns a scalar
     transprobfilename : str
