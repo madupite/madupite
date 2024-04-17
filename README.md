@@ -1,4 +1,7 @@
-For documentation: install sphinx in conda otherwise it does not find madupite
+## Formatting
+To ensure your code adheres to style guidelines, run ```pre-commit install```.
+
+documentation: install sphinx in conda otherwise it does not find madupite
 
 To build madupite
 ```bash

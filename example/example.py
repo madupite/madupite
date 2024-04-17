@@ -1,8 +1,11 @@
-import madupite as md
 import time
+
+import madupite as md
+
 
 def transprob(x, y):
     return [[0, 1, 2], [0.1, 0.2, 0.7]]
+
 
 def stagecost(x, y):
     return x * y

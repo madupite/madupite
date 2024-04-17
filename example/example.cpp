@@ -3,28 +3,25 @@
 // Bachelor Thesis - Robin Sieber - 2023 - ETH Zürich
 //
 
+#include "MDP.h"
 #include <iostream>
 #include <random>
-#include "MDP.h"
 
+double g(int s, int a) { return 1.0; }
 
-double g(int s, int a) {
-    return 1.0;
-}
-
-double P(int s, int a, int s_prime) {
+double P(int s, int a, int s_prime)
+{
     if (s == s_prime) {
         return 1.0;
     }
     return 0.0;
 }
 
-
 int main(int argc, char** argv)
 {
     // Initialize PETSc
     PetscInitialize(&argc, &argv, PETSC_NULLPTR, PETSC_NULLPTR);
-    
+
     MDP mdp;
     mdp.setOption("-mode", "MINCOST");
     mdp.setOption("-discount_factor", "0.9");
