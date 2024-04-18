@@ -132,7 +132,7 @@ public:
     PetscReal discountFactor_;
     PetscInt  maxIter_PI_;
     PetscInt  maxIter_KSP_;
-    PetscInt  numPIRuns_; // used for MDP::benchmarkIPI()
+    // PetscInt  numPIRuns_; // used for MDP::benchmarkIPI()
     PetscReal rtol_KSP_;
     PetscReal atol_PI_;
     PetscChar file_P_[PETSC_MAX_PATH_LEN];      // input
