@@ -76,6 +76,7 @@ struct JacobianContext {
 };
 
 class MDP {
+    const MPI_Comm comm_; // MPI communicator
 public:
     MDP(MPI_Comm comm = PETSC_COMM_WORLD);
     ~MDP();
@@ -142,8 +143,6 @@ public:
     PetscChar file_stats_[PETSC_MAX_PATH_LEN];  // output
 
     static constexpr std::vector<PetscInt> emptyVec = {}; // can be used by the user for d_nnz and o_nnz
-
-    const MPI_Comm comm_; // MPI communicator
 
     // derived parameters
     PetscInt localNumStates_;  // number of states owned by this rank
