@@ -467,10 +467,10 @@ void MDP::writeJSONmetadata()
     if (file_stats_[0] != '\0') {
         jsonWriter_->add_data("file_stats", file_stats_);
     }
-    if(p_src_ == FILE) {
+    if (p_src_ == FILE) {
         jsonWriter_->add_data("file_transition_probabilities", p_file_name_);
-    } 
-    if(g_src_ == FILE) {
+    }
+    if (g_src_ == FILE) {
         jsonWriter_->add_data("file_stage_costs", g_file_name_);
     }
 }
