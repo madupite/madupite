@@ -8,7 +8,7 @@
 #include <string>
 
 MDP::MDP(MPI_Comm comm)
-    : comm_(comm)
+    : comm_(comm), p_file_name_(PETSC_MAX_PATH_LEN, '_'), g_file_name_(PETSC_MAX_PATH_LEN, '_')
 {
     // MPI parallelization initialization
     MPI_Comm_rank(comm_, &rank_);
@@ -231,14 +231,16 @@ void MDP::setOption(const char* option, const char* value, bool setValues)
     // LOG("owns rows " + std::to_string(g_start_) + " to " + std::to_string(g_end_) + " of g.");
 }*/
 
-void MDP::setSourceStageCostMatrix(const std::string& filename) {
+void MDP::setSourceStageCostMatrix(const char* filename) {
     if (g_src_ != FILE) {
         PetscThrow(comm_, 1, "Source of stage cost matrix not recognized. Use -source_g FILE.");
     }
-    g_file_name_ = std::string(filename);
+    //g_file_name_ = std::string(filename);
+    //g_file_name_ = "../test/100_50_0.1/g.bin";
+    strncpy(g_file_name_, filename, PETSC_MAX_PATH_LEN);
     std::cout << "Loading stage cost matrix from binary file: " << filename << std::endl;
     PetscViewer viewer;
-    PetscCallThrow(PetscViewerBinaryOpen(comm_, filename.c_str(), FILE_MODE_READ, &viewer));
+    PetscCallThrow(PetscViewerBinaryOpen(comm_, g_file_name_, FILE_MODE_READ, &viewer));
     PetscCallThrow(PetscViewerBinaryRead(viewer, &g_file_meta_, 4, PETSC_NULLPTR, PETSC_INT));
     PetscCallThrow(PetscViewerDestroy(&viewer));
 }
@@ -251,14 +253,16 @@ void MDP::setSourceStageCostMatrix(const Costfunc g) {
 }
 
 
-void MDP::setSourceTransitionProbabilityTensor(const std::string& filename) {
+void MDP::setSourceTransitionProbabilityTensor(const char* filename) {
     if (p_src_ != FILE) {
         PetscThrow(comm_, 1, "Source of transition probability tensor not recognized. Use -source_p FILE.");
     }
     std::cout << "Loading transition probability tensor from binary file: " << filename << std::endl;
-    p_file_name_ = std::string(filename); // TODO: error seems to be here
+    //p_file_name_ = std::string(filename); // TODO: error seems to be here
+    //p_file_name_ = "../test/100_50_0.1/P.bin";
+    strncpy(p_file_name_, filename, PETSC_MAX_PATH_LEN);
     PetscViewer viewer;
-    PetscCallThrow(PetscViewerBinaryOpen(comm_, filename.c_str(), FILE_MODE_READ, &viewer));
+    PetscCallThrow(PetscViewerBinaryOpen(comm_, p_file_name_, FILE_MODE_READ, &viewer));
     PetscCallThrow(PetscViewerBinaryRead(viewer, &p_file_meta_, 4, PETSC_NULLPTR, PETSC_INT));
     PetscCallThrow(PetscViewerDestroy(&viewer));
 }
@@ -289,7 +293,7 @@ void MDP::loadTransitionProbabilityTensor() {
     PetscCallThrow(MatSetSizes(transitionProbabilityTensor_, localNumStates_ * numActions_, localNumStates_, numStates_ * numActions_, numStates_));
     PetscCallThrow(MatSetUp(transitionProbabilityTensor_));
     PetscViewer viewer;
-    PetscCallThrow(PetscViewerBinaryOpen(comm_, p_file_name_.c_str(), FILE_MODE_READ, &viewer));
+    PetscCallThrow(PetscViewerBinaryOpen(comm_, p_file_name_, FILE_MODE_READ, &viewer));
     PetscCallThrow(MatLoad(transitionProbabilityTensor_, viewer));
     PetscCallThrow(PetscViewerDestroy(&viewer));
     PetscCallThrow(MatGetOwnershipRange(transitionProbabilityTensor_, &p_start_, &p_end_));
@@ -304,7 +308,7 @@ void MDP::loadStageCostMatrix() {
     PetscCallThrow(MatSetSizes(stageCostMatrix_, localNumStates_, PETSC_DECIDE, numStates_, numActions_));
     PetscCallThrow(MatSetUp(stageCostMatrix_));
     PetscViewer viewer;
-    PetscCallThrow(PetscViewerBinaryOpen(comm_, g_file_name_.c_str(), FILE_MODE_READ, &viewer));
+    PetscCallThrow(PetscViewerBinaryOpen(comm_, g_file_name_, FILE_MODE_READ, &viewer));
     PetscCallThrow(MatLoad(stageCostMatrix_, viewer));
     PetscCallThrow(PetscViewerDestroy(&viewer));
     PetscCallThrow(MatConvert(stageCostMatrix_, MATDENSE, MAT_INPLACE_MATRIX, &stageCostMatrix_)); // convert to dense matrix!

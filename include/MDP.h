@@ -107,11 +107,11 @@ public:
     // template <typename Func>
     // void generateTransitionProbabilityTensor(Func P, PetscInt d_nz, const std::vector<int>& d_nnz, PetscInt o_nz, const std::vector<int>& o_nnz);
 
-    void setSourceTransitionProbabilityTensor(const std::string& filename);
+    void setSourceTransitionProbabilityTensor(const char* filename);
     void setSourceTransitionProbabilityTensor(const Probfunc P); // no preallocation
     void setSourceTransitionProbabilityTensor(const Probfunc P, PetscInt d_nz, const std::vector<int>& d_nnz, PetscInt o_nz, const std::vector<int>& o_nnz); // full preallocation freedom
 
-    void                          setSourceStageCostMatrix(const std::string& filename);
+    void                          setSourceStageCostMatrix(const char* filename);
     void setSourceStageCostMatrix(const Costfunc g);
 
     void setUp(); // call after setting sources
@@ -172,8 +172,8 @@ public:
     Mat costMatrix_;                  // cost matrix used in extractGreedyPolicy
     Vec costVector_;                  // cost vector used in extractGreedyPolicy
 
-    std::string p_file_name_;
-    std::string g_file_name_;
+    PetscChar p_file_name_[PETSC_MAX_PATH_LEN];
+    PetscChar g_file_name_[PETSC_MAX_PATH_LEN];
     Probfunc p_func_;
     Costfunc g_func_;
     std::array<PetscInt, 4> p_file_meta_; // metadata when P is loaded from file (ClassID, rows, cols, nnz)

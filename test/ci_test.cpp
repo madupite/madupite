@@ -94,10 +94,10 @@ int main(int argc, char** argv)
         assert(argmax == 41);
         assert(argmin == 16);
     }
-    std::cout << "Nr. 1 all good" << std::endl;
 
     // Run 2: loading from binary file
     mdp.setOption("-mode", "MINCOST");
+    mdp.setOption("-file_stats", "ci_stats.json");
     mdp.setOption("-discount_factor", "0.9");
     mdp.setOption("-rtol_ksp", "0.1");
     mdp.setOption("-file_cost", "ci_cost_2.out");
@@ -105,8 +105,7 @@ int main(int argc, char** argv)
     mdp.setOption("-source_p", "FILE");
     mdp.setOption("-source_g", "FILE");
     mdp.setValuesFromOptions();
-    std::cout << "values set" << std::endl;
-    mdp.setSourceTransitionProbabilityTensor("../test/100_50_0.1/P.bin"); // double free or corruption probably here
+    mdp.setSourceTransitionProbabilityTensor("../test/100_50_0.1/P.bin");
     mdp.setSourceStageCostMatrix("../test/100_50_0.1/g.bin");
     mdp.setUp();
     mdp.inexactPolicyIteration();
