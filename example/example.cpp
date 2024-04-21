@@ -30,8 +30,8 @@ int main(int argc, char** argv)
     mdp.setOption("-num_pi_runs", "1");
     mdp.setOption("-rtol_ksp", "1e-4");
     mdp.setOption("-atol_pi", "1e-10");
-    mdp.setOption("-file_probabilities", "example/100_50_0.1/P.bin");
-    mdp.setOption("-file_costs", "example/100_50_0.1/g.bin");
+    mdp.setOption("-source_p", "FILE");
+    mdp.setOption("-source_g", "FILE");
     mdp.setOption("-file_stats", "stats.json");
     mdp.setOption("-file_policy", "policy.out");
     mdp.setOption("-file_cost", "cost.out");
@@ -39,7 +39,9 @@ int main(int argc, char** argv)
     // mdp.setOption("-numActions", "20");
 
     mdp.setValuesFromOptions();
-    mdp.loadFromBinaryFile();
+    mdp.setSourceStageCostMatrix("example/100_50_0.1/g.bin");
+    mdp.setSourceTransitionProbabilityTensor("example/100_50_0.1/P.bin");
+    mdp.setUp();
 
     std::cout << "File loaded." << std::endl;
     // mdp.generateCostMatrix(g);
