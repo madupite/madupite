@@ -92,7 +92,7 @@ void MDP::constructFromPolicy(const PetscInt* policy, Mat& transitionProbabiliti
     for (PetscInt localStateInd = 0; localStateInd < localNumStates_; ++localStateInd) {
         actionInd = policy[localStateInd];
         // compute values for row index set
-        P_rowIndexValues[localStateInd] = P_start_ + localStateInd * numActions_ + actionInd;
+        P_rowIndexValues[localStateInd] = p_start_ + localStateInd * numActions_ + actionInd;
         // get values for stageCosts
         g_srcRow = g_start_ + localStateInd;
         PetscCallThrow(MatGetValue(stageCostMatrix_, g_srcRow, actionInd, &g_pi_values[localStateInd]));

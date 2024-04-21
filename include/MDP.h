@@ -18,6 +18,9 @@
 
 #include "JsonWriter.h"
 
+using Costfunc = std::function<double(int, int)>;
+using Probfunc = std::function<std::pair<std::vector<double>, std::vector<int>>(int, int)>;
+
 class PetscException : public std::exception {
 private:
     int         ierr;
@@ -84,7 +87,8 @@ public:
     void           splitOwnership();
     PetscErrorCode setValuesFromOptions();
     void           setOption(const char* option, const char* value, bool setValues = false);
-    void           loadFromBinaryFile(); // TODO split into P and g
+    void           loadTransitionProbabilityTensor();
+    void           loadStageCostMatrix();
 
     // functions needed for parallel matrix generation
     std::pair<int, int> request_states(
@@ -94,15 +98,23 @@ public:
 
     std::pair<int, int> getStateOwnershipRange();
     std::pair<int, int> getMDPSize();
-    void                createCostMatrix(); // no preallocation needed since it's a dense matrix
-    void                createTransitionProbabilityTensor(
-                       PetscInt d_nz, const std::vector<int>& d_nnz, PetscInt o_nz, const std::vector<int>& o_nnz); // full preallocation freedom
+    void                createStageCostMatrix(); // no preallocation needed since it's a dense matrix
+    void                createTransitionProbabilityTensorPrealloc();
     void createTransitionProbabilityTensor();                                                                       // no preallocation
 
-    template <typename Func> void generateStageCostMatrix(Func g);
-    template <typename Func> void generateTransitionProbabilityTensor(Func P);
-    template <typename Func>
-    void generateTransitionProbabilityTensor(Func P, PetscInt d_nz, const std::vector<int>& d_nnz, PetscInt o_nz, const std::vector<int>& o_nnz);
+    // template <typename Func> void generateStageCostMatrix(Func g);
+    // template <typename Func> void generateTransitionProbabilityTensor(Func P);
+    // template <typename Func>
+    // void generateTransitionProbabilityTensor(Func P, PetscInt d_nz, const std::vector<int>& d_nnz, PetscInt o_nz, const std::vector<int>& o_nnz);
+
+    void setSourceTransitionProbabilityTensor(const std::string& filename);
+    void setSourceTransitionProbabilityTensor(const Probfunc P); // no preallocation
+    void setSourceTransitionProbabilityTensor(const Probfunc P, PetscInt d_nz, const std::vector<int>& d_nnz, PetscInt o_nz, const std::vector<int>& o_nnz); // full preallocation freedom
+
+    void                          setSourceStageCostMatrix(const std::string& filename);
+    void setSourceStageCostMatrix(const Costfunc g);
+
+    void setUp(); // call after setting sources
 
     // MDP Algorithm
     void extractGreedyPolicy(const Vec& V, PetscInt* policy, PetscReal& residualNorm);
@@ -126,6 +138,7 @@ public:
 
     // user specified options
     enum mode { MINCOST, MAXREWARD };
+    enum source { FILE, FUNCTION };
     mode      mode_;
     PetscInt  numStates_;  // global; read from file or via setOption
     PetscInt  numActions_; // global; read from file or via setOption
@@ -135,11 +148,13 @@ public:
     // PetscInt  numPIRuns_; // used for MDP::benchmarkIPI()
     PetscReal rtol_KSP_;
     PetscReal atol_PI_;
-    PetscChar file_P_[PETSC_MAX_PATH_LEN];      // input
-    PetscChar file_g_[PETSC_MAX_PATH_LEN];      // input
+    // PetscChar file_P_[PETSC_MAX_PATH_LEN];      // input
+    // PetscChar file_g_[PETSC_MAX_PATH_LEN];      // input
     PetscChar file_policy_[PETSC_MAX_PATH_LEN]; // output
     PetscChar file_cost_[PETSC_MAX_PATH_LEN];   // output
     PetscChar file_stats_[PETSC_MAX_PATH_LEN];  // output
+    PetscInt  p_src_;                           // 0: from file, 1: from function, -1: not set
+    PetscInt  g_src_;                           // 0: from file, 1: from function, -1: not set
 
     static constexpr std::vector<PetscInt> emptyVec = {}; // can be used by the user for d_nnz and o_nnz
 
@@ -149,7 +164,7 @@ public:
     PetscInt localNumStates_;  // number of states owned by this rank
     PetscInt rank_;            // rank of this process
     PetscInt size_;            // number of processes
-    PetscInt P_start_, P_end_; // local row range of transitionProbabilityTensor_
+    PetscInt p_start_, p_end_; // local row range of transitionProbabilityTensor_
     PetscInt g_start_, g_end_; // local row range of stageCostMatrix_
 
     Mat transitionProbabilityTensor_; // transition probability tensor
@@ -157,9 +172,18 @@ public:
     Mat costMatrix_;                  // cost matrix used in extractGreedyPolicy
     Vec costVector_;                  // cost vector used in extractGreedyPolicy
 
+    std::string p_file_name_;
+    std::string g_file_name_;
+    Probfunc p_func_;
+    Costfunc g_func_;
+    std::array<PetscInt, 4> p_file_meta_; // metadata when P is loaded from file (ClassID, rows, cols, nnz)
+    std::array<PetscInt, 4> g_file_meta_; // metadata when g is loaded from file (ClassID, rows, cols, nnz)
+    PetscBool p_prealloc_;
+    std::tuple<PetscInt, std::vector<int>, PetscInt, std::vector<int>> p_nnz_; // preallocation for P (if passed by user) [d_nz, d_nnz, o_nz, o_nnz]
+
     JsonWriter* jsonWriter_; // used to write statistics (residual norm, times etc.) to file
 };
 
-#include "MDP/MDP_setup.tpp"
+//#include "MDP/MDP_setup.tpp"
 
 #endif // DISTRIBUTED_INEXACT_POLICY_ITERATION_MDP_H
