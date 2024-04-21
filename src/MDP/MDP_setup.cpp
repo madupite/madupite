@@ -9,8 +9,6 @@
 
 MDP::MDP(MPI_Comm comm)
     : comm_(comm)
-    , p_file_name_(PETSC_MAX_PATH_LEN, '_')
-    , g_file_name_(PETSC_MAX_PATH_LEN, '_')
 {
     // MPI parallelization initialization
     MPI_Comm_rank(comm_, &rank_);
