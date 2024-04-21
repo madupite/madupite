@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <chrono>
 
-std::pair<int, int> MDP::getStateOwnershipRange() { return {p_start_ / numActions_, p_end_ / numActions_ }; }
+std::pair<int, int> MDP::getStateOwnershipRange() { return { p_start_ / numActions_, p_end_ / numActions_ }; }
 
 std::pair<int, int> MDP::getMDPSize() { return { numStates_, numActions_ }; }
 
@@ -67,5 +67,3 @@ void MDP::fillRow(std::vector<int>& idxs, std::vector<double>& vals, int i, int 
     }
     PetscCallThrow(MatSetValues(*mat_ptr, 1, &i, idxs.size(), idxs.data(), vals.data(), INSERT_VALUES));
 }
-
-

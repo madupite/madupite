@@ -89,23 +89,23 @@ public:
     void           setOption(const char* option, const char* value, bool setValues = false);
     void           loadTransitionProbabilityTensor();
     void           loadStageCostMatrix();
-    void                createStageCostMatrix(); // no preallocation needed since it's a dense matrix
-    void                createTransitionProbabilityTensorPrealloc();
-    void createTransitionProbabilityTensor();
-    void assembleMatrix(int matrix);
+    void           createStageCostMatrix(); // no preallocation needed since it's a dense matrix
+    void           createTransitionProbabilityTensorPrealloc();
+    void           createTransitionProbabilityTensor();
+    void           assembleMatrix(int matrix);
 
     // functions not needed right now but maybe for cython wrapper
-    std::pair<int, int> request_states(
-        int nstates, int mactions, int matrix, int prealloc); // matrix = 0: transitionProbabilityTensor_, matrix = 1: stageCostMatrix_; maybe needed for cython wrapper
-    void fillRow(std::vector<int>& idxs, std::vector<double>& vals, int i, int matrix); // maybe needed for cython wrapper
-    std::pair<int, int> getStateOwnershipRange(); // maybe needed for cython wrapper
-    std::pair<int, int> getMDPSize(); // maybe needed for cython wrapper
-
+    std::pair<int, int> request_states(int nstates, int mactions, int matrix,
+        int prealloc); // matrix = 0: transitionProbabilityTensor_, matrix = 1: stageCostMatrix_; maybe needed for cython wrapper
+    void                fillRow(std::vector<int>& idxs, std::vector<double>& vals, int i, int matrix); // maybe needed for cython wrapper
+    std::pair<int, int> getStateOwnershipRange();                                                      // maybe needed for cython wrapper
+    std::pair<int, int> getMDPSize();                                                                  // maybe needed for cython wrapper
 
     void setSourceTransitionProbabilityTensor(const char* filename);
     void setSourceTransitionProbabilityTensor(const Probfunc P); // no preallocation
-    void setSourceTransitionProbabilityTensor(const Probfunc P, PetscInt d_nz, const std::vector<int>& d_nnz, PetscInt o_nz, const std::vector<int>& o_nnz); // full preallocation freedom
-    void                          setSourceStageCostMatrix(const char* filename);
+    void setSourceTransitionProbabilityTensor(
+        const Probfunc P, PetscInt d_nz, const std::vector<int>& d_nnz, PetscInt o_nz, const std::vector<int>& o_nnz); // full preallocation freedom
+    void setSourceStageCostMatrix(const char* filename);
     void setSourceStageCostMatrix(const Costfunc g);
 
     void setUp(); // call after setting sources
@@ -122,9 +122,10 @@ public:
     void writeIS(const IS& is, const PetscChar* filename);
 
     // probably private
-    static void cvgTest(
-        KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason* reason, void* ctx); // Test if residual norm is smaller than alpha * r0_norm; todo: keep this or move to documentation to show user how to implement own cvg test; not used in madupite for performance reasons
-    static void jacobianMultiplication(Mat mat, Vec x, Vec y);                         // defines matrix vector product for jacobian shell
+    static void cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason* reason,
+        void* ctx); // Test if residual norm is smaller than alpha * r0_norm; todo: keep this or move to documentation to show user how to implement
+                    // own cvg test; not used in madupite for performance reasons
+    static void jacobianMultiplication(Mat mat, Vec x, Vec y); // defines matrix vector product for jacobian shell
     static void jacobianMultiplicationTranspose(
         Mat mat, Vec x, Vec y); // defines tranposed matrix vector product for jacobian shell (needed for some KSP methods)
     void writeJSONmetadata();
@@ -165,13 +166,13 @@ public:
     Mat costMatrix_;                  // cost matrix used in extractGreedyPolicy
     Vec costVector_;                  // cost vector used in extractGreedyPolicy
 
-    PetscChar p_file_name_[PETSC_MAX_PATH_LEN];
-    PetscChar g_file_name_[PETSC_MAX_PATH_LEN];
-    Probfunc p_func_;
-    Costfunc g_func_;
-    std::array<PetscInt, 4> p_file_meta_; // metadata when P is loaded from file (ClassID, rows, cols, nnz)
-    std::array<PetscInt, 4> g_file_meta_; // metadata when g is loaded from file (ClassID, rows, cols, nnz)
-    PetscBool p_prealloc_;
+    PetscChar                                                          p_file_name_[PETSC_MAX_PATH_LEN];
+    PetscChar                                                          g_file_name_[PETSC_MAX_PATH_LEN];
+    Probfunc                                                           p_func_;
+    Costfunc                                                           g_func_;
+    std::array<PetscInt, 4>                                            p_file_meta_; // metadata when P is loaded from file (ClassID, rows, cols, nnz)
+    std::array<PetscInt, 4>                                            g_file_meta_; // metadata when g is loaded from file (ClassID, rows, cols, nnz)
+    PetscBool                                                          p_prealloc_;
     std::tuple<PetscInt, std::vector<int>, PetscInt, std::vector<int>> p_nnz_; // preallocation for P (if passed by user) [d_nz, d_nnz, o_nz, o_nnz]
 
     JsonWriter* jsonWriter_; // used to write statistics (residual norm, times etc.) to file
