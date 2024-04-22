@@ -13,6 +13,7 @@
 #include <petscvec.h>
 
 #include <exception>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -76,7 +77,8 @@ struct JacobianContext {
 };
 
 class MDP {
-    const MPI_Comm comm_; // MPI communicator
+    const MPI_Comm              comm_;       // MPI communicator
+    std::unique_ptr<JsonWriter> jsonWriter_; // used to write statistics (residual norm, times etc.) to file
 public:
     MDP(MPI_Comm comm = PETSC_COMM_WORLD);
     ~MDP();
@@ -155,8 +157,6 @@ public:
     Mat stageCostMatrix_;             // stage cost matrix (also rewards possible)
     Mat costMatrix_;                  // cost matrix used in extractGreedyPolicy
     Vec costVector_;                  // cost vector used in extractGreedyPolicy
-
-    JsonWriter* jsonWriter_; // used to write statistics (residual norm, times etc.) to file
 };
 
 #include "MDP/MDP_setup.tpp"

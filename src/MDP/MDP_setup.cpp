@@ -5,6 +5,7 @@
 #include "MDP.h"
 // #include <mpi.h>
 #include <iostream> // todo: replace with logging
+#include <memory>
 #include <string>
 
 MDP::MDP(MPI_Comm comm)
@@ -14,7 +15,7 @@ MDP::MDP(MPI_Comm comm)
     MPI_Comm_rank(comm_, &rank_);
     MPI_Comm_size(comm_, &size_);
 
-    jsonWriter_ = new JsonWriter(rank_);
+    jsonWriter_ = std::make_unique<JsonWriter>(rank_);
 
     transitionProbabilityTensor_ = nullptr;
     stageCostMatrix_             = nullptr;
@@ -34,7 +35,6 @@ MDP::~MDP()
     PetscCallNoThrow(MatDestroy(&stageCostMatrix_));
     PetscCallNoThrow(MatDestroy(&costMatrix_));
     PetscCallNoThrow(VecDestroy(&costVector_));
-    // delete jsonWriter_; // todo fix this (double free or corruption error)
 }
 
 void MDP::splitOwnership()
