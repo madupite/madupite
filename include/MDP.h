@@ -20,7 +20,6 @@
 #include "JsonWriter.h"
 
 class PetscException : public std::exception {
-private:
     int         ierr;
     std::string message;
 
