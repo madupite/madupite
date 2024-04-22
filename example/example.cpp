@@ -19,10 +19,12 @@ double P(int s, int a, int s_prime)
 
 int main(int argc, char** argv)
 {
-    // Initialize PETSc
-    PetscInitialize(&argc, &argv, PETSC_NULLPTR, PETSC_NULLPTR);
+    // Initialize MPI, PETSc and Madupite, passing command line arguments.
+    auto madupite = Madupite::initialize(&argc, &argv);
 
-    MDP mdp;
+    // Initialize MDP.
+    // madupite can be obtained also with Madupite::get()
+    MDP mdp(madupite);
     mdp.setOption("-mode", "MINCOST");
     mdp.setOption("-discount_factor", "0.9");
     mdp.setOption("-max_iter_pi", "20");
@@ -52,9 +54,5 @@ int main(int argc, char** argv)
     mdp.setValuesFromOptions();
     mdp.inexactPolicyIteration();
     std::cout << "Inext policy iteration #2 done." << std::endl;
-    mdp.~MDP();
-
-    // Finalize PETSc
-    PetscFinalize();
     return 0;
 }

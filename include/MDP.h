@@ -5,11 +5,11 @@
 #ifndef DISTRIBUTED_INEXACT_POLICY_ITERATION_MDP_H
 #define DISTRIBUTED_INEXACT_POLICY_ITERATION_MDP_H
 
-#include <mpi.h>
+#include <mpi.h> //TODO this should not be needed if petscerrror.h includes mpi.h
 #include <petscerror.h>
 #include <petscksp.h>
 #include <petscmat.h>
-#include <petscsystypes.h>
+#include <petscsys.h>
 #include <petscvec.h>
 
 #include <exception>
@@ -33,6 +33,18 @@ public:
     const char* what() const noexcept override { return message.c_str(); }
 
     int code() const noexcept { return ierr; }
+};
+
+class MadupiteException : public std::exception {
+    std::string message;
+
+public:
+    MadupiteException(const std::string& message)
+        : message(message)
+    {
+    }
+
+    const char* what() const noexcept override { return message.c_str(); }
 };
 
 #define PetscCallNoThrow(...)                                                                                                                        \
@@ -75,11 +87,39 @@ struct JacobianContext {
     PetscReal discountFactor;
 };
 
-class MDP {
-    const MPI_Comm              comm_;       // MPI communicator
-    std::unique_ptr<JsonWriter> jsonWriter_; // used to write statistics (residual norm, times etc.) to file
+class Madupite {
+    static std::shared_ptr<Madupite> instance;
+    static std::mutex                mtx;
+
+    Madupite()                                 = default;
+    Madupite(const Madupite&)                  = delete;
+    const Madupite& operator=(const Madupite&) = delete;
+
 public:
-    MDP(MPI_Comm comm = PETSC_COMM_WORLD);
+    static std::shared_ptr<Madupite> initialize(int* argc = nullptr, char*** argv = nullptr);
+
+    static std::shared_ptr<Madupite> get()
+    {
+        std::lock_guard<std::mutex> lock(mtx);
+        if (!instance)
+            throw MadupiteException("Madupite not initialized");
+        return instance;
+    }
+
+    ~Madupite()
+    {
+        std::lock_guard<std::mutex> lock(mtx);
+        // Finalize MPI and PETSc
+        PetscFinalize();
+    }
+};
+
+class MDP {
+    const std::shared_ptr<Madupite> madupite_;
+    const MPI_Comm                  comm_;       // MPI communicator
+    std::unique_ptr<JsonWriter>     jsonWriter_; // used to write statistics (residual norm, times etc.) to file
+public:
+    MDP(std::shared_ptr<Madupite> madupite, MPI_Comm comm = PETSC_COMM_WORLD);
     ~MDP();
 
     // MDP Setup
