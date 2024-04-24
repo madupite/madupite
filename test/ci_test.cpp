@@ -41,10 +41,10 @@ std::pair<std::vector<double>, std::vector<int>> P(const int s, const int a)
 
 int main(int argc, char** argv)
 {
-    // Initialize PETSc
-    PetscInitialize(&argc, &argv, PETSC_NULLPTR, PETSC_NULLPTR);
+    // Initialize MPI, PETSc and Madupite, passing command line arguments.
+    auto madupite = Madupite::initialize(&argc, &argv);
 
-    MDP mdp;
+    MDP mdp(madupite);
     mdp.setOption("-mode", "MAXREWARD");
     mdp.setOption("-discount_factor", "0.9999");
     mdp.setOption("-max_iter_pi", "200");
@@ -103,10 +103,5 @@ int main(int argc, char** argv)
     mdp.setValuesFromOptions();
     mdp.loadFromBinaryFile();
     mdp.inexactPolicyIteration();
-
-    mdp.~MDP();
-
-    // Finalize PETSc
-    PetscFinalize();
     return 0;
 }
