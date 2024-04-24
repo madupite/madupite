@@ -506,3 +506,20 @@ void MDP::writeJSONmetadata()
         jsonWriter_->add_data("file_stage_costs", g_file_name_);
     }
 }
+
+void MDP::setSourceTransitionProbabilityTensor(Probfunc P, PetscInt d_nz, PetscInt o_nz)
+{
+    this->setSourceTransitionProbabilityTensor(std::move(P), d_nz, MDP::emptyVec, o_nz, MDP::emptyVec);
+}
+void MDP::setSourceTransitionProbabilityTensor(Probfunc P, PetscInt d_nz, const std::vector<int>& o_nnz)
+{
+    this->setSourceTransitionProbabilityTensor(std::move(P), d_nz, MDP::emptyVec, 0, o_nnz);
+}
+void MDP::setSourceTransitionProbabilityTensor(Probfunc P, const std::vector<int>& d_nnz, PetscInt o_nz)
+{
+    this->setSourceTransitionProbabilityTensor(std::move(P), 0, d_nnz, o_nz, MDP::emptyVec);
+}
+void MDP::setSourceTransitionProbabilityTensor(Probfunc P, const std::vector<int>& d_nnz, const std::vector<int>& o_nnz)
+{
+    this->setSourceTransitionProbabilityTensor(std::move(P), 0, d_nnz, 0, o_nnz);
+}
