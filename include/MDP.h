@@ -189,7 +189,6 @@ private:
     PetscChar      file_stats_[PETSC_MAX_PATH_LEN];  // output
     PetscInt       p_src_;                           // 0: from file, 1: from function, -1: not set
     PetscInt       g_src_;                           // 0: from file, 1: from function, -1: not set
-    const MPI_Comm comm_;                            // MPI communicator
 
     // derived parameters
     PetscInt                                                           localNumStates_;  // number of states owned by this rank
