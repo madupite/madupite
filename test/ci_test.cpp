@@ -64,7 +64,7 @@ int main(int argc, char** argv)
     mdp.setSourceTransitionProbabilityTensor(P, 3, MDP::emptyVec, 3, MDP::emptyVec);
     mdp.setUp();
 
-    mdp.inexactPolicyIteration();
+    mdp.solve();
 
     // Check solution
     // 42 (goal) has the highest reward, 17 has the lowest (1-based indexing)
@@ -107,6 +107,6 @@ int main(int argc, char** argv)
     mdp.setSourceTransitionProbabilityTensor("../test/100_50_0.1/P.bin");
     mdp.setSourceStageCostMatrix("../test/100_50_0.1/g.bin");
     mdp.setUp();
-    mdp.inexactPolicyIteration();
+    mdp.solve();
     return 0;
 }

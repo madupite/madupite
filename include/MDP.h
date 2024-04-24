@@ -130,7 +130,7 @@ public:
     void setSourceStageCostMatrix(const char* filename);
     void setSourceStageCostMatrix(const Costfunc g);
     void setUp(); // call after setting sources
-    void inexactPolicyIteration();
+    void solve();
 
     static constexpr std::vector<PetscInt> emptyVec = {}; // can be used by the user for d_nnz and o_nnz
 

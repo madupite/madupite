@@ -100,7 +100,7 @@ cdef class PyMDP:
         cdef int result
         result = self.c_mdp.inexactPolicyIteration()
         if result != 0:
-            raise RuntimeError("inexactPolicyIteration failed with error code %d" % result)
+            raise RuntimeError("solve failed with error code %d" % result)
         return result
 
     def loadFromBinaryFile(self):

@@ -183,9 +183,9 @@ void MDP::createJacobian(Mat& jacobian, const Mat& transitionProbabilities, Jaco
     PetscCallThrow(MatShellSetOperation(jacobian, MATOP_MULT_TRANSPOSE, (void (*)(void))jacobianMultiplicationTranspose));
 }
 
-void MDP::inexactPolicyIteration()
+void MDP::solve()
 {
-    // if(rank_ == 0) LOG("Entering inexactPolicyIteration");
+    // if(rank_ == 0) LOG("Entering solve");
     jsonWriter_->add_solver_run();
     writeJSONmetadata();
 
@@ -302,7 +302,7 @@ void MDP::cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason* rea
 void MDP::benchmarkIPI(const Vec &V0, IS &policy, Vec &optimalCost) {
 
     for(PetscInt i = 0; i < numPIRuns_; ++i) {
-        inexactPolicyIteration(V0, policy, optimalCost);
+        solve(V0, policy, optimalCost);
     }
 }
 */
