@@ -41,14 +41,15 @@ std::pair<std::vector<double>, std::vector<int>> P(const int s, const int a)
 
 int main(int argc, char** argv)
 {
-    // Initialize PETSc
-    PetscInitialize(&argc, &argv, PETSC_NULLPTR, PETSC_NULLPTR);
+    // Initialize MPI, PETSc and Madupite, passing command line arguments.
+    auto madupite = Madupite::initialize(&argc, &argv);
 
-    MDP mdp;
+    MDP mdp(madupite);
     mdp.setOption("-mode", "MAXREWARD");
     mdp.setOption("-discount_factor", "0.9999");
     mdp.setOption("-max_iter_pi", "200");
     mdp.setOption("-max_iter_ksp", "1000");
+    mdp.setOption("-num_pi_runs", "1");
     mdp.setOption("-rtol_ksp", "1e-4");
     mdp.setOption("-atol_pi", "1e-8");
     mdp.setOption("-num_states", "50");
@@ -96,8 +97,9 @@ int main(int argc, char** argv)
     }
 
     // Run 2: loading from binary file
+    mdp.setOption("-file_probabilities", "../test/100_50_0.1/P.bin");
+    mdp.setOption("-file_costs", "../test/100_50_0.1/g.bin");
     mdp.setOption("-mode", "MINCOST");
-    mdp.setOption("-file_stats", "ci_stats.json");
     mdp.setOption("-discount_factor", "0.9");
     mdp.setOption("-rtol_ksp", "0.1");
     mdp.setOption("-file_cost", "ci_cost_2.out");
@@ -109,9 +111,5 @@ int main(int argc, char** argv)
     mdp.setSourceStageCostMatrix("../test/100_50_0.1/g.bin");
     mdp.setUp();
     mdp.inexactPolicyIteration();
-    mdp.~MDP();
-
-    // Finalize PETSc
-    PetscFinalize();
     return 0;
 }

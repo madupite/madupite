@@ -5,16 +5,49 @@
 #include "MDP.h"
 // #include <mpi.h>
 #include <iostream> // todo: replace with logging
+#include <memory>
 #include <string>
 
-MDP::MDP(MPI_Comm comm)
-    : comm_(comm)
+std::shared_ptr<Madupite> Madupite::instance;
+std::mutex                Madupite::mtx;
+
+std::shared_ptr<Madupite> Madupite::initialize(int* argc, char*** argv)
+{
+    // Inner class that allows private constructor access via inheritance.
+    struct EnableMakeShared : Madupite {
+        EnableMakeShared()
+            : Madupite()
+        {
+        }
+    };
+
+    int    zero      = 0;
+    char** nullchars = nullptr;
+    if ((argc && *argc) != !!argv) {
+        throw MadupiteException("Both argc and argv must be specified or neither");
+    }
+    if (!argc || !*argc) {
+        argc = &zero;
+        argv = &nullchars;
+    }
+
+    std::lock_guard<std::mutex> lock(mtx);
+    if (!instance) {
+        instance = std::make_shared<EnableMakeShared>();
+        PetscCallThrow(PetscInitialize(argc, argv, PETSC_NULLPTR, PETSC_NULLPTR));
+    }
+    return instance;
+}
+
+MDP::MDP(std::shared_ptr<Madupite> madupite, MPI_Comm comm)
+    : madupite_(madupite)
+    , comm_(comm)
 {
     // MPI parallelization initialization
     MPI_Comm_rank(comm_, &rank_);
     MPI_Comm_size(comm_, &size_);
 
-    jsonWriter_ = new JsonWriter(rank_);
+    jsonWriter_ = std::make_unique<JsonWriter>(rank_);
 
     transitionProbabilityTensor_ = nullptr;
     stageCostMatrix_             = nullptr;
@@ -37,7 +70,6 @@ MDP::~MDP()
     PetscCallNoThrow(MatDestroy(&stageCostMatrix_));
     PetscCallNoThrow(MatDestroy(&costMatrix_));
     PetscCallNoThrow(VecDestroy(&costVector_));
-    // delete jsonWriter_; // todo fix this (double free or corruption error)
 }
 
 // Pre: numStates_, rank_ and size_ are set

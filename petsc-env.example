@@ -16,9 +16,14 @@
 #   source ./petsc-env
 
 PETSC_DIR=/home/vaclav-shared/madupite/petsc/release
+VALGRIND_DIR=/home/vaclav-shared/madupite/valgrind
+
 export PETSC_DIR=$(realpath $PETSC_DIR)
 export PETSC_ARCH=arch-ci-linux-pkgs
-export PATH=$PETSC_DIR/$PETSC_ARCH/bin:$PATH
+export PATH=$VALGRIND_DIR/bin:$PETSC_DIR/$PETSC_ARCH/bin:$PATH
 echo PETSC_DIR=$PETSC_DIR
 echo PETSC_ARCH=$PETSC_ARCH
 echo PATH=$PATH
+
+eval "$(conda shell.bash hook)"
+conda activate madupite

@@ -69,6 +69,7 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp
 
 $(BUILD_DIR)/example.o: example/example.cpp
 	@echo "Building example"
+	@mkdir -p $(@D)
 	$(COMPILE.cc) $(OUTPUT_OPTION) $<
 
 $(MADUPITE_LIB): $(OBJS)
