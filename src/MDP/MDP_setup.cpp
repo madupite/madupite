@@ -175,20 +175,6 @@ void MDP::setOption(const char* option, const char* value, bool setValues)
     }
 }
 
-void MDP::assembleMatrix(int matrix)
-{                      // assembles the matrix; blocking call
-    if (matrix == 0) { // transitionProbabilityTensor
-        PetscCallThrow(MatAssemblyBegin(transitionProbabilityTensor_, MAT_FINAL_ASSEMBLY));
-        PetscCallThrow(MatAssemblyEnd(transitionProbabilityTensor_, MAT_FINAL_ASSEMBLY));
-    } else if (matrix == 1) { // stageCostMatrix
-        PetscCallThrow(MatAssemblyBegin(stageCostMatrix_, MAT_FINAL_ASSEMBLY));
-        PetscCallThrow(MatAssemblyEnd(stageCostMatrix_, MAT_FINAL_ASSEMBLY));
-    } else {
-        std::cerr << "Invalid matrix type" << std::endl;
-        exit(1);
-    }
-}
-
 void MDP::setSourceStageCostMatrix(const char* filename)
 {
     if (g_src_ != FILE) {
@@ -296,7 +282,8 @@ void MDP::createStageCostMatrix()
             PetscCallThrow(MatSetValue(stageCostMatrix_, stateInd, actionInd, value, INSERT_VALUES));
         }
     }
-    assembleMatrix(1);
+    PetscCallThrow(MatAssemblyBegin(stageCostMatrix_, MAT_FINAL_ASSEMBLY));
+    PetscCallThrow(MatAssemblyEnd(stageCostMatrix_, MAT_FINAL_ASSEMBLY));
 }
 
 void MDP::createTransitionProbabilityTensorPrealloc()
@@ -325,7 +312,8 @@ void MDP::createTransitionProbabilityTensorPrealloc()
             PetscCallThrow(MatSetValues(transitionProbabilityTensor_, 1, &rowInd, indices.size(), indices.data(), values.data(), INSERT_VALUES));
         }
     }
-    assembleMatrix(0);
+    PetscCallThrow(MatAssemblyBegin(transitionProbabilityTensor_, MAT_FINAL_ASSEMBLY));
+    PetscCallThrow(MatAssemblyEnd(transitionProbabilityTensor_, MAT_FINAL_ASSEMBLY));
 }
 
 void MDP::createTransitionProbabilityTensor()
@@ -347,7 +335,8 @@ void MDP::createTransitionProbabilityTensor()
             PetscCallThrow(MatSetValues(transitionProbabilityTensor_, 1, &rowInd, indices.size(), indices.data(), values.data(), INSERT_VALUES));
         }
     }
-    assembleMatrix(0);
+    PetscCallThrow(MatAssemblyBegin(transitionProbabilityTensor_, MAT_FINAL_ASSEMBLY));
+    PetscCallThrow(MatAssemblyEnd(transitionProbabilityTensor_, MAT_FINAL_ASSEMBLY));
 }
 
 void MDP::setUp()

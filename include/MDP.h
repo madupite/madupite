@@ -142,7 +142,6 @@ private:
     void createStageCostMatrix(); // no preallocation needed since it's a dense matrix
     void createTransitionProbabilityTensorPrealloc();
     void createTransitionProbabilityTensor();
-    void assembleMatrix(int matrix);
     void setSourceTransitionProbabilityTensor(
         const Probfunc P, PetscInt d_nz, const std::vector<int>& d_nnz, PetscInt o_nz, const std::vector<int>& o_nnz);
 
