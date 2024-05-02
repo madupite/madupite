@@ -188,7 +188,7 @@ void MDP::setSourceStageCostMatrix(const char* filename)
     PetscCallThrow(PetscViewerDestroy(&viewer));
 }
 
-void MDP::setSourceStageCostMatrix(const Costfunc g)
+void MDP::setSourceStageCostMatrix(const Costfunc& g)
 {
     if (g_src_ != FUNCTION) {
         PetscThrow(comm_, 1, "Source of stage cost matrix not recognized. Use -source_g FUNCTION.");
@@ -209,7 +209,7 @@ void MDP::setSourceTransitionProbabilityTensor(const char* filename)
     PetscCallThrow(PetscViewerDestroy(&viewer));
 }
 
-void MDP::setSourceTransitionProbabilityTensor(const Probfunc P)
+void MDP::setSourceTransitionProbabilityTensor(const Probfunc& P)
 {
     if (p_src_ != FUNCTION) {
         PetscThrow(comm_, 1, "Source of transition probability tensor not recognized. Use -source_p FUNCTION.");
@@ -218,7 +218,7 @@ void MDP::setSourceTransitionProbabilityTensor(const Probfunc P)
 }
 
 void MDP::setSourceTransitionProbabilityTensor(
-    const Probfunc P, PetscInt d_nz, const std::vector<int>& d_nnz, PetscInt o_nz, const std::vector<int>& o_nnz)
+    const Probfunc& P, PetscInt d_nz, const std::vector<int>& d_nnz, PetscInt o_nz, const std::vector<int>& o_nnz)
 {
     if (p_src_ != FUNCTION) {
         PetscThrow(comm_, 1, "Source of transition probability tensor not recognized. Use -source_p FUNCTION.");
@@ -494,21 +494,4 @@ void MDP::writeJSONmetadata()
     if (g_src_ == FILE) {
         jsonWriter_->add_data("file_stage_costs", g_file_name_);
     }
-}
-
-void MDP::setSourceTransitionProbabilityTensor(Probfunc P, PetscInt d_nz, PetscInt o_nz)
-{
-    this->setSourceTransitionProbabilityTensor(std::move(P), d_nz, MDP::emptyVec, o_nz, MDP::emptyVec);
-}
-void MDP::setSourceTransitionProbabilityTensor(Probfunc P, PetscInt d_nz, const std::vector<int>& o_nnz)
-{
-    this->setSourceTransitionProbabilityTensor(std::move(P), d_nz, MDP::emptyVec, 0, o_nnz);
-}
-void MDP::setSourceTransitionProbabilityTensor(Probfunc P, const std::vector<int>& d_nnz, PetscInt o_nz)
-{
-    this->setSourceTransitionProbabilityTensor(std::move(P), 0, d_nnz, o_nz, MDP::emptyVec);
-}
-void MDP::setSourceTransitionProbabilityTensor(Probfunc P, const std::vector<int>& d_nnz, const std::vector<int>& o_nnz)
-{
-    this->setSourceTransitionProbabilityTensor(std::move(P), 0, d_nnz, 0, o_nnz);
 }

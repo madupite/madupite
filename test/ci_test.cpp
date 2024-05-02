@@ -61,7 +61,7 @@ int main(int argc, char** argv)
     mdp.setOption("-source_g", "FUNCTION");
     mdp.setValuesFromOptions();
     mdp.setSourceStageCostMatrix(r);
-    mdp.setSourceTransitionProbabilityTensor(P, 3, 3);
+    mdp.setSourceTransitionProbabilityTensor(P, 3, {}, 3, {});
     mdp.setUp();
 
     mdp.solve();

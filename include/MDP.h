@@ -124,15 +124,13 @@ public:
     void           setOption(const char* option, const char* value, bool setValues = false);
     PetscErrorCode setValuesFromOptions();
     void           setSourceTransitionProbabilityTensor(const char* filename);
-    void           setSourceTransitionProbabilityTensor(const Probfunc P); // no preallocation
-    void           setSourceTransitionProbabilityTensor(Probfunc P, PetscInt d_nz, PetscInt o_nz);
-    void           setSourceTransitionProbabilityTensor(Probfunc P, PetscInt d_nz, const std::vector<int>& o_nnz);
-    void           setSourceTransitionProbabilityTensor(Probfunc P, const std::vector<int>& d_nnz, PetscInt o_nz);
-    void           setSourceTransitionProbabilityTensor(Probfunc P, const std::vector<int>& d_nnz, const std::vector<int>& o_nnz);
-    void           setSourceStageCostMatrix(const char* filename);
-    void           setSourceStageCostMatrix(const Costfunc g);
-    void           setUp(); // call after setting sources
-    void           solve();
+    void           setSourceTransitionProbabilityTensor(const Probfunc& P); // no preallocation
+    void           setSourceTransitionProbabilityTensor(
+                  const Probfunc& P, PetscInt d_nz, const std::vector<int>& d_nnz, PetscInt o_nz, const std::vector<int>& o_nnz);
+    void setSourceStageCostMatrix(const char* filename);
+    void setSourceStageCostMatrix(const Costfunc& g);
+    void setUp(); // call after setting sources
+    void solve();
 
 private:
     // MDP Setup
@@ -142,8 +140,6 @@ private:
     void createStageCostMatrix(); // no preallocation needed since it's a dense matrix
     void createTransitionProbabilityTensorPrealloc();
     void createTransitionProbabilityTensor();
-    void setSourceTransitionProbabilityTensor(
-        const Probfunc P, PetscInt d_nz, const std::vector<int>& d_nnz, PetscInt o_nz, const std::vector<int>& o_nnz);
 
     // functions not needed right now but maybe for cython wrapper
     std::pair<int, int> request_states(int nstates, int mactions, int matrix,
