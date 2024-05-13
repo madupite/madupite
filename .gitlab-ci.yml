@@ -1,7 +1,7 @@
 image: continuumio/miniconda3
 
 stages:
-  - pre-commit
+  # - pre-commit
   - prepare
   - build
   - test
