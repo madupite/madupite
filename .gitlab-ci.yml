@@ -14,12 +14,6 @@ before_script:
   - conda env create -f environment.yml || conda env update -f environment.yml
   - conda activate madupiteenv
 
-pre-commit:
-  stage: pre-commit
-  script:
-    - conda install -c conda-forge pre-commit
-    - pre-commit run --all-files
-
 create_environment:
   stage: prepare
   script:
