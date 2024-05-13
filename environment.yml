@@ -17,3 +17,5 @@ dependencies:
   - conda-forge::numpy
   - conda-forge::numba
   - conda-forge::boost
+  - pip:
+    - gcovr

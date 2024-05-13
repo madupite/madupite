@@ -7,81 +7,63 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 # Turn on for verbose make output
 set(CMAKE_VERBOSE_MAKEFILE OFF)
 
+if (CMAKE_BUILD_TYPE MATCHES Coverage)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --coverage -g -O0" CACHE STRING "Flags used by the compiler during coverage builds." FORCE)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --coverage -g -O0" CACHE STRING "Flags used by the compiler during coverage builds." FORCE)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} --coverage" CACHE STRING "Flags used by the linker during coverage builds." FORCE)
+    add_compile_options("--coverage")
+    add_link_options("--coverage")
+endif()
+
+if (CMAKE_BUILD_TYPE MATCHES Coverage)
+    add_definitions(-O0)  # Ensure no optimizations for coverage
+endif()
+
+
+
 # Specify the C++ standard
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
+
+# Find MPI package
+find_package(MPI REQUIRED)
+include_directories(${MPI_CXX_INCLUDE_PATH})
 
 # PETSc configuration
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 set(PETSC_DIR $ENV{PETSC_DIR})
 set(PETSC_ARCH $ENV{PETSC_ARCH})
 set(PETSC ${PETSC_DIR}/${PETSC_ARCH})
-
 set(ENV{PKG_CONFIG_PATH} ${PETSC}/lib/pkgconfig)
 find_package(PkgConfig REQUIRED)
 pkg_search_module(PETSC REQUIRED IMPORTED_TARGET PETSc)
-include_directories(${PETSC_DIR}/include)
-include_directories(${PETSC_DIR}/${PETSC_ARCH}/include)
+include_directories(${PETSC_DIR}/include ${PETSC_DIR}/${PETSC_ARCH}/include include)
 
-# Figure out compilers (MPI wrappers) from PETSc configuration
-# We currenly handle only the debug build type and rely on PETSc to be built without --with-debugging=no
-set(CMAKE_BUILD_TYPE Debug)
-execute_process ( COMMAND pkg-config PETSc --variable=ccompiler COMMAND tr -d '\n' OUTPUT_VARIABLE CMAKE_C_COMPILER)
-execute_process ( COMMAND pkg-config PETSc --variable=cxxcompiler COMMAND tr -d '\n' OUTPUT_VARIABLE CMAKE_CXX_COMPILER)
-execute_process ( COMMAND pkg-config PETSc --variable=cflags_extra COMMAND tr -d '\n' OUTPUT_VARIABLE CMAKE_C_FLAGS_DEBUG)
-execute_process ( COMMAND pkg-config PETSc --variable=cxxflags_extra COMMAND tr -d '\n' OUTPUT_VARIABLE CMAKE_CXX_FLAGS_DEBUG)
-# Workaround for the -fvisibility=hidden flag that is added by PETSc
-# - we currently need to have symbols exported by default
-string(REPLACE " -fvisibility=hidden" "" CMAKE_C_FLAGS_DEBUG ${CMAKE_C_FLAGS_DEBUG})
-string(REPLACE " -fvisibility=hidden" "" CMAKE_CXX_FLAGS_DEBUG ${CMAKE_CXX_FLAGS_DEBUG})
-message(STATUS "Compilers inferred from PETSc:")
-message(STATUS "  C: ${CMAKE_C_COMPILER}  ${CMAKE_C_FLAGS_DEBUG}")
-message(STATUS "  C++: ${CMAKE_CXX_COMPILER}  ${CMAKE_CXX_FLAGS_DEBUG}")
-
-# Boost configuration
-# VH: We might not need Boost libraries with the C++20 standard
-# find_package(Boost REQUIRED)
-# include_directories(${Boost_INCLUDE_DIRS})
-
-# Add include directories
-include_directories(include)
-
-# Define the shared library that compiles from the specified sources
+# Linking against MPI
 add_library(madupite SHARED
     src/MDP/MDP_algorithm.cpp
     src/MDP/MDP_change.cpp
     src/MDP/MDP_setup.cpp
 )
-
-# Link the madupite library with PETSc
 target_link_libraries(madupite
     PkgConfig::PETSC
-    # ${Boost_LIBRARIES}
+    ${MPI_CXX_LIBRARIES}
 )
 
-# Specify where the compiled shared library should be placed
-set_target_properties(madupite PROPERTIES
-    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
-)
-
-# Add an executable target for example/example.cpp
 add_executable(example example/example.cpp)
-
-# Link the "example" target with the madupite library and PETSc
 target_link_libraries(example
     madupite
     PkgConfig::PETSC
-    # ${Boost_LIBRARIES}
+    ${MPI_CXX_LIBRARIES}
 )
 
-# CI Test
 add_executable(ci-test test/ci_test.cpp)
 target_link_libraries(ci-test
     madupite
     PkgConfig::PETSC
+    ${MPI_CXX_LIBRARIES}
 )
 
-# Ensure the "example" target can find the madupite library at runtime
-set_target_properties(example PROPERTIES
+set_target_properties(example ci-test PROPERTIES
     INSTALL_RPATH "${CMAKE_BINARY_DIR}/lib"
 )

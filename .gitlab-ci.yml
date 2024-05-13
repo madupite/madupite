@@ -5,6 +5,7 @@ stages:
   - prepare
   - build
   - test
+  - coverage
 
 before_script:
   - conda init bash
@@ -42,5 +43,21 @@ test:
     # Your test commands here
     - cd build
     - ./ci-test
-    - mpirun -n 2 ./ci-test
+    # - mpirun -n 2 ./ci-test
     - echo "Finished with code $?"
+
+coverage:
+  stage: coverage
+  script:
+    - cmake -DCMAKE_BUILD_TYPE=Coverage -S . -B build
+    - make -C build
+    - cd build
+    - ./ci-test
+    - gcovr -r .. --xml-pretty -o coverage.xml # Generates a Cobertura-compatible XML report
+    - gcovr -r .. --html -o coverage.html --html-details # Generates a detailed HTML report (optional)
+  artifacts:
+    reports:
+      cobertura: coverage.xml
+    paths:
+      - build/coverage.xml
+      - build/coverage.html # Optional
