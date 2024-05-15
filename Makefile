@@ -21,16 +21,17 @@ CPPFLAGS := $(shell pkg-config --cflags-only-I $(PACKAGES))
 LDFLAGS := $(shell pkg-config --libs-only-L --libs-only-other $(PACKAGES))
 LDFLAGS += $(patsubst -L%, $(shell pkg-config --variable=ldflag_rpath $(PACKAGES))%, $(shell pkg-config --libs-only-L $(PACKAGES)))
 LDLIBS := $(shell pkg-config --libs-only-l $(PACKAGES)) -lm
-# CUDAC := $(shell pkg-config --variable=cudacompiler $(PACKAGES))
-# CUDAC_FLAGS := $(shell pkg-config --variable=cudaflags_extra $(PACKAGES))
-# CUDA_LIB := $(shell pkg-config --variable=cudalib $(PACKAGES))
-# CUDA_INCLUDE := $(shell pkg-config --variable=cudainclude $(PACKAGES))
 
+# Set the C++ standard
+CXXFLAGS += -std=c++20
+
+# Project-specific settings
 MADUPITE_LDLIBS = -lmadupite
 MADUPITE_LDFLAGS = -L${CURDIR}/lib -Wl,-rpath,${CURDIR}/lib
 MADUPITE_INCLUDE = -I${CURDIR}/include
 MADUPITE_LIB := $(CURDIR)/lib/libmadupite.so
 MADUPITE_BIN := $(CURDIR)/bin/example
+CI_TEST_BIN := $(CURDIR)/bin/ci-test
 
 CPPFLAGS += $(MADUPITE_INCLUDE)
 
@@ -50,16 +51,18 @@ BUILD_DIR := build
 
 # Find all .cpp files in the src directory (including subdirectories)
 SRCS := $(shell find $(SRC_DIR) -name '*.cpp')
+SRCS_MADUPITE := $(wildcard $(SRC_DIR)/MDP/*.cpp)
 
 # Generate corresponding .o files in the build directory
 OBJS := $(SRCS:$(SRC_DIR)/%.cpp=$(BUILD_DIR)/%.o)
+OBJS_MADUPITE := $(SRCS_MADUPITE:$(SRC_DIR)/%.cpp=$(BUILD_DIR)/%.o)
 
 # Include the .d files (header dependencies produced by the -MMD -MP flags in CFLAGS and CXXFLAGS)
 DEPS = $(OBJS:.o=.d)
 -include $(DEPS)
 
 # Default target (first target in the file)
-all: example
+all: example ci-test
 
 # Explicit rules
 #   (see https://www.gnu.org/software/make/manual/html_node/Catalogue-of-Rules.html#Catalogue-of-Rules for implicit rules)
@@ -72,7 +75,12 @@ $(BUILD_DIR)/example.o: example/example.cpp
 	@mkdir -p $(@D)
 	$(COMPILE.cc) $(OUTPUT_OPTION) $<
 
-$(MADUPITE_LIB): $(OBJS)
+$(BUILD_DIR)/ci-test.o: test/ci_test.cpp
+	@echo "Building CI Test"
+	@mkdir -p $(@D)
+	$(COMPILE.cc) $(OUTPUT_OPTION) $<
+
+$(MADUPITE_LIB): $(OBJS_MADUPITE)
 	mkdir -p lib
 	$(LINK.cc) -shared -o $@ $^ $(LDLIBS)
 
@@ -80,12 +88,18 @@ $(MADUPITE_BIN): $(BUILD_DIR)/example.o $(MADUPITE_LIB)
 	mkdir -p bin
 	$(LINK.cc) $(MADUPITE_LDFLAGS) -o $@ $< $(MADUPITE_LDLIBS) $(LDLIBS)
 
+$(CI_TEST_BIN): $(BUILD_DIR)/ci-test.o $(MADUPITE_LIB)
+	mkdir -p bin
+	$(LINK.cc) $(MADUPITE_LDFLAGS) -o $@ $< $(MADUPITE_LDLIBS) $(LDLIBS)
+
 # Phony targets
-.PHONY: all lib example run_example clean print help
+.PHONY: all lib example ci-test run_example clean print help
 
 lib: $(MADUPITE_LIB)
 
 example: $(MADUPITE_BIN)
+
+ci-test: $(CI_TEST_BIN)
 
 run_example: example
 	$(MADUPITE_BIN)
@@ -95,7 +109,7 @@ format:
 	clang-format-18 -i $(SRCS) example/example.cpp include/MDP.h
 
 clean:
-	rm -f $(OBJS) $(BUILD_DIR)/example.o $(DEPS) $(MADUPITE_LIB) $(MADUPITE_BIN)
+	rm -f $(OBJS) $(BUILD_DIR)/example.o $(BUILD_DIR)/ci-test.o $(DEPS) $(MADUPITE_LIB) $(MADUPITE_BIN) $(CI_TEST_BIN)
 
 print:
 	@echo MADUPITE_INCLUDE=$(MADUPITE_INCLUDE)
@@ -103,6 +117,7 @@ print:
 	@echo MADUPITE_LDFLAGS=$(MADUPITE_LDFLAGS)
 	@echo MADUPITE_LIB=$(MADUPITE_LIB)
 	@echo MADUPITE_BIN=$(MADUPITE_BIN)
+	@echo CI_TEST_BIN=$(CI_TEST_BIN)
 	@echo \#
 	@echo CC=$(CC)
 	@echo CXX=$(CXX)
@@ -116,8 +131,10 @@ print:
 	@echo LINK.cc=$(LINK.cc)
 	@echo \#
 	@echo SRCS=$(SRCS)
+	@echo SRCS_MADUPITE=$(SRCS_MADUPITE)
 	@echo OBJS=$(OBJS)
+	@echo OBJS_MADUPITE=$(OBJS_MADUPITE)
 	@echo DEPS=$(DEPS)
 
 help:
-	@echo "make [all|lib|example|run_example|clean|print|help]"
+	@echo "make [all|lib|example|ci-test|run_example|clean|print|help]"
