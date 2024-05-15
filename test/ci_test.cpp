@@ -59,10 +59,9 @@ int main(int argc, char** argv)
     mdp.setOption("-ksp_type", "gmres");
     mdp.setOption("-source_p", "FUNCTION");
     mdp.setOption("-source_g", "FUNCTION");
-    mdp.setValuesFromOptions();
+
     mdp.setSourceStageCostMatrix(r);
     mdp.setSourceTransitionProbabilityTensor(P, 3, 3);
-    mdp.setUp();
 
     mdp.solve();
 
@@ -106,7 +105,6 @@ int main(int argc, char** argv)
     mdp.setValuesFromOptions();
     mdp.setSourceTransitionProbabilityTensor("../test/100_50_0.1/P.bin");
     mdp.setSourceStageCostMatrix("../test/100_50_0.1/g.bin");
-    mdp.setUp();
     mdp.solve();
     return 0;
 }

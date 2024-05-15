@@ -185,6 +185,32 @@ void MDP::createJacobian(Mat& jacobian, const Mat& transitionProbabilities, Jaco
 
 void MDP::solve()
 {
+    // Matrix compatibility check
+    PetscInt tptRows, tptCols, scmRows, scmCols;
+    PetscCallThrow(MatGetSize(transitionProbabilityTensor_, &tptRows, &tptCols));
+    PetscCallThrow(MatGetSize(stageCostMatrix_, &scmRows, &scmCols));
+    if (tptRows != scmRows * scmCols || tptCols != scmRows) {
+        PetscThrow(comm_, 1,
+            "Size of transition probability tensor not compatible with the size of the cost matrix. Check the sizes of the input files or the "
+            "options -num_states and -num_actions.");
+    }
+    // Check if required options have been set.
+    PetscBool pSrcSet, gSrcSet, discountFactorSet;
+    if (numStates_ == -1) {
+        PetscThrow(comm_, 1, "Number of states not set. Use -num_states <int>.");
+    }
+    if (numActions_ == -1) {
+        PetscThrow(comm_, 1, "Number of actions not set. Use -num_actions <int>.");
+    }
+    PetscCallThrow(PetscOptionsHasName(NULL, NULL, "-source_p", &pSrcSet));
+    PetscCallThrow(PetscOptionsHasName(NULL, NULL, "-source_g", &gSrcSet));
+    PetscCallThrow(PetscOptionsHasName(NULL, NULL, "-discount_factor", &discountFactorSet));
+
+    if (!pSrcSet || !gSrcSet || !discountFactor_) {
+        PetscThrow(
+            comm_, 1, "Required options are not set. Ensure -num_states, -num_actions, -source_p, -source_g and -discount_factor are specified.");
+    }
+
     // if(rank_ == 0) LOG("Entering solve");
     jsonWriter_->add_solver_run();
     writeJSONmetadata();

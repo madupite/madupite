@@ -39,10 +39,8 @@ int main(int argc, char** argv)
     // mdp.setOption("-numStates", "100");
     // mdp.setOption("-numActions", "20");
 
-    mdp.setValuesFromOptions();
-    mdp.setSourceStageCostMatrix("example/100_50_0.1/g.bin");
-    mdp.setSourceTransitionProbabilityTensor("example/100_50_0.1/P.bin");
-    mdp.setUp();
+    mdp.setSourceStageCostMatrix("../example/100_50_0.1/g.bin");
+    mdp.setSourceTransitionProbabilityTensor("../example/100_50_0.1/P.bin");
 
     std::cout << "File loaded." << std::endl;
     // mdp.generateCostMatrix(g);

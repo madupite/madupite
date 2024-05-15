@@ -121,7 +121,7 @@ class MDP {
 public:
     MDP(std::shared_ptr<Madupite> madupite, MPI_Comm comm = PETSC_COMM_WORLD);
     ~MDP();
-    void           setOption(const char* option, const char* value, bool setValues = false);
+    void           setOption(const char* option, const char* value);
     PetscErrorCode setValuesFromOptions();
     void           setSourceTransitionProbabilityTensor(const char* filename);
     void           setSourceTransitionProbabilityTensor(const Probfunc P); // no preallocation
@@ -131,7 +131,6 @@ public:
     void           setSourceTransitionProbabilityTensor(Probfunc P, const std::vector<int>& d_nnz, const std::vector<int>& o_nnz);
     void           setSourceStageCostMatrix(const char* filename);
     void           setSourceStageCostMatrix(const Costfunc g);
-    void           setUp(); // call after setting sources
     void           solve();
 
 private:
