@@ -96,9 +96,9 @@ $(MADUPITE_BIN): $(BUILD_DIR)/example.o $(MADUPITE_LIB)
 	mkdir -p bin
 	$(LINK.cc) $(MADUPITE_LDFLAGS) -o $@ $< $(MADUPITE_LDLIBS) $(LDLIBS)
 
-$(CI_TEST_BIN): $(BUILD_DIR)/ci-test.o $(MADUPITE_LIB)
+$(CI_TEST_BIN): $(BUILD_DIR)/ci-test.o $(OBJS_MADUPITE) $(MADUPITE_LIB)
 	mkdir -p bin
-	$(LINK.cc) $(MADUPITE_LDFLAGS) -o $@ $< $(MADUPITE_LDLIBS) $(LDLIBS)
+	$(LINK.cc) $(MADUPITE_LDFLAGS) -o $@ $^ $(MADUPITE_LDLIBS) $(LDLIBS)
 
 # Phony targets
 .PHONY: all lib example ci-test run_example clean print help
