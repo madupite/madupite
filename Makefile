@@ -25,6 +25,14 @@ LDLIBS := $(shell pkg-config --libs-only-l $(PACKAGES)) -lm
 # Set the C++ standard
 CXXFLAGS += -std=c++20
 
+# Add coverage flags for llvm-cov
+CFLAGS += -fprofile-instr-generate -fcoverage-mapping
+CXXFLAGS += -fprofile-instr-generate -fcoverage-mapping
+LDFLAGS += -fprofile-instr-generate -fcoverage-mapping
+
+# llvm-profdata-18 merge -output=merged.profdata *.profraw
+# llvm-cov-18 show ./ci-test -instr-profile=merged.profdata -format=html -o coverage-report
+
 # Project-specific settings
 MADUPITE_LDLIBS = -lmadupite
 MADUPITE_LDFLAGS = -L${CURDIR}/lib -Wl,-rpath,${CURDIR}/lib
@@ -109,7 +117,7 @@ format:
 	clang-format-18 -i $(SRCS) example/example.cpp include/MDP.h
 
 clean:
-	rm -f $(OBJS) $(BUILD_DIR)/example.o $(BUILD_DIR)/ci-test.o $(DEPS) $(MADUPITE_LIB) $(MADUPITE_BIN) $(CI_TEST_BIN)
+	rm -f $(OBJS) $(BUILD_DIR)/example.o $(BUILD_DIR)/ci-test.o $(DEPS) $(MADUPITE_LIB) $(MADUPITE_BIN) $(CI_TEST_BIN) *.gcda *.gcno *.profraw
 
 print:
 	@echo MADUPITE_INCLUDE=$(MADUPITE_INCLUDE)
