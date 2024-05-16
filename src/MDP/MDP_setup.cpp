@@ -72,11 +72,13 @@ MDP::~MDP()
     PetscCallNoThrow(VecDestroy(&costVector_));
 }
 
-// Pre: numStates_, rank_ and size_ are set
+// Pre: numStates_ is set
 // Post: localNumStates_ is set
 void MDP::splitOwnership()
 {
-    localNumStates_ = (rank_ < numStates_ % size_) ? numStates_ / size_ + 1 : numStates_ / size_; // first numStates_ % size_ ranks get one more state
+    localNumStates_ = PETSC_DECIDE;
+    PetscCallThrow(PetscSplitOwnership(comm_, &localNumStates_, &numStates_));
+    // std::cout << "Rank " << rank_ << " owns " << localNumStates_ << " states." << std::endl;
 }
 
 PetscErrorCode MDP::setValuesFromOptions()
