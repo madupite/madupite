@@ -49,7 +49,7 @@ int main(int argc, char** argv)
     mdp.setOption("-discount_factor", "0.9999");
     mdp.setOption("-max_iter_pi", "200");
     mdp.setOption("-max_iter_ksp", "1000");
-    mdp.setOption("-rtol_ksp", "1e-4");
+    mdp.setOption("-alpha", "1e-4");
     mdp.setOption("-atol_pi", "1e-8");
     mdp.setOption("-num_states", "50");
     mdp.setOption("-num_actions", "3");
@@ -98,7 +98,7 @@ int main(int argc, char** argv)
     // Run 2: loading from binary file
     mdp.setOption("-mode", "MINCOST");
     mdp.setOption("-discount_factor", "0.9");
-    mdp.setOption("-rtol_ksp", "0.1");
+    mdp.setOption("-alpha", "0.1");
     mdp.setOption("-file_cost", "ci_cost_2.out");
     mdp.setOption("-file_policy", "ci_policy_2.out");
     mdp.setOption("-source_p", "FILE");

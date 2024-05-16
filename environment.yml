@@ -16,4 +16,3 @@ dependencies:
   - conda-forge::scipy
   - conda-forge::numpy
   - conda-forge::numba
-  - conda-forge::boost

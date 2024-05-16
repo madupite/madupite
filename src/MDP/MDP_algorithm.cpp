@@ -230,7 +230,7 @@ void MDP::solve()
         createJacobian(jacobian, transitionProbabilities, ctxJac);
 
         // solve linear system
-        KSPContext ctx = { maxIter_KSP_, residualNorm * rtol_KSP_, -1 };
+        KSPContext ctx = { maxIter_KSP_, residualNorm * alpha_, -1 };
         iterativePolicyEvaluation(jacobian, stageCosts, V, ctx); // inner loop
 
         PetscCallThrow(MatDestroy(&transitionProbabilities));
