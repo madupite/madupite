@@ -38,11 +38,6 @@ message(STATUS "Compilers inferred from PETSc:")
 message(STATUS "  C: ${CMAKE_C_COMPILER}  ${CMAKE_C_FLAGS_DEBUG}")
 message(STATUS "  C++: ${CMAKE_CXX_COMPILER}  ${CMAKE_CXX_FLAGS_DEBUG}")
 
-# Boost configuration
-# VH: We might not need Boost libraries with the C++20 standard
-# find_package(Boost REQUIRED)
-# include_directories(${Boost_INCLUDE_DIRS})
-
 # Add include directories
 include_directories(include)
 
