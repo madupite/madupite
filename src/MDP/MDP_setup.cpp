@@ -103,9 +103,9 @@ PetscErrorCode MDP::setValuesFromOptions()
     if (!flg) {
         SETERRQ(comm_, 1, "Maximum number of KSP iterations not specified. Use -maxIter_KSP <int>.");
     }
-    PetscCall(PetscOptionsGetReal(NULL, NULL, "-rtol_ksp", &rtol_KSP_, &flg));
+    PetscCall(PetscOptionsGetReal(NULL, NULL, "-alpha", &alpha_, &flg));
     if (!flg) {
-        SETERRQ(comm_, 1, "Relative tolerance for KSP not specified. Use -rtol_KSP <double>.");
+        SETERRQ(comm_, 1, "Relative tolerance for KSP not specified. Use -alpha <double>.");
     }
     PetscCall(PetscOptionsGetReal(NULL, NULL, "-atol_pi", &atol_PI_, &flg));
     if (!flg) {
@@ -170,7 +170,7 @@ PetscErrorCode MDP::setValuesFromOptions()
 void MDP::setOption(const char* option, const char* value, bool setValues)
 {
     // todo: should only be possible for:
-    // -discountFactor, -maxIter_PI, -maxIter_KSP, -numPIRuns, -rtol_KSP, -atol_PI, -file_policy, -file_cost, -file_stats, -mode
+    // -discountFactor, -maxIter_PI, -maxIter_KSP, -numPIRuns, -alpha, -atol_PI, -file_policy, -file_cost, -file_stats, -mode
     PetscCallThrow(PetscOptionsSetValue(NULL, option, value));
     if (setValues) {
         PetscCallThrow(setValuesFromOptions());
@@ -477,7 +477,7 @@ void MDP::writeJSONmetadata()
     jsonWriter_->add_data("discount_factor", discountFactor_);
     jsonWriter_->add_data("max_iter_pi", maxIter_PI_);
     jsonWriter_->add_data("max_iter_ksp", maxIter_KSP_);
-    jsonWriter_->add_data("rtol_ksp", rtol_KSP_);
+    jsonWriter_->add_data("alpha", alpha_);
     jsonWriter_->add_data("atol_pi", atol_PI_);
     jsonWriter_->add_data("num_ranks", size_);
 

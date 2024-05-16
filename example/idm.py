@@ -117,7 +117,7 @@ with md.PETScContextManager():
     mdp.setOption("-mode", "MINCOST")
     mdp.setOption("-max_iter_ksp", "200")
     mdp.setOption("-max_iter_pi", "20")
-    mdp.setOption("-rtol_ksp", "1e-4")
+    mdp.setOption("-alpha", "1e-4")
     mdp.setOption("-atol_pi", "1e-10")
     mdp.setOption("-file_stats", "idm_stats.out")
     mdp.setOption("-file_policy", "idm_policy.out")

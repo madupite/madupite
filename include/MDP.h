@@ -182,7 +182,7 @@ private:
     PetscReal discountFactor_;
     PetscInt  maxIter_PI_;
     PetscInt  maxIter_KSP_;
-    PetscReal rtol_KSP_;
+    PetscReal alpha_;
     PetscReal atol_PI_;
     PetscChar file_policy_[PETSC_MAX_PATH_LEN]; // output
     PetscChar file_cost_[PETSC_MAX_PATH_LEN];   // output

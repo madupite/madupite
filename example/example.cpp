@@ -29,7 +29,7 @@ int main(int argc, char** argv)
     mdp.setOption("-discount_factor", "0.9");
     mdp.setOption("-max_iter_pi", "20");
     mdp.setOption("-max_iter_ksp", "1000");
-    mdp.setOption("-rtol_ksp", "1e-4");
+    mdp.setOption("-alpha", "1e-4");
     mdp.setOption("-atol_pi", "1e-10");
     mdp.setOption("-source_p", "FILE");
     mdp.setOption("-source_g", "FILE");

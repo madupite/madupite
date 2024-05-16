@@ -12,7 +12,7 @@ mpirun -n $nproc ./distributed_inexact_policy_iteration \
 -maxIter_PI 20 \
 -maxIter_KSP 1000 \
 -numPIRuns 1 \
--rtol_KSP 1e-4 \
+-alpha 1e-4 \
 -atol_PI 1e-10 \
 -file_P ../example/100_50_0.1/P.bin \
 -file_g ../example/100_50_0.1/g.bin \

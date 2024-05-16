@@ -5,7 +5,7 @@
 -max_iter_pi 20
 -max_iter_ksp 1000
 -num_pi_runs 1
--rtol_ksp 1e-4
+-alpha 1e-4
 -atol_pi 1e-10
 -file_probabilities 100_50_0.1/P.bin
 -file_costs 100_50_0.1/g.bin
