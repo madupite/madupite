@@ -92,7 +92,7 @@ void MDP::constructFromPolicy(const PetscInt* policy, Mat& transitionProbabiliti
     for (PetscInt localStateInd = 0; localStateInd < localNumStates_; ++localStateInd) {
         actionInd = policy[localStateInd];
         // compute values for row index set
-        P_rowIndexValues[localStateInd] = P_start_ + localStateInd * numActions_ + actionInd;
+        P_rowIndexValues[localStateInd] = p_start_ + localStateInd * numActions_ + actionInd;
         // get values for stageCosts
         g_srcRow = g_start_ + localStateInd;
         PetscCallThrow(MatGetValue(stageCostMatrix_, g_srcRow, actionInd, &g_pi_values[localStateInd]));
@@ -183,9 +183,9 @@ void MDP::createJacobian(Mat& jacobian, const Mat& transitionProbabilities, Jaco
     PetscCallThrow(MatShellSetOperation(jacobian, MATOP_MULT_TRANSPOSE, (void (*)(void))jacobianMultiplicationTranspose));
 }
 
-void MDP::inexactPolicyIteration()
+void MDP::solve()
 {
-    // if(rank_ == 0) LOG("Entering inexactPolicyIteration");
+    // if(rank_ == 0) LOG("Entering solve");
     jsonWriter_->add_solver_run();
     writeJSONmetadata();
 
@@ -302,7 +302,7 @@ void MDP::cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason* rea
 void MDP::benchmarkIPI(const Vec &V0, IS &policy, Vec &optimalCost) {
 
     for(PetscInt i = 0; i < numPIRuns_; ++i) {
-        inexactPolicyIteration(V0, policy, optimalCost);
+        solve(V0, policy, optimalCost);
     }
 }
 */
