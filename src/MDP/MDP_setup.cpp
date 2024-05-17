@@ -177,6 +177,8 @@ void MDP::setOption(const char* option, const char* value, bool setValues)
     }
 }
 
+void MDP::clearOptions() { PetscCallThrow(PetscOptionsClear(NULL)); }
+
 void MDP::setSourceStageCostMatrix(const char* filename)
 {
     if (g_src_ != FILE) {
