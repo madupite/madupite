@@ -121,7 +121,7 @@ class MDP {
 public:
     MDP(std::shared_ptr<Madupite> madupite, MPI_Comm comm = PETSC_COMM_WORLD);
     ~MDP();
-    void           setOption(const char* option, const char* value, bool setValues = false);
+    void           setOption(const char* option, const char* value = NULL, bool setValues = false);
     void           clearOptions();
     PetscErrorCode setValuesFromOptions();
     void           setSourceTransitionProbabilityTensor(const char* filename);
