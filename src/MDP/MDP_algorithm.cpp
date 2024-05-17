@@ -134,6 +134,12 @@ void MDP::iterativePolicyEvaluation(const Mat& jacobian, const Vec& stageCosts, 
     KSP ksp;
     PetscCallThrow(KSPCreate(comm_, &ksp));
     PetscCallThrow(KSPSetOperators(ksp, jacobian, jacobian));
+
+    // PC setup
+    PC pc;
+    PetscCallThrow(KSPGetPC(ksp, &pc));
+    PetscCallThrow(PCSetFromOptions(pc));
+
     PetscCallThrow(KSPSetFromOptions(ksp));
     PetscCallThrow(KSPSetInitialGuessNonzero(ksp, PETSC_TRUE));
     PetscCallThrow(KSPSetTolerances(ksp, 1e-40, ctx.threshold, PETSC_DEFAULT,
@@ -146,10 +152,13 @@ void MDP::iterativePolicyEvaluation(const Mat& jacobian, const Vec& stageCosts, 
 
     // output
     PetscCallThrow(KSPGetIterationNumber(ksp, &ctx.kspIterations));
-    KSPType type;
-    PetscCallThrow(KSPGetType(ksp, &type));
+    KSPType ksptype;
+    PetscCallThrow(KSPGetType(ksp, &ksptype));
     jsonWriter_->add_data("KSPType",
-        type); // must be written here since KSPType is only available after KSPSolve. Other data should be written in MDP::writeJSONmetadata
+        ksptype); // must be written here since KSPType is only available after KSPSolve. Other data should be written in MDP::writeJSONmetadata
+    PCType pctype;
+    PetscCallThrow(PCGetType(pc, &pctype));
+    jsonWriter_->add_data("PCType", pctype);
 
     PetscCallThrow(KSPDestroy(&ksp));
 }
