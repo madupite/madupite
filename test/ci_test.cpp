@@ -103,7 +103,7 @@ int main(int argc, char** argv)
     mdp.setOption("-file_policy", "ci_policy_2.out");
     mdp.setOption("-source_p", "FILE");
     mdp.setOption("-source_g", "FILE");
-    mdp.setOption("-pc_type", "svd"); // standard PI (exact)
+    // mdp.setOption("-pc_type", "svd"); // standard PI (exact), only works in sequential
     mdp.setValuesFromOptions();
     mdp.setSourceTransitionProbabilityTensor("../test/100_50_0.1/P.bin");
     mdp.setSourceStageCostMatrix("../test/100_50_0.1/g.bin");
