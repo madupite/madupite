@@ -212,6 +212,12 @@ private:
     Mat stageCostMatrix_;             // stage cost matrix (also rewards possible) (n x m; DENSE)
     Mat costMatrix_;                  // cost matrix used in extractGreedyPolicy, as member to avoid reallocation (n x m; DENSE)
     Vec costVector_;                  // cost vector used in extractGreedyPolicy, as member to avoid reallocation (n; DENSE)
+
+    // PETSc events
+    PetscLogEvent solveEvent_;
+    PetscLogEvent extractGreedyPolicyEvent_;
+    PetscLogEvent constructFromPolicyEvent_;
+    PetscLogEvent iterativePolicyEvaluationEvent_;
 };
 
 #endif // DISTRIBUTED_INEXACT_POLICY_ITERATION_MDP_H

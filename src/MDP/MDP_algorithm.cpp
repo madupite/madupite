@@ -194,7 +194,8 @@ void MDP::createJacobian(Mat& jacobian, const Mat& transitionProbabilities, Jaco
 
 void MDP::solve()
 {
-    // if(rank_ == 0) LOG("Entering solve");
+    PetscCallThrow(PetscLogEventBegin(solveEvent_, 0, 0, 0, 0));
+
     jsonWriter_->add_solver_run();
     writeJSONmetadata();
 
@@ -226,7 +227,9 @@ void MDP::solve()
     for (; PI_iteration < maxIter_PI_; ++PI_iteration) { // outer loop
         PetscCallThrow(PetscTime(&startTime));
 
+        PetscCallThrow(PetscLogEventBegin(extractGreedyPolicyEvent_, 0, 0, 0, 0));
         extractGreedyPolicy(V, policyValues, residualNorm);
+        PetscCallThrow(PetscLogEventEnd(extractGreedyPolicyEvent_, 0, 0, 0, 0));
 
         if (residualNorm < atol_PI_) {
             PetscCallThrow(PetscTime(&endTime));
@@ -234,13 +237,20 @@ void MDP::solve()
             // if(rank_ == 0) LOG("Iteration " + std::to_string(PI_iteration) + " residual norm: " + std::to_string(residualNorm));
             break;
         }
+
+        PetscCallThrow(PetscLogEventBegin(constructFromPolicyEvent_, 0, 0, 0, 0));
         constructFromPolicy(policyValues, transitionProbabilities, stageCosts);
+        PetscCallThrow(PetscLogEventEnd(constructFromPolicyEvent_, 0, 0, 0, 0));
+
         JacobianContext ctxJac = { transitionProbabilities, discountFactor_ };
         createJacobian(jacobian, transitionProbabilities, ctxJac);
 
         // solve linear system
         KSPContext ctx = { maxIter_KSP_, residualNorm * alpha_, -1 };
+
+        PetscCallThrow(PetscLogEventBegin(iterativePolicyEvaluationEvent_, 0, 0, 0, 0));
         iterativePolicyEvaluation(jacobian, stageCosts, V, ctx); // inner loop
+        PetscCallThrow(PetscLogEventEnd(iterativePolicyEvaluationEvent_, 0, 0, 0, 0));
 
         PetscCallThrow(MatDestroy(&transitionProbabilities));
         PetscCallThrow(MatDestroy(&jacobian)); // avoid memory leak
@@ -282,6 +292,7 @@ void MDP::solve()
     if (rank_ == 0) {
         // LOG("Saving results took: " + std::to_string(duration) + " ms");
     }
+    PetscCallThrow(PetscLogEventEnd(solveEvent_, 0, 0, 0, 0));
 }
 
 void MDP::cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason* reason, void* ctx)
