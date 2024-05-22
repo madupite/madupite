@@ -214,7 +214,7 @@ private:
     Vec costVector_;                  // cost vector used in extractGreedyPolicy, as member to avoid reallocation (n; DENSE)
 
     // PETSc events
-    PetscLogEvent solveEvent_;
+    PetscInt      solveCounter_;
     PetscLogEvent extractGreedyPolicyEvent_;
     PetscLogEvent constructFromPolicyEvent_;
     PetscLogEvent iterativePolicyEvaluationEvent_;

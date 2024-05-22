@@ -64,7 +64,7 @@ MDP::MDP(std::shared_ptr<Madupite> madupite, MPI_Comm comm)
     // Logger::setFilename("log_R" + std::to_string(rank_) + ".txt"); // remove if all ranks should output to the same file
 
     // Petsc events
-    PetscCallThrow(PetscLogEventRegister("MDP::solve", PETSC_VIEWER_CLASSID, &solveEvent_));
+    solveCounter_ = 0;
     PetscCallThrow(PetscLogEventRegister("MDP::constructFromPolicy", PETSC_VIEWER_CLASSID, &constructFromPolicyEvent_));
     PetscCallThrow(PetscLogEventRegister("MDP::extractGreedyPolicy", PETSC_VIEWER_CLASSID, &extractGreedyPolicyEvent_));
     PetscCallThrow(PetscLogEventRegister("MDP::iterativePolicyEvaluation", PETSC_VIEWER_CLASSID, &iterativePolicyEvaluationEvent_));

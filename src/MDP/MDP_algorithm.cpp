@@ -194,7 +194,11 @@ void MDP::createJacobian(Mat& jacobian, const Mat& transitionProbabilities, Jaco
 
 void MDP::solve()
 {
-    PetscCallThrow(PetscLogEventBegin(solveEvent_, 0, 0, 0, 0));
+    solveCounter_++;
+    PetscLogStage solveStage;                                                 // no member variable such that each solve call has its own stage
+    std::string   stagename = "MDP::solve #" + std::to_string(solveCounter_); // string must be unique
+    PetscCallThrow(PetscLogStageRegister(stagename.c_str(), &solveStage));
+    PetscCallThrow(PetscLogStagePush(solveStage));
 
     jsonWriter_->add_solver_run();
     writeJSONmetadata();
@@ -292,7 +296,7 @@ void MDP::solve()
     if (rank_ == 0) {
         // LOG("Saving results took: " + std::to_string(duration) + " ms");
     }
-    PetscCallThrow(PetscLogEventEnd(solveEvent_, 0, 0, 0, 0));
+    PetscCallThrow(PetscLogStagePop());
 }
 
 void MDP::cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason* reason, void* ctx)
