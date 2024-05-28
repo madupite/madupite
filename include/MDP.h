@@ -79,12 +79,20 @@ public:
         throw PetscException(ierr, std::string(msg));                                                                                                \
     } while (0)
 
+/**
+ * @brief Context struct to provide and obtain information for the Krylov subspace method.
+ *
+ */
 struct KSPContext {
-    PetscInt  maxIter;       // input
-    PetscReal threshold;     // input
-    PetscInt  kspIterations; // output
+    PetscInt  maxIter;       /// input to KSP
+    PetscReal threshold;     /// input to KSP
+    PetscInt  kspIterations; /// output from KSP
 };
 
+/**
+ * @brief Context struct to provide information for the Jacobian matrix shell.
+ *
+ */
 struct JacobianContext {
     Mat       P_pi;
     PetscReal discountFactor;
@@ -117,11 +125,35 @@ public:
     }
 };
 
+/**
+ * @brief Data structure to represent a Markov Decision Process (MDP)
+ */
 class MDP {
 public:
+    /**
+     * @brief Constructor
+     *
+     * @param madupite madupite instance that is used to initialize/finalize MPI and PETSc
+     * @param comm MPI communicator that is used for the MDP (default: PETSC_COMM_WORLD)
+     */
     MDP(std::shared_ptr<Madupite> madupite, MPI_Comm comm = PETSC_COMM_WORLD);
+    /**
+     * @brief Destroy the MDP object
+     *
+     */
     ~MDP();
-    void           setOption(const char* option, const char* value = NULL, bool setValues = false);
+    /**
+     * @brief Add options to the PETSc options database
+     *
+     * @param option name of the option, should have a dash "-" prepended
+     * @param value value of the option, can be NULL
+     * @param setValues to be removed (?, TODO)
+     */
+    void setOption(const char* option, const char* value = NULL, bool setValues = false);
+    /**
+     * @brief erase all options from the PETSc options database
+     *
+     */
     void           clearOptions();
     PetscErrorCode setValuesFromOptions();
     void           setSourceTransitionProbabilityTensor(const char* filename);
@@ -131,15 +163,48 @@ public:
     void setSourceStageCostMatrix(const char* filename);
     void setSourceStageCostMatrix(const Costfunc& g);
     void setUp(); // call after setting sources
+    /**
+     * @brief Starts the inexact policy iteration algorithm using the specified sources and options.
+     *
+     */
     void solve();
 
 private:
     // MDP Setup
+    /**
+     * @brief calculates the local number of states that a rank on the defined communicator owns. Internally,
+     * [PetscSplitOwnership](https://petsc.org/release/manualpages/Sys/PetscSplitOwnership/) is used.
+     *
+     */
     void splitOwnership();
+    /**
+     * @brief Loads the transition probability tensor from a file.
+     *
+     */
     void loadTransitionProbabilityTensor();
+    /**
+     * @brief Loads the stage cost matrix from a file.
+     *
+     */
     void loadStageCostMatrix();
-    void createStageCostMatrix(); // no preallocation needed since it's a dense matrix
+    /**
+     * @brief Create a Stage Cost Matrix object based on the user specified options regarding size and filled using the user specified function g of
+     * type Costfunc. The user does not need to provide information on the non-zeroes / sparsity pattern of the matrix because it is a dense matrix.
+     *
+     */
+    void createStageCostMatrix();
+    /**
+     * @brief Create a Transition Probability Tensor Prealloc object based on the user specified options regarding size and filled using the user
+     * specified function P of type Probfunc. The function also takes the sparsity pattern of the function provided by the user into account.
+     *
+     */
     void createTransitionProbabilityTensorPrealloc();
+    /**
+     * @brief Create a Transition Probability Tensor object based on the user specified options regarding size and filled using the user specified
+     * function P of type Probfunc. This function is called when the user does not provide any information on the non-zeroes / sparsity pattern of the
+     * matrix. Efficient preallocation is not possible in this case.
+     *
+     */
     void createTransitionProbabilityTensor();
 
     // functions not needed right now but maybe for cython wrapper
@@ -150,10 +215,43 @@ private:
     std::pair<int, int> getMDPSize();                                                                  // maybe needed for cython wrapper
 
     // MDP Algorithm
+    /**
+     * @brief Policy improvement step: Computes the greedy policy based on the current value function $V$. $\pi = \arg\min_{\pi' \in \Pi}
+     * \left\{g^{\pi'} + \gamma P^{\pi'}V\right\}$
+     * TODO: does the function allocate memory?
+     *
+     * @param V (input) current value function as a vector of size $n$
+     * @param policy (output) greedy policy as an int array of size $n$
+     * @param residualNorm (output) infinity norm of the Bellman residual
+     */
     void extractGreedyPolicy(const Vec& V, PetscInt* policy, PetscReal& residualNorm);
+    /**
+     * @brief Constructs the transition probability matrix $P^\pi$ $(n \times n)$ and stage cost vector $g^\pi$ $(n)$ based on the policy $\pi$.
+     * TODO: does the function allocate memory?
+     *
+     * @param policy (input) policy as an int array of size $n$
+     * @param transitionProbabilities (output) transition probability matrix $P^\pi$ $(n \times n)$
+     * @param stageCosts (output) stage cost vector $g^\pi$ $(n)$
+     */
     void constructFromPolicy(const PetscInt* policy, Mat& transitionProbabilities, Vec& stageCosts);
+    /**
+     * @brief Policy evaluation step: Computes the value function $V$ by solving the linear system $(I - \gamma P^\pi)V = g^\pi$. Internally, Krylov
+     * subspace methods are used for efficiency.
+     *
+     * @param jacobian the jacobian matrix $(I - \gamma P^\pi)$ of size $n \times n$
+     * @param stageCosts the stage cost vector $g^\pi$ of size $n$ (right-hand side of the linear system)
+     * @param V the value function $V$ of size $n$ (solution of the linear system). Argument also serves as input for the initial guess of the
+     * solution.
+     * @param ctx
+     */
     void iterativePolicyEvaluation(const Mat& jacobian, const Vec& stageCosts, Vec& V, KSPContext& ctx);
-    void createJacobian(Mat& jacobian, const Mat& transitionProbabilities, JacobianContext& ctx);
+    /**
+     * @brief Creates a matrix shell for the jacobian matrix $(I - \gamma P^\pi)$.
+     *
+     * @param jacobian (output) the initialized jacobian matrix shell
+     * @param ctx context struct to provide information for the jacobian matrix shell ($P^\pi$, discount factor)
+     */
+    void createJacobian(Mat& jacobian, JacobianContext& ctx);
 
     // maybe private, depends on usage of output / storing results
     void writeVec(const Vec& vec, const PetscChar* filename);

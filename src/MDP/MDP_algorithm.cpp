@@ -185,7 +185,7 @@ void MDP::jacobianMultiplicationTranspose(Mat mat, Vec x, Vec y)
 }
 
 // creates MPIAIJ matrix and computes jacobian = I - gamma * P_pi
-void MDP::createJacobian(Mat& jacobian, const Mat& transitionProbabilities, JacobianContext& ctx)
+void MDP::createJacobian(Mat& jacobian, JacobianContext& ctx)
 {
     PetscCallThrow(MatCreateShell(comm_, localNumStates_, localNumStates_, numStates_, numStates_, &ctx, &jacobian));
     PetscCallThrow(MatShellSetOperation(jacobian, MATOP_MULT, (void (*)(void))jacobianMultiplication));
@@ -236,7 +236,7 @@ void MDP::solve()
         }
         constructFromPolicy(policyValues, transitionProbabilities, stageCosts);
         JacobianContext ctxJac = { transitionProbabilities, discountFactor_ };
-        createJacobian(jacobian, transitionProbabilities, ctxJac);
+        createJacobian(jacobian, ctxJac);
 
         // solve linear system
         KSPContext ctx = { maxIter_KSP_, residualNorm * alpha_, -1 };
