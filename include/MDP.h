@@ -142,13 +142,6 @@ private:
     void createTransitionProbabilityTensorPrealloc();
     void createTransitionProbabilityTensor();
 
-    // functions not needed right now but maybe for cython wrapper
-    std::pair<int, int> request_states(int nstates, int mactions, int matrix,
-        int prealloc); // matrix = 0: transitionProbabilityTensor_, matrix = 1: stageCostMatrix_; maybe needed for cython wrapper
-    void                fillRow(std::vector<int>& idxs, std::vector<double>& vals, int i, int matrix); // maybe needed for cython wrapper
-    std::pair<int, int> getStateOwnershipRange();                                                      // maybe needed for cython wrapper
-    std::pair<int, int> getMDPSize();                                                                  // maybe needed for cython wrapper
-
     // MDP Algorithm
     void extractGreedyPolicy(const Vec& V, PetscInt* policy, PetscReal& residualNorm);
     void constructFromPolicy(const PetscInt* policy, Mat& transitionProbabilities, Vec& stageCosts);

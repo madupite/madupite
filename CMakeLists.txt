@@ -44,7 +44,6 @@ include_directories(include)
 # Define the shared library that compiles from the specified sources
 add_library(madupite SHARED
     src/MDP/MDP_algorithm.cpp
-    src/MDP/MDP_change.cpp
     src/MDP/MDP_setup.cpp
 )
 
