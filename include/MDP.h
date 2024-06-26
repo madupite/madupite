@@ -34,9 +34,13 @@ class Madupite {
     static std::shared_ptr<Madupite> instance;
     static std::mutex                mtx;
 
-    Madupite()                                 = default;
+    Madupite() = default;
+
+    // Forbid copy and move for now
     Madupite(const Madupite&)                  = delete;
+    Madupite(Madupite&&)                       = delete;
     const Madupite& operator=(const Madupite&) = delete;
+    const Madupite& operator=(Madupite&&)      = delete;
 
 public:
     static std::shared_ptr<Madupite> initialize(int* argc = nullptr, char*** argv = nullptr);
