@@ -61,17 +61,18 @@ class MDP {
 public:
     MDP(std::shared_ptr<Madupite> madupite, MPI_Comm comm = PETSC_COMM_WORLD);
     ~MDP();
-    void           setOption(const char* option, const char* value = NULL, bool setValues = false);
-    void           clearOptions();
-    PetscErrorCode setValuesFromOptions();
-    void           setSourceTransitionProbabilityTensor(const char* filename);
-    void           setSourceTransitionProbabilityTensor(const Probfunc& P); // no preallocation
-    void           setSourceTransitionProbabilityTensor(
-                  const Probfunc& P, PetscInt d_nz, const std::vector<int>& d_nnz, PetscInt o_nz, const std::vector<int>& o_nnz);
+    void setOption(const char* option, const char* value = NULL, bool setValues = false);
+    void clearOptions();
+    void setSourceTransitionProbabilityTensor(const char* filename);
+    void setSourceTransitionProbabilityTensor(const Probfunc& P); // no preallocation
+    void setSourceTransitionProbabilityTensor(
+        const Probfunc& P, PetscInt d_nz, const std::vector<int>& d_nnz, PetscInt o_nz, const std::vector<int>& o_nnz);
     void setSourceStageCostMatrix(const char* filename);
     void setSourceStageCostMatrix(const Costfunc& g);
     void setUp(); // call after setting sources
     void solve();
+
+    PetscErrorCode setValuesFromOptions();
 
 private:
     // MDP Setup
@@ -93,12 +94,14 @@ private:
     void writeIS(const IS& is, const PetscChar* filename);
 
     // probably private
-    static void cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason* reason,
-        void* ctx); // Test if residual norm is smaller than alpha * r0_norm; todo: keep this or move to documentation to show user how to implement
-                    // own cvg test; not used in madupite for performance reasons
-    static void jacobianMultiplication(Mat mat, Vec x, Vec y); // defines matrix vector product for jacobian shell
-    static void jacobianMultiplicationTranspose(
-        Mat mat, Vec x, Vec y); // defines tranposed matrix vector product for jacobian shell (needed for some KSP methods)
+    // Test if residual norm is smaller than alpha * r0_norm; todo: keep this or move to documentation
+    // to show user how to implement own cvg test; not used in madupite for performance reasons
+    static void cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason* reason, void* ctx);
+    // defines matrix vector product for jacobian shell
+    static void jacobianMultiplication(Mat mat, Vec x, Vec y);
+    // defines tranposed matrix vector product for jacobian shell (needed for some KSP methods)
+    static void jacobianMultiplicationTranspose(Mat mat, Vec x, Vec y);
+
     void writeJSONmetadata();
 
     // Madupite, MPI, JSON output
@@ -129,16 +132,18 @@ private:
     Costfunc  g_func_;
     PetscBool p_prealloc_;
 
-    std::tuple<PetscInt, std::vector<int>, PetscInt, std::vector<int>> p_nnz_; // preallocation for P (if passed by user) [d_nz, d_nnz, o_nz, o_nnz]
+    // preallocation for P (if passed by user) [d_nz, d_nnz, o_nz, o_nnz]
+    std::tuple<PetscInt, std::vector<int>, PetscInt, std::vector<int>> p_nnz_;
 
     // derived parameters
-    PetscInt                localNumStates_;  // number of states owned by this rank
-    PetscInt                rank_;            // rank of this process
-    PetscInt                size_;            // number of processes
-    PetscInt                p_start_, p_end_; // local row range of transitionProbabilityTensor_
-    PetscInt                g_start_, g_end_; // local row range of stageCostMatrix_
-    std::array<PetscInt, 4> p_file_meta_;     // metadata when P is loaded from file (ClassID, rows, cols, nnz)
-    std::array<PetscInt, 4> g_file_meta_;     // metadata when g is loaded from file (ClassID, rows, cols, nnz)
+    PetscInt localNumStates_;  // number of states owned by this rank
+    PetscInt rank_;            // rank of this process
+    PetscInt size_;            // number of processes
+    PetscInt p_start_, p_end_; // local row range of transitionProbabilityTensor_
+    PetscInt g_start_, g_end_; // local row range of stageCostMatrix_
+
+    std::array<PetscInt, 4> p_file_meta_; // metadata when P is loaded from file (ClassID, rows, cols, nnz)
+    std::array<PetscInt, 4> g_file_meta_; // metadata when g is loaded from file (ClassID, rows, cols, nnz)
 
     // MDP data
     Mat transitionProbabilityTensor_; // transition probability tensor (nm x n; MPIAIJ)
