@@ -15,9 +15,7 @@
 
 #include "JsonWriter.h"
 #include "madupite_errors.h"
-
-using Costfunc = std::function<double(int, int)>;
-using Probfunc = std::function<std::pair<std::vector<double>, std::vector<int>>(int, int)>;
+#include "madupite_matrix.h"
 
 class Madupite {
     static std::shared_ptr<Madupite> instance;
