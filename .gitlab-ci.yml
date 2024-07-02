@@ -6,24 +6,46 @@ stages:
   - build
   - test
 
+variables:
+  CONDA_ENV_PATH: "${CI_PROJECT_DIR}/madupiteenv"
+
+default:
+  cache: &global_cache
+    key:
+      files:
+        - environment.yml
+    paths:
+      - madupiteenv/
+    policy: pull
+
 before_script:
   - conda init bash
   - source ~/.bashrc
-  - conda info --envs
-  - conda env create -f environment.yml || conda env update -f environment.yml
-  - conda activate madupiteenv
+  - conda env list
+  - |
+    if [ -f environment.yml ]; then
+      if [ -d ${CONDA_ENV_PATH} ]; then
+        echo "Reusing Conda environment ${CONDA_ENV_PATH}"
+        conda env update --prefix ${CONDA_ENV_PATH} -f environment.yml
+      else
+        echo "Creating new Conda environment ${CONDA_ENV_PATH}"
+        conda env create --prefix ${CONDA_ENV_PATH} -f environment.yml
+      fi
+    else
+      echo "environment.yml not found"
+      exit 1
+    fi
+  - conda activate ${CONDA_ENV_PATH}
+  - conda env list
 
-pre-commit:
-  stage: pre-commit
-  script:
-    - conda install -c conda-forge pre-commit
-    - pre-commit run --all-files
-
-create_environment:
+init:
   stage: prepare
   script:
-    - conda env create -f environment.yml || conda env update -f environment.yml
-    - echo "Environment created or updated"
+    - conda install -y -c conda-forge pre-commit
+    - pre-commit run --all-files
+  cache:
+    <<: *global_cache
+    policy: pull-push
 
 build:
   stage: build
