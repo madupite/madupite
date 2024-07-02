@@ -18,8 +18,7 @@ default:
     policy: pull
 
 before_script:
-  - conda init bash
-  - source ~/.bashrc
+  - eval "$(conda shell.bash hook)"
   - conda env list
   - |
     if [ -f environment.yml ]; then
@@ -34,8 +33,12 @@ before_script:
       echo "environment.yml not found"
       exit 1
     fi
-  - conda activate ${CONDA_ENV_PATH}
+  - conda activate --no-stack ${CONDA_ENV_PATH}
   - conda env list
+  - export PETSC_DIR=${CONDA_PREFIX}
+  - export PETSC_ARCH=
+  - echo PETSC_DIR=$PETSC_DIR
+  - echo PETSC_ARCH=$PETSC_ARCH
 
 init:
   stage: prepare
@@ -48,19 +51,12 @@ init:
 build:
   stage: build
   script:
-    - echo "Building the project"
-    - cmake -S . -B build
-    - make -C build
+    - make
   artifacts:
     paths:
-      - build/
+      - examples/*/bin/
 
 test:
   stage: test
   script:
-    - echo "Running tests"
-    # Your test commands here
-    - cd build
-    - ./ci-test
-    - mpirun -n 2 ./ci-test
-    - echo "Finished with code $?"
+    - make run_examples
