@@ -11,6 +11,8 @@
 std::shared_ptr<Madupite> Madupite::instance;
 std::mutex                Madupite::mtx;
 
+const std::vector<int> MDP::emptyVec = {};
+
 std::shared_ptr<Madupite> Madupite::initialize(int* argc, char*** argv)
 {
     // Inner class that allows private constructor access via inheritance.
