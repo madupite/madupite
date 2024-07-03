@@ -24,6 +24,7 @@ dependencies:
   - petsc>=3.21.0,<3.22.0
   - pip
   - pkgconfig
+  - pre-commit
   - python
   - scipy
   - sysroot_linux-64=2.28

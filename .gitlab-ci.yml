@@ -1,7 +1,6 @@
 image: continuumio/miniconda3
 
 stages:
-  - pre-commit
   - prepare
   - build
   - test
@@ -41,7 +40,6 @@ before_script:
 init:
   stage: prepare
   script:
-    - conda install -y -c conda-forge pre-commit
     - pre-commit run --all-files
   cache:
     <<: *global_cache
