@@ -1,18 +1,32 @@
+# NOTE:
+# In case of troubles during compilation like
+#   error: '::timespec_get' has not been declared
+# please try
+#   conda upgrade -c conda-forge --all
+# to make sure that all dependencies come from the conda-forge channel.
+# Also consider
+#   conda config --add channels conda-forge
+#   conda config --set channel_priority strict
+# See also:
+#   https://github.com/rapidsai/cuml/issues/3620
+#   https://root-forum.cern.ch/t/error-timespec-get-has-not-been-declared-with-conda-root-package/45712
 name: madupiteenv
 channels:
   - conda-forge
 dependencies:
-  - conda-forge::cython
-  - conda-forge::cmake
-  - conda-forge::make
-  - conda-forge::mpich-mpicc
-  - conda-forge::mpich-mpicxx
-  - conda-forge::numpy
-  - conda-forge::petsc
-  - conda-forge::pip
-  - conda-forge::pkgconfig
-  - conda-forge::python
-  - conda-forge::build
-  - conda-forge::scipy
-  - conda-forge::numpy
-  - conda-forge::numba
+  - cython
+  - cmake
+  - gxx_linux-64=13.2.0
+  - gcc_linux-64=13.2.0
+  - make
+  - mpich=4.2.1
+  - numpy
+  - petsc>=3.21.0,<3.22.0
+  - pip
+  - pkgconfig
+  - pre-commit
+  - python
+  - scipy
+  - sysroot_linux-64=2.28
+  - numpy
+  - numba

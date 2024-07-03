@@ -1,0 +1,70 @@
+# -*- mode: makefile -*-
+
+#  You must set the environmental variable(s) PETSC_DIR (and PETSC_ARCH if PETSc was not configured with the --prefix option)
+#  See also the petsc-env.example file in this directory.
+
+# Define standard directories
+BUILD_DIR := build
+LIB_DIR := lib
+INCLUDE_DIR := include
+
+PROJECT_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
+LIB_DIR := $(PROJECT_ROOT)/$(LIB_DIR)
+INCLUDE_DIR := $(PROJECT_ROOT)/$(INCLUDE_DIR)
+BUILD_DIR_ABS := $(PROJECT_ROOT)/$(BUILD_DIR)
+CURRENT_DIR_NAME := $(notdir $(CURDIR))
+
+#  The following variable must either be a path to petsc.pc or just "petsc" if petsc.pc
+#  has been installed to a system location or can be found in PKG_CONFIG_PATH.
+petsc.pc := $(PETSC_DIR)/$(PETSC_ARCH)/lib/pkgconfig/petsc.pc
+
+# Additional libraries that support pkg-config can be added to the list of PACKAGES below.
+PACKAGES := $(petsc.pc)
+
+# Set the compiler and linker flags from the pkg-config output for PETSc
+CC := $(shell pkg-config --variable=ccompiler $(PACKAGES))
+CXX := $(shell pkg-config --variable=cxxcompiler $(PACKAGES))
+CFLAGS := $(shell pkg-config --variable=cflags_extra $(PACKAGES)) $(CFLAGS_OTHER)
+CXXFLAGS := $(shell pkg-config --variable=cxxflags_extra $(PACKAGES)) $(CFLAGS_OTHER)
+CPPFLAGS := $(shell pkg-config --cflags-only-I $(PACKAGES))
+LDFLAGS := $(shell pkg-config --libs-only-L --libs-only-other $(PACKAGES))
+LDFLAGS += $(patsubst -L%, $(shell pkg-config --variable=ldflag_rpath $(PACKAGES))%, $(shell pkg-config --libs-only-L $(PACKAGES)))
+LDLIBS := $(shell pkg-config --libs-only-l $(PACKAGES)) -lm
+# CUDAC := $(shell pkg-config --variable=cudacompiler $(PACKAGES))
+# CUDAC_FLAGS := $(shell pkg-config --variable=cudaflags_extra $(PACKAGES))
+# CUDA_LIB := $(shell pkg-config --variable=cudalib $(PACKAGES))
+# CUDA_INCLUDE := $(shell pkg-config --variable=cudainclude $(PACKAGES))
+
+# Variables for codes depending on MADUPITE
+MADUPITE_LIB_NAME := madupite
+MADUPITE_LIB_FILE_NAME := lib$(MADUPITE_LIB_NAME).so
+MADUPITE_LIB := $(LIB_DIR)/$(MADUPITE_LIB_FILE_NAME)
+MADUPITE_INCLUDE := -I$(INCLUDE_DIR)
+MADUPITE_LDLIBS = $(LDLIBS) -l$(MADUPITE_LIB_NAME)
+MADUPITE_LDFLAGS = $(LDFLAGS) -L$(LIB_DIR) -Wl,-rpath,$(LIB_DIR)
+
+CPPFLAGS += $(MADUPITE_INCLUDE)
+
+# Workaround for the -fvisibility=hidden flag that is added by PETSc
+# - we currently need to have symbols exported by default -
+# and also add -MMD -MP to generate header dependencies
+CFLAGS := $(subst  -fvisibility=hidden,,$(CFLAGS)) -MMD -MP
+CXXFLAGS := $(subst  -fvisibility=hidden,,$(CXXFLAGS)) -MMD -MP
+
+# We remove compiler and preprocessor flags from the link command for conciseness
+LINK.cc := $(subst $(CXXFLAGS),,$(LINK.cc))
+LINK.cc := $(subst $(CPPFLAGS),,$(LINK.cc))
+
+# Find all .cpp files in the current directory
+# and generate corresponding .o files in the build directory
+SRCS := $(wildcard *.cpp)
+OBJS = $(SRCS:%.cpp=$(BUILD_DIR)/%.o)
+
+# Include the .d files (header dependencies produced by the -MMD -MP flags in CFLAGS and CXXFLAGS)
+DEPS = $(OBJS:.o=.d)
+
+# Default result is an executable with the name of the current directory
+RESULT := bin/$(CURRENT_DIR_NAME)
+
+CLEANED_STUFF = $(OBJS) $(DEPS) $(RESULT)
+FORMATTED_STUFF = $(SRCS)
