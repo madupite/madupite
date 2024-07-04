@@ -50,6 +50,8 @@ CPPFLAGS += $(MADUPITE_INCLUDE)
 # and also add -MMD -MP to generate header dependencies
 CFLAGS := $(subst  -fvisibility=hidden,,$(CFLAGS)) -MMD -MP
 CXXFLAGS := $(subst  -fvisibility=hidden,,$(CXXFLAGS)) -MMD -MP
+# Ensure the C++ standard is C++20
+CXXFLAGS := $(patsubst  -std=%,-std=c++20,$(CXXFLAGS)) -MMD -MP
 
 # We remove compiler and preprocessor flags from the link command for conciseness
 LINK.cc := $(subst $(CXXFLAGS),,$(LINK.cc))
