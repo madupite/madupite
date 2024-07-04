@@ -109,10 +109,9 @@ private:
     void writeJSONmetadata();
 
     // Madupite, MPI, JSON output
-    const std::shared_ptr<Madupite>    madupite_;
-    const MPI_Comm                     comm_;       // MPI communicator
-    std::unique_ptr<JsonWriter>        jsonWriter_; // used to write statistics (residual norm, times etc.) to file
-    static const std::vector<PetscInt> emptyVec;    // used internally if d_nnz or o_nnz are not set (preallocation)
+    const std::shared_ptr<Madupite> madupite_;
+    const MPI_Comm                  comm_;       // MPI communicator
+    std::unique_ptr<JsonWriter>     jsonWriter_; // used to write statistics (residual norm, times etc.) to file
 
     // user specified options
     enum mode { MINCOST, MAXREWARD };
