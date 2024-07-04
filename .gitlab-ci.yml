@@ -17,6 +17,13 @@ default:
       - madupiteenv/
     policy: pull
 
+workflow:
+  rules:
+    # only run within merge requests...
+    - if: $CI_MERGE_REQUEST_ID
+    # or for any commit in the default branch
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
 before_script:
   - eval "$(conda shell.bash hook)"
   - conda env list
