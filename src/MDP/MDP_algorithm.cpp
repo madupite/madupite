@@ -281,7 +281,7 @@ void MDP::solve()
     PetscCallThrow(PetscFree(policyValues));
 
     PetscCallThrow(PetscTime(&endTime));
-    PetscLogDouble duration = (endTime - startTime) * 1000;
+    // PetscLogDouble duration = (endTime - startTime) * 1000;
     if (rank_ == 0) {
         // LOG("Saving results took: " + std::to_string(duration) + " ms");
     }
