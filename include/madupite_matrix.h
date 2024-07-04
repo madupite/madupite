@@ -1,6 +1,5 @@
 #pragma once
 
-#include <ranges>
 #include <string>
 #include <vector>
 
@@ -11,7 +10,7 @@
 
 // using std::ranges::range;
 
-enum MatrixType {
+enum class MatrixType {
     Dense,
     Sparse,
 };
@@ -19,23 +18,59 @@ enum MatrixType {
 class Matrix {
     Mat _mat;
 
+    Matrix(MPI_Comm comm, const std::string& name, MatrixType type);
+
 public:
     ////////
     // Constructors, destructors and assignment
     ////////
 
-    // Matrix(PetscInt rows, PetscInt cols);
+    Matrix(MPI_Comm comm, const std::string& name, MatrixType type, PetscInt rows, PetscInt cols, bool local = false)
+        : Matrix(comm, name, type)
+    {
+        if (local) {
+            PetscCallThrow(MatSetSizes(_mat, rows, cols, PETSC_DECIDE, PETSC_DECIDE));
+        } else {
+            PetscCallThrow(MatSetSizes(_mat, PETSC_DECIDE, PETSC_DECIDE, rows, cols));
+        }
+    }
+
     // Matrix(PetscInt rows, PetscInt cols, PetscInt d_nz, const std::vector<int>& d_nnz, PetscInt o_nz, const std::vector<int>& o_nnz);
 
-    Matrix(MPI_Comm comm, const std::string& name, const std::string& filename, MatrixType type = MatrixType::Sparse);
+    ~Matrix()
+    {
+        MatDestroy(&_mat); // No-op if _mat is nullptr
+    }
 
-    ~Matrix() { MatDestroy(&_mat); }
-
-    // Forbid copy and move for now
+    // Forbid copy for now
     Matrix(const Matrix&)            = delete;
-    Matrix(Matrix&&)                 = delete;
     Matrix& operator=(const Matrix&) = delete;
-    Matrix& operator=(Matrix&&)      = delete;
+
+    // Move constructor
+    Matrix(Matrix&& other) noexcept
+    {
+        MatDestroy(&_mat); // No-op if _mat is nullptr
+        _mat       = other._mat;
+        other._mat = nullptr;
+    }
+
+    // Move assignment
+    Matrix& operator=(Matrix&& other) noexcept
+    {
+        if (this != &other) {
+            MatDestroy(&_mat); // No-op if _mat is nullptr
+            _mat       = other._mat;
+            other._mat = nullptr;
+        }
+        return *this;
+    }
+
+    ////////
+    // Static methods
+    ////////
+    static std::string typeToString(MatrixType type);
+
+    static Matrix loadFromFile(MPI_Comm comm, const std::string& name, const std::string& filename, MatrixType type = MatrixType::Sparse);
 
     ////////
     // Operators
