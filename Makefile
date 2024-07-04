@@ -14,7 +14,7 @@ all: lib build_examples
 
 # Build all examples
 build_examples: lib
-	$(call dispatch,$(EXAMPLES_DIR),build)
+	+$(call dispatch,$(EXAMPLES_DIR),build)
 
 # Run all examples
 run_examples: build_examples
@@ -22,7 +22,7 @@ run_examples: build_examples
 	$(call dispatch,$(EXAMPLES_DIR),run2)
 
 $(MADUPITE_LIB):
-	$(call dispatch,$(SRC_DIR),build)
+	+$(call dispatch,$(SRC_DIR),build)
 
 # Build the shared library
 lib: $(MADUPITE_LIB)
