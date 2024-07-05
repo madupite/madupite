@@ -125,6 +125,14 @@ public:
         return std::make_pair(M, N);
     }
 
+    // Get the ownership range
+    std::pair<PetscInt, PetscInt> getOwnershipRange() const
+    {
+        PetscInt lo, hi;
+        PetscCallThrow(MatGetOwnershipRange(_mat, &lo, &hi));
+        return std::make_pair(lo, hi);
+    }
+
     // We currently don't need to have separate assemblyBegin and assemblyEnd
     void assemble()
     {

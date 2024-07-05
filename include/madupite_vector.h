@@ -84,6 +84,13 @@ public:
         PetscCallThrow(VecAssemblyEnd(_vec));
     }
 
+    std::pair<PetscInt, PetscInt> getOwnershipRange() const
+    {
+        PetscInt lo, hi;
+        PetscCallThrow(VecGetOwnershipRange(_vec, &lo, &hi));
+        return std::make_pair(lo, hi);
+    }
+
     ////////
     // Out-of-line method declarations
     ////////
