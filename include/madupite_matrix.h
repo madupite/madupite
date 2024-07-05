@@ -147,7 +147,7 @@ public:
     void multT(const Vector& x, Vector& y) const { PetscCallThrow(MatMultTranspose(_mat, x.petscVec(), y.petscVec())); }
 
     // Add another matrix
-    void add(const Matrix& other, MatStructure structure = SAME_NONZERO_PATTERN) { MatAXPY(_mat, 1.0, other._mat, structure); }
+    void add(const Matrix& other, MatStructure structure = SAME_NONZERO_PATTERN) { PetscCallThrow(MatAXPY(_mat, 1.0, other._mat, structure)); }
 
     // Get the inner PETSc matrix
     Mat petscMat() const { return _mat; }
