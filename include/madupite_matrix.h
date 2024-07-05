@@ -35,7 +35,8 @@ public:
         }
     }
 
-    // Matrix(PetscInt rows, PetscInt cols, PetscInt d_nz, const std::vector<int>& d_nnz, PetscInt o_nz, const std::vector<int>& o_nnz);
+    Matrix(MPI_Comm comm, const std::string& name, PetscInt rows, PetscInt cols, bool local, PetscInt d_nz, const std::vector<int>& d_nnz,
+        PetscInt o_nz, const std::vector<int>& o_nnz);
 
     ~Matrix()
     {
