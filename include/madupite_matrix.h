@@ -71,7 +71,7 @@ public:
     ////////
     static std::string typeToString(MatrixType type);
 
-    static Matrix loadFromFile(MPI_Comm comm, const std::string& name, const std::string& filename, MatrixType type = MatrixType::Sparse);
+    static Matrix load(MPI_Comm comm, const std::string& name, const std::string& filename, MatrixType type = MatrixType::Sparse);
 
     ////////
     // Operators

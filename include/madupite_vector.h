@@ -10,16 +10,15 @@
 class Vector {
     Vec _vec;
 
+    Vector(MPI_Comm comm, const std::string& name);
+
 public:
     ////////
     // Constructors, destructors and assignment
     ////////
 
     // Create a zero vector
-    Vector(MPI_Comm comm, const std::string& name, PetscInt size);
-
-    // Load a vector from file
-    Vector(MPI_Comm comm, const std::string& name, const std::string& filename);
+    Vector(MPI_Comm comm, const std::string& name, PetscInt size, bool local = false);
 
     // Create a vector from an std::vector
     Vector(MPI_Comm comm, const std::string& name, const std::vector<PetscScalar>& data);
@@ -27,11 +26,33 @@ public:
     // Destructor
     ~Vector() { VecDestroy(&_vec); }
 
-    // Forbid copy and move for now
+    // Forbid copy for now
     Vector(const Vector&)            = delete;
-    Vector(Vector&&)                 = delete;
     Vector& operator=(const Vector&) = delete;
-    Vector& operator=(Vector&&)      = delete;
+
+    // Move constructor
+    Vector(Vector&& other) noexcept
+    {
+        VecDestroy(&_vec); // No-op if _vec is nullptr
+        _vec       = other._vec;
+        other._vec = nullptr;
+    }
+
+    // Move assignment
+    Vector& operator=(Vector&& other) noexcept
+    {
+        if (this != &other) {
+            VecDestroy(&_vec); // No-op if _vec is nullptr
+            _vec       = other._vec;
+            other._vec = nullptr;
+        }
+        return *this;
+    }
+
+    ////////
+    // Static methods
+    ////////
+    static Vector load(MPI_Comm comm, const std::string& name, const std::string& filename);
 
     ////////
     // Operators
