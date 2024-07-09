@@ -42,23 +42,11 @@ std::shared_ptr<Madupite> Madupite::initialize(int* argc, char*** argv)
 MDP::MDP(std::shared_ptr<Madupite> madupite, MPI_Comm comm)
     : madupite_(madupite)
     , comm_(comm)
+    , jsonWriter_(std::make_unique<JsonWriter>(rank_))
 {
     // MPI parallelization initialization
     MPI_Comm_rank(comm_, &rank_);
     MPI_Comm_size(comm_, &size_);
-
-    jsonWriter_ = std::make_unique<JsonWriter>(rank_);
-
-    transitionProbabilityTensor_ = nullptr;
-    stageCostMatrix_             = nullptr;
-    costMatrix_                  = nullptr;
-    costVector_                  = nullptr;
-
-    numStates_  = -1; // todo: change to unsigned int for better scalability? then remove -1
-    numActions_ = -1;
-    p_src_      = -1;
-    g_src_      = -1;
-    p_prealloc_ = PETSC_FALSE;
 
     // Logger::setPrefix("[R" + std::to_string(rank_) + "] ");
     // Logger::setFilename("log_R" + std::to_string(rank_) + ".txt"); // remove if all ranks should output to the same file
