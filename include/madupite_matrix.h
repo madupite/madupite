@@ -26,6 +26,45 @@ struct MatrixPreallocation {
     std::vector<int> o_nnz;
 };
 
+// one of one of (m, M) and (n, N) must be set
+class MatrixLayout {
+    PetscLayout rowLayout;
+    PetscLayout colLayout;
+
+    // Deleted constructors and assignment operators to prevent copying/moving
+    MatrixLayout()                                     = delete;
+    MatrixLayout(const MatrixLayout&)                  = delete;
+    MatrixLayout(MatrixLayout&&)                       = delete;
+    const MatrixLayout& operator=(const MatrixLayout&) = delete;
+    const MatrixLayout& operator=(MatrixLayout&&)      = delete;
+
+public:
+    MatrixLayout(MPI_Comm comm, PetscInt m = PETSC_DECIDE, PetscInt n = PETSC_DECIDE, PetscInt M = PETSC_DECIDE, PetscInt N = PETSC_DECIDE)
+    {
+        // Ensure at least one of (m, M) and (n, N) is set
+        if ((m == PETSC_DECIDE && M == PETSC_DECIDE) || (n == PETSC_DECIDE && N == PETSC_DECIDE)) {
+            throw std::invalid_argument("At least one of (m, M) and one of (n, N) must be set explicitly.");
+        }
+        PetscCallThrow(PetscLayoutCreate(comm, &rowLayout));
+        PetscCallThrow(PetscLayoutCreate(comm, &colLayout));
+        PetscCallThrow(PetscLayoutSetLocalSize(rowLayout, m));
+        PetscCallThrow(PetscLayoutSetLocalSize(colLayout, n));
+        PetscCallThrow(PetscLayoutSetSize(rowLayout, M));
+        PetscCallThrow(PetscLayoutSetSize(colLayout, N));
+        PetscCallThrow(PetscLayoutSetUp(rowLayout));
+        PetscCallThrow(PetscLayoutSetUp(colLayout));
+    }
+
+    const PetscLayout row() const { return rowLayout; }
+    const PetscLayout col() const { return colLayout; }
+
+    ~MatrixLayout()
+    {
+        PetscCallNoThrow(PetscLayoutDestroy(&rowLayout));
+        PetscCallNoThrow(PetscLayoutDestroy(&colLayout));
+    }
+};
+
 class Matrix {
     Mat _mat;
 
@@ -37,19 +76,8 @@ public:
     // Constructors, destructors and assignment
     ////////
 
-    // Create a matrix with given communicator, name, type and size
-    Matrix(MPI_Comm comm, const std::string& name, MatrixType type, PetscInt rows, PetscInt cols, bool local = false)
-        : Matrix(comm, name, type)
-    {
-        if (local) {
-            PetscCallThrow(MatSetSizes(_mat, rows, cols, PETSC_DECIDE, PETSC_DECIDE));
-        } else {
-            PetscCallThrow(MatSetSizes(_mat, PETSC_DECIDE, PETSC_DECIDE, rows, cols));
-        }
-    }
-
-    // Create a matrix with preallocation
-    Matrix(MPI_Comm comm, const std::string& name, PetscInt rows, PetscInt cols, bool local, const MatrixPreallocation& preallocation = {});
+    // Create a matrix with given communicator, name, type and size with or without preallocation
+    Matrix(MPI_Comm comm, const std::string& name, MatrixType type, const MatrixLayout& layout, const MatrixPreallocation& preallocation = {});
 
     // Destructor
     ~Matrix()
@@ -95,7 +123,6 @@ public:
     PetscScalar operator()(PetscInt row, PetscInt col) const
     {
         PetscScalar value;
-
         PetscCallThrow(MatGetValue(_mat, row, col, &value));
         return value;
     }

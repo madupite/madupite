@@ -25,13 +25,18 @@ Matrix::Matrix(MPI_Comm comm, const std::string& name, MatrixType type)
     PetscCallThrow(MatSetFromOptions(_mat));
 }
 
-Matrix::Matrix(MPI_Comm comm, const std::string& name, PetscInt rows, PetscInt cols, bool local, const MatrixPreallocation& pa)
-    : Matrix::Matrix(comm, name, MatrixType::Sparse, rows, cols, local)
+Matrix::Matrix(MPI_Comm comm, const std::string& name, MatrixType type, const MatrixLayout& layout, const MatrixPreallocation& pa)
+    : Matrix(comm, name, type)
 {
+    PetscCallThrow(MatSetLayouts(_mat, layout.row(), layout.col()));
     auto d_nnz_ptr = pa.d_nnz.empty() ? nullptr : pa.d_nnz.data();
     auto o_nnz_ptr = pa.d_nnz.empty() ? nullptr : pa.d_nnz.data();
+    // for any matrix type, only one of the following applies and the rest is no-op
     PetscCallThrow(MatSeqAIJSetPreallocation(_mat, pa.d_nz, d_nnz_ptr));
     PetscCallThrow(MatMPIAIJSetPreallocation(_mat, pa.d_nz, d_nnz_ptr, pa.o_nz, o_nnz_ptr));
+    PetscCallThrow(MatSeqDenseSetPreallocation(_mat, nullptr));
+    PetscCallThrow(MatMPIDenseSetPreallocation(_mat, nullptr));
+    PetscCallThrow(MatSetUp(_mat));
 }
 
 // TODO PETSc feature proposal: it would be nice if the PETSc loader infers the correct type from the file
