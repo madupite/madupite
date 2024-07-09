@@ -39,7 +39,6 @@ int main(int argc, char** argv)
     // mdp.setOption("-numStates", "100");
     // mdp.setOption("-numActions", "20");
 
-    mdp.setValuesFromOptions();
     mdp.setSourceStageCostMatrix("100_50_0.1/g.bin");
     mdp.setSourceTransitionProbabilityTensor("100_50_0.1/P.bin");
 
@@ -51,7 +50,6 @@ int main(int argc, char** argv)
     std::cout << "Inext policy iteration #1 done." << std::endl;
     mdp.setOption("-discount_factor", "0.999"); // doesn't work anymore -> change setOptions to update member variables
     mdp.setOption("-ksp_type", "tfqmr");
-    mdp.setValuesFromOptions();
     mdp.solve();
     std::cout << "Inext policy iteration #2 done." << std::endl;
     return 0;

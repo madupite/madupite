@@ -157,15 +157,12 @@ PetscErrorCode MDP::setValuesFromOptions()
     return 0;
 }
 
-void MDP::setOption(const char* option, const char* value, bool setValues)
+void MDP::setOption(const char* option, const char* value)
 {
     setupCalled = false;
     // todo: should only be possible for:
     // -discountFactor, -maxIter_PI, -maxIter_KSP, -numPIRuns, -alpha, -atol_PI, -file_policy, -file_cost, -file_stats, -mode
     PetscCallThrow(PetscOptionsSetValue(NULL, option, value));
-    if (setValues) {
-        PetscCallThrow(setValuesFromOptions());
-    }
 }
 
 void MDP::clearOptions() { PetscCallThrow(PetscOptionsClear(NULL)); }
@@ -343,6 +340,8 @@ void MDP::setUp()
 {
     if (setupCalled)
         return;
+
+    setValuesFromOptions();
 
     if (p_src_ == FILE && g_src_ == FILE) {
         // P: nm x n, g: n x m
