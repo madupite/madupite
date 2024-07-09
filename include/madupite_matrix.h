@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -93,14 +94,14 @@ public:
     void operator()(PetscInt row, PetscInt col, PetscScalar value) { PetscCallThrow(MatSetValue(_mat, row, col, value, INSERT_VALUES)); }
 
     // multi-value getter
-    std::vector<PetscScalar> operator()(const std::vector<PetscInt>& rows, const std::vector<PetscInt>& cols)
+    std::vector<PetscScalar> operator()(const std::vector<PetscInt>& rows, const std::vector<PetscInt>& cols) const
     {
         PetscInt m = rows.size();
         PetscInt n = cols.size();
 
-        PetscScalar* data = new PetscScalar[m * n];
-        PetscCallThrow(MatGetValues(_mat, m, rows.data(), n, cols.data(), data));
-        return std::vector<PetscScalar>(data, data + m * n);
+        auto data = std::make_unique<PetscScalar[]>(m * n);
+        PetscCallThrow(MatGetValues(_mat, m, rows.data(), n, cols.data(), data.get()));
+        return std::vector<PetscScalar>(&data[0], &data[m * n]);
     }
 
     ////////
