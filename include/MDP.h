@@ -134,7 +134,7 @@ private:
     PetscChar g_file_name_[PETSC_MAX_PATH_LEN];
     Probfunc  p_func_;
     Costfunc  g_func_;
-    PetscBool p_prealloc_ = PETSC_FALSE;
+    bool      p_prealloc_ = false;
 
     // preallocation for P (if passed by user) [d_nz, d_nnz, o_nz, o_nnz]
     std::tuple<PetscInt, std::vector<int>, PetscInt, std::vector<int>> p_nnz_;

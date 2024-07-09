@@ -216,7 +216,7 @@ void MDP::setSourceTransitionProbabilityTensor(
         PetscThrow(comm_, 1, "Source of transition probability tensor not recognized. Use -source_p FUNCTION.");
     }
     p_func_     = P;
-    p_prealloc_ = PETSC_TRUE;
+    p_prealloc_ = true;
     p_nnz_      = std::make_tuple(d_nz, d_nnz, o_nz, o_nnz);
 }
 
