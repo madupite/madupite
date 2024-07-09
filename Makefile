@@ -21,6 +21,9 @@ run_examples: build_examples
 	$(call dispatch,$(EXAMPLES_DIR),run)
 	$(call dispatch,$(EXAMPLES_DIR),run2)
 
+# Alias
+test: run_examples
+
 # Build the shared library
 lib:
 	+$(call dispatch,$(SRC_DIR),build)

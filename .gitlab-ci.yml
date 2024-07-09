@@ -66,4 +66,4 @@ build:
 test:
   stage: test
   script:
-    - make run_examples
+    - make test
