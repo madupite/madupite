@@ -65,13 +65,13 @@ class MDP {
 public:
     MDP(std::shared_ptr<Madupite> madupite, MPI_Comm comm = PETSC_COMM_WORLD);
     ~MDP();
-    void setOption(const char* option, const char* value = NULL, bool setValues = false);
+    void setOption(const char* option, const char* value = NULL);
     void clearOptions();
-    void setSourceTransitionProbabilityTensor(const char* filename);
+    void setSourceTransitionProbabilityTensor(const std::string filename);
     void setSourceTransitionProbabilityTensor(const Probfunc& P); // no preallocation
     void setSourceTransitionProbabilityTensor(
         const Probfunc& P, PetscInt d_nz, const std::vector<int>& d_nnz, PetscInt o_nz, const std::vector<int>& o_nnz);
-    void setSourceStageCostMatrix(const char* filename);
+    void setSourceStageCostMatrix(const std::string filename);
     void setSourceStageCostMatrix(const Costfunc& g);
     void setUp(); // call after setting sources
     void solve();
@@ -116,9 +116,10 @@ private:
     // user specified options
     enum mode { MINCOST, MAXREWARD };
     enum source { FILE, FUNCTION };
-    mode      mode_;
-    PetscInt  numStates_;  // global; read from file or via setOption
-    PetscInt  numActions_; // global; read from file or via setOption
+    mode mode_;
+    // TODO: change to unsigned int for better scalability? then remove -1
+    PetscInt  numStates_  = -1; // global; read from file or via setOption
+    PetscInt  numActions_ = -1; // global; read from file or via setOption
     PetscReal discountFactor_;
     PetscInt  maxIter_PI_;
     PetscInt  maxIter_KSP_;
@@ -127,13 +128,14 @@ private:
     PetscChar file_policy_[PETSC_MAX_PATH_LEN]; // output
     PetscChar file_cost_[PETSC_MAX_PATH_LEN];   // output
     PetscChar file_stats_[PETSC_MAX_PATH_LEN];  // output
-    PetscInt  p_src_;                           // 0: from file, 1: from function, -1: not set
-    PetscInt  g_src_;                           // 0: from file, 1: from function, -1: not set
-    PetscChar p_file_name_[PETSC_MAX_PATH_LEN];
-    PetscChar g_file_name_[PETSC_MAX_PATH_LEN];
-    Probfunc  p_func_;
-    Costfunc  g_func_;
-    PetscBool p_prealloc_;
+
+    PetscInt    p_src_ = -1; // 0: from file, 1: from function, -1: not set
+    PetscInt    g_src_ = -1; // 0: from file, 1: from function, -1: not set
+    std::string p_file_name_;
+    std::string g_file_name_;
+    Probfunc    p_func_;
+    Costfunc    g_func_;
+    bool        p_prealloc_ = false;
 
     // preallocation for P (if passed by user) [d_nz, d_nnz, o_nz, o_nnz]
     std::tuple<PetscInt, std::vector<int>, PetscInt, std::vector<int>> p_nnz_;
@@ -149,10 +151,12 @@ private:
     std::array<PetscInt, 4> g_file_meta_; // metadata when g is loaded from file (ClassID, rows, cols, nnz)
 
     // MDP data
-    Mat transitionProbabilityTensor_; // transition probability tensor (nm x n; MPIAIJ)
-    Mat stageCostMatrix_;             // stage cost matrix (also rewards possible) (n x m; DENSE)
-    Mat costMatrix_;                  // cost matrix used in extractGreedyPolicy, as member to avoid reallocation (n x m; DENSE)
-    Vec costVector_;                  // cost vector used in extractGreedyPolicy, as member to avoid reallocation (n; DENSE)
+    Mat transitionProbabilityTensor_ = nullptr; // transition probability tensor (nm x n; MPIAIJ)
+    Mat stageCostMatrix_             = nullptr; // stage cost matrix (also rewards possible) (n x m; DENSE)
+    Mat costMatrix_                  = nullptr; // cost matrix used in extractGreedyPolicy, as member to avoid reallocation (n x m; DENSE)
+    Vec costVector_                  = nullptr; // cost vector used in extractGreedyPolicy, as member to avoid reallocation (n; DENSE)
+
+    bool setupCalled = false;
 };
 
 #endif // DISTRIBUTED_INEXACT_POLICY_ITERATION_MDP_H

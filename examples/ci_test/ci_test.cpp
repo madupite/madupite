@@ -57,12 +57,8 @@ int main(int argc, char** argv)
     mdp.setOption("-file_cost", "ci_reward.out");
     mdp.setOption("-file_policy", "ci_policy.out");
     mdp.setOption("-ksp_type", "gmres");
-    mdp.setOption("-source_p", "FUNCTION");
-    mdp.setOption("-source_g", "FUNCTION");
-    mdp.setValuesFromOptions();
     mdp.setSourceStageCostMatrix(r);
     mdp.setSourceTransitionProbabilityTensor(P, 3, {}, 3, {});
-    mdp.setUp();
 
     mdp.solve();
 
@@ -101,13 +97,9 @@ int main(int argc, char** argv)
     mdp.setOption("-alpha", "0.1");
     mdp.setOption("-file_cost", "ci_cost_2.out");
     mdp.setOption("-file_policy", "ci_policy_2.out");
-    mdp.setOption("-source_p", "FILE");
-    mdp.setOption("-source_g", "FILE");
     // mdp.setOption("-pc_type", "svd"); // standard PI (exact), only works in sequential
-    mdp.setValuesFromOptions();
     mdp.setSourceTransitionProbabilityTensor("100_50_0.1/P.bin");
     mdp.setSourceStageCostMatrix("100_50_0.1/g.bin");
-    mdp.setUp();
     mdp.solve();
     return 0;
 }

@@ -42,23 +42,11 @@ std::shared_ptr<Madupite> Madupite::initialize(int* argc, char*** argv)
 MDP::MDP(std::shared_ptr<Madupite> madupite, MPI_Comm comm)
     : madupite_(madupite)
     , comm_(comm)
+    , jsonWriter_(std::make_unique<JsonWriter>(rank_))
 {
     // MPI parallelization initialization
     MPI_Comm_rank(comm_, &rank_);
     MPI_Comm_size(comm_, &size_);
-
-    jsonWriter_ = std::make_unique<JsonWriter>(rank_);
-
-    transitionProbabilityTensor_ = nullptr;
-    stageCostMatrix_             = nullptr;
-    costMatrix_                  = nullptr;
-    costVector_                  = nullptr;
-
-    numStates_  = -1; // todo: change to unsigned int for better scalability? then remove -1
-    numActions_ = -1;
-    p_src_      = -1;
-    g_src_      = -1;
-    p_prealloc_ = PETSC_FALSE;
 
     // Logger::setPrefix("[R" + std::to_string(rank_) + "] ");
     // Logger::setFilename("log_R" + std::to_string(rank_) + ".txt"); // remove if all ranks should output to the same file
@@ -84,6 +72,9 @@ void MDP::splitOwnership()
 PetscErrorCode MDP::setValuesFromOptions()
 {
     PetscBool flg;
+    PetscChar buf[PETSC_MAX_PATH_LEN];
+
+    setupCalled = false;
 
     PetscCall(PetscOptionsGetInt(NULL, NULL, "-num_states", &numStates_, &flg));
     if (flg) { // set local num states here if numStates_ is set (e.g. not the case for loading from file)
@@ -126,114 +117,92 @@ PetscErrorCode MDP::setValuesFromOptions()
     if (!flg) {
         SETERRQ(comm_, 1, "Filename for statistics not specified. Use -file_stats <string>. (max length: 4096 chars");
     }
-    PetscChar inputMode[20];
-    PetscCall(PetscOptionsGetString(NULL, NULL, "-mode", inputMode, 20, &flg));
+
+    PetscCall(PetscOptionsGetString(NULL, NULL, "-mode", buf, PETSC_MAX_PATH_LEN, &flg));
     if (!flg) {
         SETERRQ(comm_, 1, "Input mode not specified. Use -mode MINCOST or MAXREWARD.");
     }
-    if (strcmp(inputMode, "MINCOST") == 0) {
+    if (strcmp(buf, "MINCOST") == 0) {
         mode_ = MINCOST;
         // jsonWriter_->add_data("mode", "MINCOST");
-    } else if (strcmp(inputMode, "MAXREWARD") == 0) {
+    } else if (strcmp(buf, "MAXREWARD") == 0) {
         mode_ = MAXREWARD;
         // jsonWriter_->add_data("mode", "MAXREWARD");
     } else {
         SETERRQ(comm_, 1, "Input mode not recognized. Use -mode MINCOST or MAXREWARD.");
     }
-    // -source_p, -source_g: either "FILE" or "FUNCTION", set p_src_ and g_src_ accordingly
-    PetscCall(PetscOptionsGetString(NULL, NULL, "-source_p", inputMode, 20, &flg));
-    if (!flg) {
-        SETERRQ(comm_, 1, "Source of transition probability tensor not specified. Use -source_p FILE or FUNCTION.");
+
+    PetscCall(PetscOptionsGetString(NULL, NULL, "-file_p", buf, PETSC_MAX_PATH_LEN, &flg));
+    if (flg) {
+        setSourceTransitionProbabilityTensor(buf);
     }
-    if (strcmp(inputMode, "FILE") == 0) {
-        p_src_ = 0;
-    } else if (strcmp(inputMode, "FUNCTION") == 0) {
-        p_src_ = 1;
-    } else {
-        SETERRQ(comm_, 1, "Source of transition probability tensor not recognized. Use -source_p FILE or FUNCTION.");
-    }
-    PetscCall(PetscOptionsGetString(NULL, NULL, "-source_g", inputMode, 20, &flg));
-    if (!flg) {
-        SETERRQ(comm_, 1, "Source of stage cost matrix not specified. Use -source_g FILE or FUNCTION.");
-    }
-    if (strcmp(inputMode, "FILE") == 0) {
-        g_src_ = FILE;
-    } else if (strcmp(inputMode, "FUNCTION") == 0) {
-        g_src_ = FUNCTION;
-    } else {
-        SETERRQ(comm_, 1, "Source of stage cost matrix not recognized. Use -source_g FILE or FUNCTION.");
+    PetscCall(PetscOptionsGetString(NULL, NULL, "-file_g", buf, PETSC_MAX_PATH_LEN, &flg));
+    if (flg) {
+        setSourceStageCostMatrix(buf);
     }
 
     return 0;
 }
 
-void MDP::setOption(const char* option, const char* value, bool setValues)
+void MDP::setOption(const char* option, const char* value)
 {
+    setupCalled = false;
     // todo: should only be possible for:
     // -discountFactor, -maxIter_PI, -maxIter_KSP, -numPIRuns, -alpha, -atol_PI, -file_policy, -file_cost, -file_stats, -mode
     PetscCallThrow(PetscOptionsSetValue(NULL, option, value));
-    if (setValues) {
-        PetscCallThrow(setValuesFromOptions());
-    }
 }
 
 void MDP::clearOptions() { PetscCallThrow(PetscOptionsClear(NULL)); }
 
-void MDP::setSourceStageCostMatrix(const char* filename)
+void MDP::setSourceStageCostMatrix(const std::string filename)
 {
-    if (g_src_ != FILE) {
-        PetscThrow(comm_, 1, "Source of stage cost matrix not recognized. Use -source_g FILE.");
-    }
-    strncpy(g_file_name_, filename, PETSC_MAX_PATH_LEN);
-    std::cout << "Loading stage cost matrix from binary file: " << filename << std::endl;
+    setupCalled  = false;
+    g_file_name_ = filename;
+    g_src_       = FILE;
     PetscViewer viewer;
-    PetscCallThrow(PetscViewerBinaryOpen(comm_, g_file_name_, FILE_MODE_READ, &viewer));
+    PetscCallThrow(PetscViewerBinaryOpen(comm_, g_file_name_.c_str(), FILE_MODE_READ, &viewer));
     PetscCallThrow(PetscViewerBinaryRead(viewer, &g_file_meta_, 4, PETSC_NULLPTR, PETSC_INT));
     PetscCallThrow(PetscViewerDestroy(&viewer));
 }
 
 void MDP::setSourceStageCostMatrix(const Costfunc& g)
 {
-    if (g_src_ != FUNCTION) {
-        PetscThrow(comm_, 1, "Source of stage cost matrix not recognized. Use -source_g FUNCTION.");
-    }
-    g_func_ = g;
+    setupCalled = false;
+    g_src_      = FUNCTION;
+    g_func_     = g;
 }
 
-void MDP::setSourceTransitionProbabilityTensor(const char* filename)
+void MDP::setSourceTransitionProbabilityTensor(const std::string filename)
 {
-    if (p_src_ != FILE) {
-        PetscThrow(comm_, 1, "Source of transition probability tensor not recognized. Use -source_p FILE.");
-    }
-    std::cout << "Loading transition probability tensor from binary file: " << filename << std::endl;
-    strncpy(p_file_name_, filename, PETSC_MAX_PATH_LEN);
+    setupCalled  = false;
+    p_file_name_ = filename;
+    p_src_       = FILE;
     PetscViewer viewer;
-    PetscCallThrow(PetscViewerBinaryOpen(comm_, p_file_name_, FILE_MODE_READ, &viewer));
+    PetscCallThrow(PetscViewerBinaryOpen(comm_, p_file_name_.c_str(), FILE_MODE_READ, &viewer));
     PetscCallThrow(PetscViewerBinaryRead(viewer, &p_file_meta_, 4, PETSC_NULLPTR, PETSC_INT));
     PetscCallThrow(PetscViewerDestroy(&viewer));
 }
 
 void MDP::setSourceTransitionProbabilityTensor(const Probfunc& P)
 {
-    if (p_src_ != FUNCTION) {
-        PetscThrow(comm_, 1, "Source of transition probability tensor not recognized. Use -source_p FUNCTION.");
-    }
-    p_func_ = P;
+    setupCalled = false;
+    p_src_      = FUNCTION;
+    p_func_     = P;
 }
 
 void MDP::setSourceTransitionProbabilityTensor(
     const Probfunc& P, PetscInt d_nz, const std::vector<int>& d_nnz, PetscInt o_nz, const std::vector<int>& o_nnz)
 {
-    if (p_src_ != FUNCTION) {
-        PetscThrow(comm_, 1, "Source of transition probability tensor not recognized. Use -source_p FUNCTION.");
-    }
+    setupCalled = false;
+    p_src_      = FUNCTION;
     p_func_     = P;
-    p_prealloc_ = PETSC_TRUE;
+    p_prealloc_ = true;
     p_nnz_      = std::make_tuple(d_nz, d_nnz, o_nz, o_nnz);
 }
 
 void MDP::loadTransitionProbabilityTensor()
 {
+    std::cout << "Loading transition probability tensor from binary file: " << p_file_name_ << std::endl;
     if (transitionProbabilityTensor_ != nullptr) {
         PetscCallThrow(MatDestroy(&transitionProbabilityTensor_));
     }
@@ -242,7 +211,7 @@ void MDP::loadTransitionProbabilityTensor()
     PetscCallThrow(MatSetSizes(transitionProbabilityTensor_, localNumStates_ * numActions_, localNumStates_, numStates_ * numActions_, numStates_));
     PetscCallThrow(MatSetUp(transitionProbabilityTensor_));
     PetscViewer viewer;
-    PetscCallThrow(PetscViewerBinaryOpen(comm_, p_file_name_, FILE_MODE_READ, &viewer));
+    PetscCallThrow(PetscViewerBinaryOpen(comm_, p_file_name_.c_str(), FILE_MODE_READ, &viewer));
     PetscCallThrow(MatLoad(transitionProbabilityTensor_, viewer));
     PetscCallThrow(PetscViewerDestroy(&viewer));
     PetscCallThrow(MatGetOwnershipRange(transitionProbabilityTensor_, &p_start_, &p_end_));
@@ -250,6 +219,7 @@ void MDP::loadTransitionProbabilityTensor()
 
 void MDP::loadStageCostMatrix()
 {
+    std::cout << "Loading stage cost matrix from binary file: " << g_file_name_ << std::endl;
     if (stageCostMatrix_ != nullptr) {
         PetscCallThrow(MatDestroy(&stageCostMatrix_));
     }
@@ -258,7 +228,7 @@ void MDP::loadStageCostMatrix()
     PetscCallThrow(MatSetSizes(stageCostMatrix_, localNumStates_, PETSC_DECIDE, numStates_, numActions_));
     PetscCallThrow(MatSetUp(stageCostMatrix_));
     PetscViewer viewer;
-    PetscCallThrow(PetscViewerBinaryOpen(comm_, g_file_name_, FILE_MODE_READ, &viewer));
+    PetscCallThrow(PetscViewerBinaryOpen(comm_, g_file_name_.c_str(), FILE_MODE_READ, &viewer));
     PetscCallThrow(MatLoad(stageCostMatrix_, viewer));
     PetscCallThrow(PetscViewerDestroy(&viewer));
     PetscCallThrow(MatConvert(stageCostMatrix_, MATDENSE, MAT_INPLACE_MATRIX, &stageCostMatrix_)); // convert to dense matrix!
@@ -268,6 +238,7 @@ void MDP::loadStageCostMatrix()
 // Pre: localNumStates_, numStates_, numActions_ are set
 void MDP::createStageCostMatrix()
 {
+    std::cout << "Creating stage cost matrix from function" << std::endl;
     if (stageCostMatrix_ != nullptr) {
         PetscCallThrow(MatDestroy(&stageCostMatrix_));
     }
@@ -292,6 +263,7 @@ void MDP::createStageCostMatrix()
 
 void MDP::createTransitionProbabilityTensorPrealloc()
 {
+    std::cout << "Creating transition probability tensor from function with preallocation" << std::endl;
     if (transitionProbabilityTensor_ != nullptr) {
         PetscCallThrow(MatDestroy(&transitionProbabilityTensor_));
     }
@@ -322,6 +294,7 @@ void MDP::createTransitionProbabilityTensorPrealloc()
 
 void MDP::createTransitionProbabilityTensor()
 {
+    std::cout << "Creating transition probability tensor from function without preallocation" << std::endl;
     if (transitionProbabilityTensor_ != nullptr) {
         PetscCallThrow(MatDestroy(&transitionProbabilityTensor_));
     }
@@ -345,13 +318,19 @@ void MDP::createTransitionProbabilityTensor()
 
 void MDP::setUp()
 {
+    if (setupCalled)
+        return;
+
+    setValuesFromOptions();
+
     if (p_src_ == FILE && g_src_ == FILE) {
         // P: nm x n, g: n x m
         // meta = [ClassID, Rows, Cols, NNZ]
         if (p_file_meta_[1] != g_file_meta_[1] * g_file_meta_[2] || p_file_meta_[2] != g_file_meta_[1]) {
             PetscThrow(comm_, 1,
-                "Sizes of cost matrix and transition probability tensor not compatible.\nIt should hold that P: nm x n, g: n x m,\nwhere n is the "
-                "number of states and m is the number of actions.\n");
+                "Sizes of cost matrix and transition probability tensor not compatible.\n"
+                "It should hold that P: nm x n, g: n x m,\n"
+                "where n is the number of states and m is the number of actions.\n");
         }
         numStates_  = p_file_meta_[2];
         numActions_ = g_file_meta_[2];
@@ -384,6 +363,8 @@ void MDP::setUp()
             createTransitionProbabilityTensor();
         loadStageCostMatrix();
     }
+
+    setupCalled = true;
 }
 
 void MDP::writeVec(const Vec& vec, const char* filename)

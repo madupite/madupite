@@ -194,6 +194,9 @@ void MDP::createJacobian(Mat& jacobian, const Mat& transitionProbabilities, Jaco
 
 void MDP::solve()
 {
+    // make sure MDP is set up
+    setUp();
+
     // if(rank_ == 0) LOG("Entering solve");
     jsonWriter_->add_solver_run();
     writeJSONmetadata();
@@ -278,7 +281,7 @@ void MDP::solve()
     PetscCallThrow(PetscFree(policyValues));
 
     PetscCallThrow(PetscTime(&endTime));
-    PetscLogDouble duration = (endTime - startTime) * 1000;
+    // PetscLogDouble duration = (endTime - startTime) * 1000;
     if (rank_ == 0) {
         // LOG("Saving results took: " + std::to_string(duration) + " ms");
     }
