@@ -22,7 +22,7 @@ source ${PETSC_ENV_FILE}
 
 for t in $TARGET; do
     if (( ! CMAKE_BUILD)) && [ $t == "all" ]; then
-        CMD="bear -- make all"
+        CMD="bear -- make -j8 all"
     else
         CMD="make $t"
     fi
