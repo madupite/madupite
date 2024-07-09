@@ -67,11 +67,11 @@ public:
     ~MDP();
     void setOption(const char* option, const char* value = NULL);
     void clearOptions();
-    void setSourceTransitionProbabilityTensor(const char* filename);
+    void setSourceTransitionProbabilityTensor(const std::string filename);
     void setSourceTransitionProbabilityTensor(const Probfunc& P); // no preallocation
     void setSourceTransitionProbabilityTensor(
         const Probfunc& P, PetscInt d_nz, const std::vector<int>& d_nnz, PetscInt o_nz, const std::vector<int>& o_nnz);
-    void setSourceStageCostMatrix(const char* filename);
+    void setSourceStageCostMatrix(const std::string filename);
     void setSourceStageCostMatrix(const Costfunc& g);
     void setUp(); // call after setting sources
     void solve();
@@ -128,13 +128,14 @@ private:
     PetscChar file_policy_[PETSC_MAX_PATH_LEN]; // output
     PetscChar file_cost_[PETSC_MAX_PATH_LEN];   // output
     PetscChar file_stats_[PETSC_MAX_PATH_LEN];  // output
-    PetscInt  p_src_ = -1;                      // 0: from file, 1: from function, -1: not set
-    PetscInt  g_src_ = -1;                      // 0: from file, 1: from function, -1: not set
-    PetscChar p_file_name_[PETSC_MAX_PATH_LEN];
-    PetscChar g_file_name_[PETSC_MAX_PATH_LEN];
-    Probfunc  p_func_;
-    Costfunc  g_func_;
-    bool      p_prealloc_ = false;
+
+    PetscInt    p_src_ = -1; // 0: from file, 1: from function, -1: not set
+    PetscInt    g_src_ = -1; // 0: from file, 1: from function, -1: not set
+    std::string p_file_name_;
+    std::string g_file_name_;
+    Probfunc    p_func_;
+    Costfunc    g_func_;
+    bool        p_prealloc_ = false;
 
     // preallocation for P (if passed by user) [d_nz, d_nnz, o_nz, o_nnz]
     std::tuple<PetscInt, std::vector<int>, PetscInt, std::vector<int>> p_nnz_;

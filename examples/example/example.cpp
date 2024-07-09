@@ -31,8 +31,6 @@ int main(int argc, char** argv)
     mdp.setOption("-max_iter_ksp", "1000");
     mdp.setOption("-alpha", "1e-4");
     mdp.setOption("-atol_pi", "1e-10");
-    mdp.setOption("-source_p", "FILE");
-    mdp.setOption("-source_g", "FILE");
     mdp.setOption("-file_stats", "stats.json");
     mdp.setOption("-file_policy", "policy.out");
     mdp.setOption("-file_cost", "cost.out");
