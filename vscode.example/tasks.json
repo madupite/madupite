@@ -16,6 +16,7 @@
                 "all",
                 "clean all",
                 "clean",
+                "test",
             ]
         }
     ],
