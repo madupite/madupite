@@ -44,7 +44,7 @@ public:
 
     ~Matrix()
     {
-        MatDestroy(&_mat); // No-op if _mat is nullptr
+        PetscCallNoThrow(MatDestroy(&_mat)); // No-op if _mat is nullptr
     }
 
     // Forbid copy for now
@@ -54,7 +54,7 @@ public:
     // Move constructor
     Matrix(Matrix&& other) noexcept
     {
-        MatDestroy(&_mat); // No-op if _mat is nullptr
+        PetscCallNoThrow(MatDestroy(&_mat)); // No-op if _mat is nullptr
         _mat       = other._mat;
         other._mat = nullptr;
     }
@@ -63,7 +63,7 @@ public:
     Matrix& operator=(Matrix&& other) noexcept
     {
         if (this != &other) {
-            MatDestroy(&_mat); // No-op if _mat is nullptr
+            PetscCallNoThrow(MatDestroy(&_mat)); // No-op if _mat is nullptr
             _mat       = other._mat;
             other._mat = nullptr;
         }
