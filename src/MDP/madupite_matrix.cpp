@@ -36,7 +36,7 @@ Matrix::Matrix(MPI_Comm comm, const std::string& name, PetscInt rows, PetscInt c
 }
 
 // TODO PETSc feature proposal: it would be nice if the PETSc loader infers the correct type from the file
-Matrix Matrix::load(MPI_Comm comm, const std::string& name, const std::string& filename, MatrixType type)
+Matrix Matrix::fromFile(MPI_Comm comm, const std::string& name, const std::string& filename, MatrixType type)
 {
     Matrix      A(comm, name, type);
     PetscViewer viewer;
