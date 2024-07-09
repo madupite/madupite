@@ -15,6 +15,9 @@ enum class MatrixType {
     Sparse,
 };
 
+using Costfunc = std::function<double(int, int)>;
+using Probfunc = std::function<std::pair<std::vector<double>, std::vector<int>>(int, int)>;
+
 class Matrix {
     Mat _mat;
 
