@@ -22,6 +22,7 @@ using Probfunc = std::function<std::pair<std::vector<double>, std::vector<int>>(
 class Matrix {
     Mat _mat;
 
+    // Private constructor setting communicator, name and type (but no size)
     Matrix(MPI_Comm comm, const std::string& name, MatrixType type);
 
 public:
@@ -29,6 +30,7 @@ public:
     // Constructors, destructors and assignment
     ////////
 
+    // Create a matrix with given communicator, name, type and size
     Matrix(MPI_Comm comm, const std::string& name, MatrixType type, PetscInt rows, PetscInt cols, bool local = false)
         : Matrix(comm, name, type)
     {
@@ -39,9 +41,11 @@ public:
         }
     }
 
+    // Create a matrix with preallocation
     Matrix(MPI_Comm comm, const std::string& name, PetscInt rows, PetscInt cols, bool local, PetscInt d_nz, const std::vector<int>& d_nnz,
         PetscInt o_nz, const std::vector<int>& o_nnz);
 
+    // Destructor
     ~Matrix()
     {
         PetscCallNoThrow(MatDestroy(&_mat)); // No-op if _mat is nullptr
