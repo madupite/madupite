@@ -14,6 +14,24 @@ class Vector {
 
 public:
     ////////
+    // Basic getters
+    ////////
+
+    // Get the MPI communicator
+    MPI_Comm comm() const { return PetscObjectComm((PetscObject)_vec); }
+
+    // Get the name
+    std::string name() const
+    {
+        const char* name;
+        PetscCallThrow(PetscObjectGetName((PetscObject)_vec, &name));
+        return std::string(name);
+    }
+
+    // Get the inner PETSc vector
+    Vec petscVec() const { return _vec; }
+
+    ////////
     // Constructors, destructors and assignment
     ////////
 
@@ -24,16 +42,28 @@ public:
     Vector(MPI_Comm comm, const std::string& name, const std::vector<PetscScalar>& data);
 
     // Destructor
-    ~Vector() { VecDestroy(&_vec); }
+    ~Vector() { PetscCallNoThrow(VecDestroy(&_vec)); }
 
-    // Forbid copy for now
-    Vector(const Vector&)            = delete;
-    Vector& operator=(const Vector&) = delete;
+    // Copy constructor
+    Vector(const Vector& other)
+        : Vector(other.comm(), other.name(), other.localSize(), true)
+    {
+        PetscCallThrow(VecCopy(other._vec, _vec));
+    }
+
+    // Copy assignment
+    Vector& operator=(const Vector& other)
+    {
+        if (this != &other) {
+            PetscCallThrow(VecCopy(other._vec, _vec));
+        }
+        return *this;
+    }
 
     // Move constructor
     Vector(Vector&& other) noexcept
     {
-        VecDestroy(&_vec); // No-op if _vec is nullptr
+        PetscCallNoThrow(VecDestroy(&_vec)); // No-op if _vec is nullptr
         _vec       = other._vec;
         other._vec = nullptr;
     }
@@ -42,7 +72,7 @@ public:
     Vector& operator=(Vector&& other) noexcept
     {
         if (this != &other) {
-            VecDestroy(&_vec); // No-op if _vec is nullptr
+            PetscCallNoThrow(VecDestroy(&_vec)); // No-op if _vec is nullptr
             _vec       = other._vec;
             other._vec = nullptr;
         }
@@ -74,17 +104,10 @@ public:
     // Inline methods
     ////////
 
-    // Get the MPI communicator
-    MPI_Comm comm() const { return PetscObjectComm((PetscObject)_vec); }
-
-    // Get the inner PETSc vector
-    Vec petscVec() const { return _vec; }
-
     // Get the local size
     PetscInt localSize() const
     {
         PetscInt m;
-
         PetscCallThrow(VecGetLocalSize(_vec, &m));
         return m;
     }
@@ -93,7 +116,6 @@ public:
     PetscInt size() const
     {
         PetscInt M;
-
         PetscCallThrow(VecGetSize(_vec, &M));
         return M;
     }
