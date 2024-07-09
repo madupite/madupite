@@ -42,7 +42,6 @@ int main(int argc, char** argv)
     mdp.setValuesFromOptions();
     mdp.setSourceStageCostMatrix("100_50_0.1/g.bin");
     mdp.setSourceTransitionProbabilityTensor("100_50_0.1/P.bin");
-    mdp.setUp();
 
     std::cout << "File loaded." << std::endl;
     // mdp.generateCostMatrix(g);

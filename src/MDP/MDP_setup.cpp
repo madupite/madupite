@@ -73,6 +73,8 @@ PetscErrorCode MDP::setValuesFromOptions()
 {
     PetscBool flg;
 
+    setupCalled = false;
+
     PetscCall(PetscOptionsGetInt(NULL, NULL, "-num_states", &numStates_, &flg));
     if (flg) { // set local num states here if numStates_ is set (e.g. not the case for loading from file)
         splitOwnership();
@@ -157,6 +159,7 @@ PetscErrorCode MDP::setValuesFromOptions()
 
 void MDP::setOption(const char* option, const char* value, bool setValues)
 {
+    setupCalled = false;
     // todo: should only be possible for:
     // -discountFactor, -maxIter_PI, -maxIter_KSP, -numPIRuns, -alpha, -atol_PI, -file_policy, -file_cost, -file_stats, -mode
     PetscCallThrow(PetscOptionsSetValue(NULL, option, value));
@@ -169,6 +172,7 @@ void MDP::clearOptions() { PetscCallThrow(PetscOptionsClear(NULL)); }
 
 void MDP::setSourceStageCostMatrix(const char* filename)
 {
+    setupCalled = false;
     if (g_src_ != FILE) {
         PetscThrow(comm_, 1, "Source of stage cost matrix not recognized. Use -source_g FILE.");
     }
@@ -182,6 +186,7 @@ void MDP::setSourceStageCostMatrix(const char* filename)
 
 void MDP::setSourceStageCostMatrix(const Costfunc& g)
 {
+    setupCalled = false;
     if (g_src_ != FUNCTION) {
         PetscThrow(comm_, 1, "Source of stage cost matrix not recognized. Use -source_g FUNCTION.");
     }
@@ -190,6 +195,7 @@ void MDP::setSourceStageCostMatrix(const Costfunc& g)
 
 void MDP::setSourceTransitionProbabilityTensor(const char* filename)
 {
+    setupCalled = false;
     if (p_src_ != FILE) {
         PetscThrow(comm_, 1, "Source of transition probability tensor not recognized. Use -source_p FILE.");
     }
@@ -203,6 +209,7 @@ void MDP::setSourceTransitionProbabilityTensor(const char* filename)
 
 void MDP::setSourceTransitionProbabilityTensor(const Probfunc& P)
 {
+    setupCalled = false;
     if (p_src_ != FUNCTION) {
         PetscThrow(comm_, 1, "Source of transition probability tensor not recognized. Use -source_p FUNCTION.");
     }
@@ -212,6 +219,7 @@ void MDP::setSourceTransitionProbabilityTensor(const Probfunc& P)
 void MDP::setSourceTransitionProbabilityTensor(
     const Probfunc& P, PetscInt d_nz, const std::vector<int>& d_nnz, PetscInt o_nz, const std::vector<int>& o_nnz)
 {
+    setupCalled = false;
     if (p_src_ != FUNCTION) {
         PetscThrow(comm_, 1, "Source of transition probability tensor not recognized. Use -source_p FUNCTION.");
     }
@@ -333,6 +341,9 @@ void MDP::createTransitionProbabilityTensor()
 
 void MDP::setUp()
 {
+    if (setupCalled)
+        return;
+
     if (p_src_ == FILE && g_src_ == FILE) {
         // P: nm x n, g: n x m
         // meta = [ClassID, Rows, Cols, NNZ]
@@ -372,6 +383,8 @@ void MDP::setUp()
             createTransitionProbabilityTensor();
         loadStageCostMatrix();
     }
+
+    setupCalled = true;
 }
 
 void MDP::writeVec(const Vec& vec, const char* filename)

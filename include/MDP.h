@@ -154,6 +154,8 @@ private:
     Mat stageCostMatrix_             = nullptr; // stage cost matrix (also rewards possible) (n x m; DENSE)
     Mat costMatrix_                  = nullptr; // cost matrix used in extractGreedyPolicy, as member to avoid reallocation (n x m; DENSE)
     Vec costVector_                  = nullptr; // cost vector used in extractGreedyPolicy, as member to avoid reallocation (n; DENSE)
+
+    bool setupCalled = false;
 };
 
 #endif // DISTRIBUTED_INEXACT_POLICY_ITERATION_MDP_H

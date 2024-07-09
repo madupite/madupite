@@ -194,6 +194,9 @@ void MDP::createJacobian(Mat& jacobian, const Mat& transitionProbabilities, Jaco
 
 void MDP::solve()
 {
+    // make sure MDP is set up
+    setUp();
+
     // if(rank_ == 0) LOG("Entering solve");
     jsonWriter_->add_solver_run();
     writeJSONmetadata();

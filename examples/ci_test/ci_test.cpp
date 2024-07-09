@@ -62,7 +62,6 @@ int main(int argc, char** argv)
     mdp.setValuesFromOptions();
     mdp.setSourceStageCostMatrix(r);
     mdp.setSourceTransitionProbabilityTensor(P, 3, {}, 3, {});
-    mdp.setUp();
 
     mdp.solve();
 
@@ -107,7 +106,6 @@ int main(int argc, char** argv)
     mdp.setValuesFromOptions();
     mdp.setSourceTransitionProbabilityTensor("100_50_0.1/P.bin");
     mdp.setSourceStageCostMatrix("100_50_0.1/g.bin");
-    mdp.setUp();
     mdp.solve();
     return 0;
 }
