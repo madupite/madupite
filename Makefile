@@ -21,11 +21,9 @@ run_examples: build_examples
 	$(call dispatch,$(EXAMPLES_DIR),run)
 	$(call dispatch,$(EXAMPLES_DIR),run2)
 
-$(MADUPITE_LIB):
-	+$(call dispatch,$(SRC_DIR),build)
-
 # Build the shared library
-lib: $(MADUPITE_LIB)
+lib:
+	+$(call dispatch,$(SRC_DIR),build)
 
 # Clean up everything
 clean:
