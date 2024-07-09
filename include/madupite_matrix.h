@@ -89,7 +89,7 @@ public:
     // single-value setter
     void operator()(PetscInt row, PetscInt col, PetscScalar value) { PetscCallThrow(MatSetValue(_mat, row, col, value, INSERT_VALUES)); }
 
-    // multi-value setter
+    // multi-value getter
     std::vector<PetscScalar> operator()(const std::vector<PetscInt>& rows, const std::vector<PetscInt>& cols)
     {
         PetscInt m = rows.size();
