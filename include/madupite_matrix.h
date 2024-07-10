@@ -118,32 +118,6 @@ public:
     // Get the MPI communicator
     MPI_Comm comm() const { return PetscObjectComm((PetscObject)_mat); }
 
-    // Get the local size
-    std::pair<PetscInt, PetscInt> localSize() const
-    {
-        PetscInt m, n;
-
-        PetscCallThrow(MatGetLocalSize(_mat, &m, &n));
-        return std::make_pair(m, n);
-    }
-
-    // Get the global size
-    std::pair<PetscInt, PetscInt> size() const
-    {
-        PetscInt M, N;
-
-        PetscCallThrow(MatGetSize(_mat, &M, &N));
-        return std::make_pair(M, N);
-    }
-
-    // Get the ownership range
-    std::pair<PetscInt, PetscInt> getOwnershipRange() const
-    {
-        PetscInt lo, hi;
-        PetscCallThrow(MatGetOwnershipRange(_mat, &lo, &hi));
-        return std::make_pair(lo, hi);
-    }
-
     // We currently don't need to have separate assemblyBegin and assemblyEnd
     void assemble()
     {

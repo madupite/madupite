@@ -108,7 +108,6 @@ public:
     PetscScalar operator()(PetscInt index) const
     {
         PetscScalar value;
-
         PetscCallThrow(VecGetValues(_vec, 1, &index, &value));
         return value;
     }
@@ -120,34 +119,11 @@ public:
     // Inline methods
     ////////
 
-    // Get the local size
-    PetscInt localSize() const
-    {
-        PetscInt m;
-        PetscCallThrow(VecGetLocalSize(_vec, &m));
-        return m;
-    }
-
-    // Get the global size
-    PetscInt size() const
-    {
-        PetscInt M;
-        PetscCallThrow(VecGetSize(_vec, &M));
-        return M;
-    }
-
     // Assemble the vector
     void assemble()
     {
         PetscCallThrow(VecAssemblyBegin(_vec));
         PetscCallThrow(VecAssemblyEnd(_vec));
-    }
-
-    std::pair<PetscInt, PetscInt> getOwnershipRange() const
-    {
-        PetscInt lo, hi;
-        PetscCallThrow(VecGetOwnershipRange(_vec, &lo, &hi));
-        return std::make_pair(lo, hi);
     }
 
     ////////
