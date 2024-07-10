@@ -32,7 +32,7 @@ public:
     }
 
     // Get the inner PETSc vector
-    Vec petscVec() const { return _vec; }
+    Vec petsc() { return _vec; }
 
     // Get the layout
     const Layout& layout() const { return _layout; }
