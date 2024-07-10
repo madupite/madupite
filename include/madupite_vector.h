@@ -10,12 +10,46 @@
 #include "madupite_layout.h"
 
 class Vector {
-    Vec    _vec;
     Layout _layout;
+    Vec    _vec;
 
     Vector(MPI_Comm comm, const std::string& name);
 
 public:
+    // A helper class to manage the read lock (RAII principle)
+    class VecReadOnly {
+        // Inner PETSc vector
+        const Vec& _vec;
+
+    public:
+        // Constructor - acquire the read lock
+        VecReadOnly(const Vec& vec)
+            : _vec(vec)
+        {
+            PetscCallThrow(VecLockReadPush(_vec));
+        }
+
+        // Destructor - release the read lock
+        ~VecReadOnly() { PetscCallNoThrow(VecLockReadPop(_vec)); }
+
+        // Disable copy semantics and move assignment
+        VecReadOnly(const VecReadOnly&)             = delete;
+        VecReadOnly& operator=(const VecReadOnly&)  = delete;
+        VecReadOnly& operator=(VecReadOnly&& other) = delete;
+
+        // Move constructor
+        VecReadOnly(VecReadOnly&& other) noexcept
+            : _vec(other._vec)
+        {
+        }
+
+        // Accessor to get the const Vec&
+        const Vec& get() const { return _vec; }
+
+        // Implicit cast to const Vec&
+        operator const Vec&() const { return _vec; }
+    };
+
     ////////
     // Basic getters
     ////////
@@ -33,6 +67,10 @@ public:
 
     // Get the inner PETSc vector
     Vec petsc() { return _vec; }
+
+    // Get the read-only view of the inner PETSc vector.
+    // Can be implicitly cast to `const Vec&` thanks to the `operator const Vec&() const`
+    VecReadOnly petsc() const { return VecReadOnly(_vec); }
 
     // Get the layout
     const Layout& layout() const { return _layout; }
