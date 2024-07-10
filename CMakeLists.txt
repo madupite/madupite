@@ -75,6 +75,18 @@ target_link_libraries(ci-test
     PkgConfig::PETSC
 )
 
+add_executable(maze example/maze/maze.cpp)
+target_link_libraries(maze
+    madupite
+    PkgConfig::PETSC
+)
+
+add_executable(continuous example/continuous/continuous.cpp)
+target_link_libraries(continuous
+    madupite
+    PkgConfig::PETSC
+)
+
 # Ensure the "example" target can find the madupite library at runtime
 set_target_properties(example PROPERTIES
     INSTALL_RPATH "${CMAKE_BINARY_DIR}/lib"
