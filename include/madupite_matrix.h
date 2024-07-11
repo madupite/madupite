@@ -19,8 +19,8 @@ enum class MatrixType {
     Sparse,
 };
 
-using Costfunc = std::function<double(int, int)>;
-using Probfunc = std::function<std::pair<std::vector<double>, std::vector<int>>(int, int)>;
+using Costfunc = std::function<PetscScalar(PetscInt, PetscInt)>;
+using Probfunc = std::function<std::pair<std::vector<PetscScalar>, std::vector<PetscInt>>(PetscInt, PetscInt)>;
 
 struct MatrixPreallocation {
     PetscInt         d_nz = PETSC_DECIDE;
