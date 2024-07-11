@@ -3,11 +3,13 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <petscmat.h>
 
 #include "madupite_errors.h"
+#include "madupite_layout.h"
 #include "madupite_vector.h"
 
 // using std::ranges::range;
@@ -27,47 +29,10 @@ struct MatrixPreallocation {
     std::vector<int> o_nnz;
 };
 
-// one of one of (m, M) and (n, N) must be set
-class MatrixLayout {
-    PetscLayout rowLayout;
-    PetscLayout colLayout;
-
-    // Deleted constructors and assignment operators to prevent copying/moving
-    MatrixLayout()                                     = delete;
-    MatrixLayout(const MatrixLayout&)                  = delete;
-    MatrixLayout(MatrixLayout&&)                       = delete;
-    const MatrixLayout& operator=(const MatrixLayout&) = delete;
-    const MatrixLayout& operator=(MatrixLayout&&)      = delete;
-
-public:
-    MatrixLayout(MPI_Comm comm, PetscInt m = PETSC_DECIDE, PetscInt n = PETSC_DECIDE, PetscInt M = PETSC_DECIDE, PetscInt N = PETSC_DECIDE)
-    {
-        // Ensure at least one of (m, M) and (n, N) is set
-        if ((m == PETSC_DECIDE && M == PETSC_DECIDE) || (n == PETSC_DECIDE && N == PETSC_DECIDE)) {
-            throw std::invalid_argument("At least one of (m, M) and one of (n, N) must be set explicitly.");
-        }
-        PetscCallThrow(PetscLayoutCreate(comm, &rowLayout));
-        PetscCallThrow(PetscLayoutCreate(comm, &colLayout));
-        PetscCallThrow(PetscLayoutSetLocalSize(rowLayout, m));
-        PetscCallThrow(PetscLayoutSetLocalSize(colLayout, n));
-        PetscCallThrow(PetscLayoutSetSize(rowLayout, M));
-        PetscCallThrow(PetscLayoutSetSize(colLayout, N));
-        PetscCallThrow(PetscLayoutSetUp(rowLayout));
-        PetscCallThrow(PetscLayoutSetUp(colLayout));
-    }
-
-    const PetscLayout row() const { return rowLayout; }
-    const PetscLayout col() const { return colLayout; }
-
-    ~MatrixLayout()
-    {
-        PetscCallNoThrow(PetscLayoutDestroy(&rowLayout));
-        PetscCallNoThrow(PetscLayoutDestroy(&colLayout));
-    }
-};
-
 class Matrix {
-    Mat _mat;
+    Layout _rowLayout;
+    Layout _colLayout;
+    Mat    _mat;
 
     // Private constructor setting communicator, name and type (but no size)
     Matrix(MPI_Comm comm, const std::string& name, MatrixType type);
@@ -78,7 +43,8 @@ public:
     ////////
 
     // Create a matrix with given communicator, name, type and size with or without preallocation
-    Matrix(MPI_Comm comm, const std::string& name, MatrixType type, const MatrixLayout& layout, const MatrixPreallocation& preallocation = {});
+    Matrix(MPI_Comm comm, const std::string& name, MatrixType type, const Layout& rowLayout, const Layout& colLayout,
+        const MatrixPreallocation& pa = {});
 
     // Destructor
     ~Matrix()
@@ -92,19 +58,22 @@ public:
 
     // Move constructor
     Matrix(Matrix&& other) noexcept
+        : _rowLayout(std::move(other._rowLayout))
+        , _colLayout(std::move(other._colLayout))
     {
         PetscCallNoThrow(MatDestroy(&_mat)); // No-op if _mat is nullptr
-        _mat       = other._mat;
-        other._mat = nullptr;
+        _mat = std::exchange(other._mat, nullptr);
     }
 
     // Move assignment
     Matrix& operator=(Matrix&& other) noexcept
     {
         if (this != &other) {
+            _rowLayout = std::move(other._rowLayout);
+            _colLayout = std::move(other._colLayout);
+
             PetscCallNoThrow(MatDestroy(&_mat)); // No-op if _mat is nullptr
-            _mat       = other._mat;
-            other._mat = nullptr;
+            _mat = std::exchange(other._mat, nullptr);
         }
         return *this;
     }
