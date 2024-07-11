@@ -1,4 +1,3 @@
-#include "MDP.h"
 #include <cassert>
 #include <fstream>
 #include <iostream>
@@ -7,6 +6,9 @@
 #include <string>
 #include <utility>
 #include <vector>
+
+#include "MDP.h"
+#include "MDP_matrix.h"
 
 // MDP: 1d grid world (=circle); 50 states; 3 actions (stay, left, right),
 // 0: 90% stay, 5% left, 5% right
@@ -43,6 +45,12 @@ int main(int argc, char** argv)
 {
     // Initialize MPI, PETSc and Madupite, passing command line arguments.
     auto madupite = Madupite::initialize(&argc, &argv);
+    auto comm     = PETSC_COMM_WORLD;
+
+    // TODO need to specify Matrix P, g
+    // 1. from function
+    // 2. from hard-wired filename
+    // 3. from CLI filename
 
     MDP mdp(madupite);
     mdp.setOption("-mode", "MAXREWARD");
@@ -51,12 +59,21 @@ int main(int argc, char** argv)
     mdp.setOption("-max_iter_ksp", "1000");
     mdp.setOption("-alpha", "1e-4");
     mdp.setOption("-atol_pi", "1e-8");
+
+    // TODO remove
     mdp.setOption("-num_states", "50");
     mdp.setOption("-num_actions", "3");
+
     mdp.setOption("-file_stats", "ci_stats.json");
     mdp.setOption("-file_cost", "ci_reward.out");
     mdp.setOption("-file_policy", "ci_policy.out");
     mdp.setOption("-ksp_type", "gmres");
+
+    PetscInt numStates = 50, numActions = 3;
+
+    auto g_mat = createStageCostMatrix(comm, "g_func", numStates, numActions, r);
+    auto P_mat = createTransitionProbabilityTensor(comm, "P_func", numStates, numActions, P, { .d_nz = 3, .o_nz = 3 });
+
     mdp.setSourceStageCostMatrix(r);
     mdp.setSourceTransitionProbabilityTensor(P, 3, {}, 3, {});
 
@@ -66,7 +83,7 @@ int main(int argc, char** argv)
     // 42 (goal) has the highest reward, 17 has the lowest (1-based indexing)
     // only if rank 0 (else some error with stod?)
     int rank;
-    MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
+    MPI_Comm_rank(comm, &rank);
     if (rank == 0) {
         std::ifstream       file("ci_reward.out");
         std::string         line;
@@ -98,8 +115,13 @@ int main(int argc, char** argv)
     mdp.setOption("-file_cost", "ci_cost_2.out");
     mdp.setOption("-file_policy", "ci_policy_2.out");
     // mdp.setOption("-pc_type", "svd"); // standard PI (exact), only works in sequential
+
+    g_mat = Matrix::fromFile(comm, "g_file", "100_50_0.1/g.bin", MatrixType::Dense);
+    P_mat = Matrix::fromFile(comm, "P_file", "100_50_0.1/P.bin");
+
     mdp.setSourceTransitionProbabilityTensor("100_50_0.1/P.bin");
     mdp.setSourceStageCostMatrix("100_50_0.1/g.bin");
+
     mdp.solve();
     return 0;
 }
