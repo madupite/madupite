@@ -375,8 +375,6 @@ void MDP::writeVec(const Vec& vec, const char* filename)
 
     PetscCallThrow(VecGetSize(vec, &size));
 
-    PetscCallThrow(VecCreateSeq(PETSC_COMM_SELF, size, &MPIVec));
-
     PetscCallThrow(VecScatterCreateToAll(vec, &ctx, &MPIVec));
     PetscCallThrow(VecScatterBegin(ctx, vec, MPIVec, INSERT_VALUES, SCATTER_FORWARD));
     PetscCallThrow(VecScatterEnd(ctx, vec, MPIVec, INSERT_VALUES, SCATTER_FORWARD));

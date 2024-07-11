@@ -2,10 +2,11 @@
 // Created by robin on 27.04.23.
 //
 
-#include "MDP.h"
 #include <algorithm> // std::min_element, std::max_element
 #include <iostream>  // TODO: replace with some logger
 // #include "../utils/Logger.h"
+
+#include "MDP.h"
 
 // find $\argmin_{\pi} \{ g^\pi + \gamma P^\pi V \}$
 // PRE: policy is a array of size localNumStates_ and must be allocated. Function will write into it but not allocate it.
@@ -285,6 +286,8 @@ void MDP::solve()
     if (rank_ == 0) {
         // LOG("Saving results took: " + std::to_string(duration) + " ms");
     }
+    PetscCallThrow(VecDestroy(&costVector_));
+    PetscCallThrow(MatDestroy(&costMatrix_));
 }
 
 void MDP::cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason* reason, void* ctx)
