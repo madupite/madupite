@@ -137,6 +137,12 @@ public:
     // Get the inner PETSc matrix
     Mat petsc() { return _mat; }
 
+    // Get the row layout
+    const Layout& rowLayout() const { return _rowLayout; }
+
+    // Get the column layout
+    const Layout& colLayout() const { return _colLayout; }
+
     ////////
     // Out-of-line method declarations
     ////////
