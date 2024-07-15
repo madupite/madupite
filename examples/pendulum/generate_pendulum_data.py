@@ -10,7 +10,7 @@ import time
 # Constants and model parameters
 NUM_X = 401
 NUM_XD = 401
-NUM_A = 401
+NUM_A = 201
 MAX_X = 2 * np.pi
 MAX_XD = 10.0
 MAX_A = 3.0

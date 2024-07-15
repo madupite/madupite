@@ -8,9 +8,9 @@ from scipy.sparse import csr_matrix
 # from IPython.display import HTML # for animation
 
 # Constants and model parameters
-NUM_X = 51
-NUM_XD = 51
-NUM_A = 51
+NUM_X = 401
+NUM_XD = 401
+NUM_A = 201
 MAX_X = 2 * np.pi
 MAX_XD = 10.0
 MAX_A = 3.0
