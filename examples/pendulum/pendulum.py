@@ -8,9 +8,9 @@ from scipy.sparse import csr_matrix
 # from IPython.display import HTML # for animation
 
 # Constants and model parameters
-NUM_X = 21
-NUM_XD = 21
-NUM_A = 9
+NUM_X = 51
+NUM_XD = 51
+NUM_A = 51
 MAX_X = 2 * np.pi
 MAX_XD = 10.0
 MAX_A = 3.0
@@ -178,19 +178,19 @@ def main():
     a_vals = np.linspace(-MAX_A, MAX_A, NUM_A)
 
     # Construct matrices
-    P = construct_transition_probability_matrix()
-    g = construct_stage_cost_matrix()
+    # P = construct_transition_probability_matrix()
+    # g = construct_stage_cost_matrix()
 
     # Save matrices for madupite
-    write_sparse_matrix_as_petsc_binary(
-        P, f"data/pend_P_{NUM_STATES}_{NUM_ACTIONS}.bin"
-    )
-    write_sparse_matrix_as_petsc_binary(
-        g, f"data/pend_g_{NUM_STATES}_{NUM_ACTIONS}.bin"
-    )
-    print(
-        f"Matrices saved to data/pend_P_{NUM_STATES}_{NUM_ACTIONS}.bin and data/pend_g_{NUM_STATES}_{NUM_ACTIONS}.bin"
-    )
+    # write_sparse_matrix_as_petsc_binary(
+    #     P, f"data/pend_P_{NUM_STATES}_{NUM_ACTIONS}.bin"
+    # )
+    # write_sparse_matrix_as_petsc_binary(
+    #     g, f"data/pend_g_{NUM_STATES}_{NUM_ACTIONS}.bin"
+    # )
+    # print(
+    #     f"Matrices saved to data/pend_P_{NUM_STATES}_{NUM_ACTIONS}.bin and data/pend_g_{NUM_STATES}_{NUM_ACTIONS}.bin"
+    # )
 
     # Call madupite solver
     flags = []
@@ -211,7 +211,7 @@ def main():
     build_dir = "./"
     try:
         result = subprocess.run(
-            ["./bin/pendulum", *flags],
+            ["mpirun", "-n", "4", "./bin/pendulum", *flags],
             cwd=build_dir,
             capture_output=True,
             check=True,
