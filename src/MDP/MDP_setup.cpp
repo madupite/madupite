@@ -56,8 +56,6 @@ MDP::~MDP()
 {
     PetscCallNoThrow(MatDestroy(&transitionProbabilityTensor_));
     PetscCallNoThrow(MatDestroy(&stageCostMatrix_));
-    PetscCallNoThrow(MatDestroy(&costMatrix_));
-    PetscCallNoThrow(VecDestroy(&costVector_));
 }
 
 // Pre: numStates_ is set

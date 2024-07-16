@@ -19,17 +19,6 @@
 using Costfunc = std::function<double(int, int)>;
 using Probfunc = std::function<std::pair<std::vector<double>, std::vector<int>>(int, int)>;
 
-struct KSPContext {
-    PetscInt  maxIter;       // input
-    PetscReal threshold;     // input
-    PetscInt  kspIterations; // output
-};
-
-struct JacobianContext {
-    Mat       P_pi;
-    PetscReal discountFactor;
-};
-
 class Madupite {
     static std::shared_ptr<Madupite> instance;
     static std::mutex                mtx;
@@ -88,24 +77,16 @@ private:
     void createTransitionProbabilityTensor();
 
     // MDP Algorithm
-    void extractGreedyPolicy(const Vec& V, PetscInt* policy, PetscReal& residualNorm);
-    void constructFromPolicy(const PetscInt* policy, Mat& transitionProbabilities, Vec& stageCosts);
-    void iterativePolicyEvaluation(const Mat& jacobian, const Vec& stageCosts, Vec& V, KSPContext& ctx);
-    void createJacobian(Mat& jacobian, const Mat& transitionProbabilities, JacobianContext& ctx);
+    void      reshapeCostVectorToCostMatrix(const Vec costVector, Mat costMatrix);
+    PetscReal getGreedyPolicyAndResidualNorm(Mat costMatrix, const Vec V, const std::unique_ptr<PetscInt[]>& policy);
+    Mat       getTransitionProbabilities(const std::unique_ptr<PetscInt[]>& policy);
+    Vec       getStageCosts(const std::unique_ptr<PetscInt[]>& policy);
+    PetscInt  iterativePolicyEvaluation(const Mat jacobian, const Vec stageCosts, PetscInt maxIter, PetscReal threshold, Vec V);
+    Mat       createJacobian(const Mat transitionProbabilities, PetscReal discountFactor);
 
     // maybe private, depends on usage of output / storing results
     void writeVec(const Vec& vec, const PetscChar* filename);
     void writeIS(const IS& is, const PetscChar* filename);
-
-    // probably private
-    // Test if residual norm is smaller than alpha * r0_norm; todo: keep this or move to documentation
-    // to show user how to implement own cvg test; not used in madupite for performance reasons
-    static void cvgTest(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason* reason, void* ctx);
-    // defines matrix vector product for jacobian shell
-    static void jacobianMultiplication(Mat mat, Vec x, Vec y);
-    // defines tranposed matrix vector product for jacobian shell (needed for some KSP methods)
-    static void jacobianMultiplicationTranspose(Mat mat, Vec x, Vec y);
-
     void writeJSONmetadata();
 
     // Madupite, MPI, JSON output
@@ -153,8 +134,6 @@ private:
     // MDP data
     Mat transitionProbabilityTensor_ = nullptr; // transition probability tensor (nm x n; MPIAIJ)
     Mat stageCostMatrix_             = nullptr; // stage cost matrix (also rewards possible) (n x m; DENSE)
-    Mat costMatrix_                  = nullptr; // cost matrix used in extractGreedyPolicy, as member to avoid reallocation (n x m; DENSE)
-    Vec costVector_                  = nullptr; // cost vector used in extractGreedyPolicy, as member to avoid reallocation (n; DENSE)
 
     bool setupCalled = false;
 };
