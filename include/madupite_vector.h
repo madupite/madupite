@@ -85,6 +85,7 @@ public:
     {
         _layout = layout;
         PetscCallThrow(VecSetLayout(_vec, _layout.petsc()));
+        PetscCallThrow(VecSetFromOptions(_vec));
         PetscCallThrow(VecZeroEntries(_vec));
     }
 
