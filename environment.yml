@@ -30,3 +30,4 @@ dependencies:
   - sysroot_linux-64=2.28
   - numpy
   - numba
+  - gtest

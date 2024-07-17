@@ -35,6 +35,11 @@ LDLIBS := $(shell pkg-config --libs-only-l $(PACKAGES)) -lm
 # CUDA_LIB := $(shell pkg-config --variable=cudalib $(PACKAGES))
 # CUDA_INCLUDE := $(shell pkg-config --variable=cudainclude $(PACKAGES))
 
+# GoogleTest directories from environment variables
+GTEST_LIB_DIR := $(GTEST_LIB_DIR)
+GTEST_INCLUDE_DIR := $(GTEST_INCLUDE_DIR)
+GTEST_LDLIBS := -lgtest -lgtest_main -lpthread
+
 # Variables for codes depending on MADUPITE
 MADUPITE_LIB_NAME := madupite
 MADUPITE_LIB_FILE_NAME := lib$(MADUPITE_LIB_NAME).so
