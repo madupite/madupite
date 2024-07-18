@@ -1,6 +1,7 @@
 #include "madupite_vector.h"
 #include "madupite_errors.h"
 #include "petscvec.h"
+#include <numeric>
 
 Vector::Vector(MPI_Comm comm, const std::string& name)
 {
@@ -15,7 +16,10 @@ Vector::Vector(MPI_Comm comm, const std::string& name, const std::vector<PetscSc
 {
     _layout = Layout(comm, data.size(), true);
     PetscCallThrow(VecSetLayout(Vec(_vec), _layout.petsc()));
-    PetscCallThrow(VecSetValues(_vec, data.size(), nullptr, data.data(), INSERT_VALUES));
+    PetscCallThrow(VecSetFromOptions(_vec));
+    std::vector<PetscInt> idx(data.size());
+    std::iota(idx.begin(), idx.end(), _layout.start());
+    PetscCallThrow(VecSetValues(_vec, data.size(), idx.data(), data.data(), INSERT_VALUES));
     assemble();
     PetscCallThrow(VecSetOptionsPrefix(_vec, name.c_str()));
 }
