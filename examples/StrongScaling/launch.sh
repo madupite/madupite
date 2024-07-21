@@ -7,4 +7,3 @@
 #SBATCH --tmp=48000
 
 source ./job.sh
-

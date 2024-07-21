@@ -1,9 +1,6 @@
-import subprocess
-
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.sparse import csr_matrix
 
 # from IPython.display import HTML # for animation
 
@@ -31,6 +28,20 @@ def x2s(x, xd):
 
 def s2x(s):
     return s // NUM_XD, s % NUM_XD
+
+
+def interpolate(x, y, grid_x, grid_y):
+    x_i = np.searchsorted(grid_x, x, side="right")
+    y_i = np.searchsorted(grid_y, y, side="right")
+    x_i, y_i = np.clip(x_i, 1, len(grid_x) - 1), np.clip(y_i, 1, len(grid_y) - 1)
+    xl_v, xr_v = grid_x[x_i - 1], grid_x[x_i]
+    yl_v, yr_v = grid_y[y_i - 1], grid_y[y_i]
+    wx1, wy1 = (x - xl_v) / (xr_v - xl_v), (y - yl_v) / (yr_v - yl_v)
+    wx0, wy0 = 1 - wx1, 1 - wy1
+    indices = [(x_i - 1, y_i - 1), (x_i, y_i - 1), (x_i - 1, y_i), (x_i, y_i)]
+    weights = [wx0 * wy0, wx1 * wy0, wx0 * wy1, wx1 * wy1]
+    return indices, weights
+
 
 def reshape_data(data, shape):
     return np.rot90(data.reshape(shape), k=1)

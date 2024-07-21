@@ -26,7 +26,7 @@ for i in "${processors[@]}"
 do
     echo "Running with $i processors"
     mpirun -n $i ./bin/StrongScaling -file_stats $SLURMID/stats_$i.json
-    
+
     # Check if the command was successful
     if [ $? -eq 0 ]; then
         echo "Run with $i processors completed successfully"
