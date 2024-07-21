@@ -238,7 +238,9 @@ void MDP::loadStageCostMatrix()
 // Pre: localNumStates_, numStates_, numActions_ are set
 void MDP::createStageCostMatrix()
 {
-    std::cout << "Creating stage cost matrix from function" << std::endl;
+    PetscLogDouble t0, t1;
+    PetscTime(&t0);
+    // std::cout << "Creating stage cost matrix from function" << std::endl;
     if (stageCostMatrix_ != nullptr) {
         PetscCallThrow(MatDestroy(&stageCostMatrix_));
     }
@@ -259,11 +261,15 @@ void MDP::createStageCostMatrix()
     }
     PetscCallThrow(MatAssemblyBegin(stageCostMatrix_, MAT_FINAL_ASSEMBLY));
     PetscCallThrow(MatAssemblyEnd(stageCostMatrix_, MAT_FINAL_ASSEMBLY));
+    PetscTime(&t1);
+    PetscPrintf(comm_, "Time to create stage cost matrix: %f\n", t1 - t0);
 }
 
 void MDP::createTransitionProbabilityTensorPrealloc()
 {
-    std::cout << "Creating transition probability tensor from function with preallocation" << std::endl;
+    PetscLogDouble t0, t1;
+    PetscTime(&t0);
+    // std::cout << "Creating transition probability tensor from function with preallocation" << std::endl;
     if (transitionProbabilityTensor_ != nullptr) {
         PetscCallThrow(MatDestroy(&transitionProbabilityTensor_));
     }
@@ -290,11 +296,15 @@ void MDP::createTransitionProbabilityTensorPrealloc()
     }
     PetscCallThrow(MatAssemblyBegin(transitionProbabilityTensor_, MAT_FINAL_ASSEMBLY));
     PetscCallThrow(MatAssemblyEnd(transitionProbabilityTensor_, MAT_FINAL_ASSEMBLY));
+    PetscTime(&t1);
+    PetscPrintf(comm_, "Time to create transition probability tensor: %f\n", t1 - t0);
 }
 
 void MDP::createTransitionProbabilityTensor()
 {
-    std::cout << "Creating transition probability tensor from function without preallocation" << std::endl;
+    PetscLogDouble t0, t1;
+    PetscTime(&t0);
+    // std::cout << "Creating transition probability tensor from function without preallocation" << std::endl;
     if (transitionProbabilityTensor_ != nullptr) {
         PetscCallThrow(MatDestroy(&transitionProbabilityTensor_));
     }
@@ -314,6 +324,8 @@ void MDP::createTransitionProbabilityTensor()
     }
     PetscCallThrow(MatAssemblyBegin(transitionProbabilityTensor_, MAT_FINAL_ASSEMBLY));
     PetscCallThrow(MatAssemblyEnd(transitionProbabilityTensor_, MAT_FINAL_ASSEMBLY));
+    PetscTime(&t1);
+    PetscPrintf(comm_, "Time to create transition probability tensor: %f\n", t1 - t0);
 }
 
 void MDP::setUp()
