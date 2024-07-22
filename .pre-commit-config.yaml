@@ -44,3 +44,8 @@ repos:
   - id: cython-lint
     args: ["--max-line-length", "150"]
   - id: double-quote-cython-strings
+repos:
+  - repo: https://github.com/kynan/nbstripout
+    rev: 0.7.1
+    hooks:
+      - id: nbstripout
