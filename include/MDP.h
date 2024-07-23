@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "JsonWriter.h"
+#include "MDP_matrix.h"
 #include "madupite_errors.h"
 #include "madupite_matrix.h"
 
@@ -51,15 +52,10 @@ public:
 class MDP {
 public:
     MDP(std::shared_ptr<Madupite> madupite, MPI_Comm comm = PETSC_COMM_WORLD);
-    ~MDP();
     void setOption(const char* option, const char* value = NULL);
     void clearOptions();
-    void setSourceTransitionProbabilityTensor(const std::string filename);
-    void setSourceTransitionProbabilityTensor(const Probfunc& P); // no preallocation
-    void setSourceTransitionProbabilityTensor(
-        const Probfunc& P, PetscInt d_nz, const std::vector<int>& d_nnz, PetscInt o_nz, const std::vector<int>& o_nnz);
-    void setSourceStageCostMatrix(const std::string filename);
-    void setSourceStageCostMatrix(const Costfunc& g);
+    void setStageCostMatrix(Matrix* g);
+    void setTransitionProbabilityTensor(Matrix* P);
     void setUp(); // call after setting sources
     void solve();
 
@@ -68,11 +64,6 @@ public:
 private:
     // MDP Setup
     void splitOwnership();
-    void loadTransitionProbabilityTensor();
-    void loadStageCostMatrix();
-    void createStageCostMatrix(); // no preallocation needed since it's a dense matrix
-    void createTransitionProbabilityTensorPrealloc();
-    void createTransitionProbabilityTensor();
 
     // MDP Algorithm
     void      reshapeCostVectorToCostMatrix(const Vec costVector, Mat costMatrix);
@@ -130,8 +121,8 @@ private:
     std::array<PetscInt, 4> g_file_meta_; // metadata when g is loaded from file (ClassID, rows, cols, nnz)
 
     // MDP data
-    Mat transitionProbabilityTensor_ = nullptr; // transition probability tensor (nm x n; MPIAIJ)
-    Mat stageCostMatrix_             = nullptr; // stage cost matrix (also rewards possible) (n x m; DENSE)
+    Matrix* transitionProbabilityTensor_; // transition probability tensor (nm x n; MPIAIJ)
+    Matrix* stageCostMatrix_;             // stage cost matrix (also rewards possible) (n x m; DENSE)
 
     bool setupCalled = false;
 };

@@ -74,8 +74,8 @@ int main(int argc, char** argv)
     auto g_mat = createStageCostMatrix(comm, "g_func", numStates, numActions, r);
     auto P_mat = createTransitionProbabilityTensor(comm, "P_func", numStates, numActions, P, { .d_nz = 3, .o_nz = 3 });
 
-    mdp.setSourceStageCostMatrix(r);
-    mdp.setSourceTransitionProbabilityTensor(P, 3, {}, 3, {});
+    mdp.setStageCostMatrix(&g_mat);
+    mdp.setTransitionProbabilityTensor(&P_mat);
 
     mdp.solve();
 
@@ -112,15 +112,13 @@ int main(int argc, char** argv)
     mdp.setOption("-mode", "MINCOST");
     mdp.setOption("-discount_factor", "0.9");
     mdp.setOption("-alpha", "0.1");
-    mdp.setOption("-file_cost", "ci_cost_2.out");
-    mdp.setOption("-file_policy", "ci_policy_2.out");
     // mdp.setOption("-pc_type", "svd"); // standard PI (exact), only works in sequential
 
-    g_mat = Matrix::fromFile(comm, "g_file", "100_50_0.1/g.bin", MatrixType::Dense);
-    P_mat = Matrix::fromFile(comm, "P_file", "100_50_0.1/P.bin");
+    g_mat = Matrix::fromFile(comm, "g_file", "100_50_0.1/g.bin", MatrixCategory::Cost, MatrixType::Dense);
+    P_mat = Matrix::fromFile(comm, "P_file", "100_50_0.1/P.bin", MatrixCategory::Dynamics);
 
-    mdp.setSourceTransitionProbabilityTensor("100_50_0.1/P.bin");
-    mdp.setSourceStageCostMatrix("100_50_0.1/g.bin");
+    mdp.setStageCostMatrix(&g_mat);
+    mdp.setTransitionProbabilityTensor(&P_mat);
 
     mdp.solve();
     return 0;

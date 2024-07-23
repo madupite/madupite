@@ -85,8 +85,13 @@ int main(int argc, char** argv)
     mdp.setOption("-file_policy", "maze_policy.out");
     mdp.setOption("-ksp_type", "tfqmr");
 
-    mdp.setSourceStageCostMatrix("data/maze_25x25.bin");
-    mdp.setSourceTransitionProbabilityTensor(P, 1, {}, 1, {});
+    auto comm = PETSC_COMM_WORLD;
+
+    auto g_mat = Matrix::fromFile(comm, "g_file", "data/maze_25x25.bin", MatrixCategory::Cost, MatrixType::Dense);
+    auto P_mat = createTransitionProbabilityTensor(comm, "P_func", _H * _W, 5, P);
+
+    mdp.setStageCostMatrix(&g_mat);
+    mdp.setTransitionProbabilityTensor(&P_mat);
 
     mdp.solve();
 }

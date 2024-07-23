@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+#include <iostream>
 #include <memory>
 #include <string>
 #include <utility>
@@ -17,6 +18,11 @@
 enum class MatrixType {
     Dense,
     Sparse,
+};
+
+enum class MatrixCategory {
+    Dynamics,
+    Cost,
 };
 
 using Costfunc = std::function<PetscScalar(PetscInt, PetscInt)>;
@@ -83,7 +89,8 @@ public:
     ////////
     static std::string typeToString(MatrixType type);
 
-    static Matrix fromFile(MPI_Comm comm, const std::string& name, const std::string& filename, MatrixType type = MatrixType::Sparse);
+    static Matrix fromFile(
+        MPI_Comm comm, const std::string& name, const std::string& filename, MatrixCategory category, MatrixType type = MatrixType::Sparse);
 
     ////////
     // Operators

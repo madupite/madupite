@@ -44,10 +44,38 @@ Matrix::Matrix(
 }
 
 // TODO PETSc feature proposal: it would be nice if the PETSc loader infers the correct type from the file
-Matrix Matrix::fromFile(MPI_Comm comm, const std::string& name, const std::string& filename, MatrixType type)
+Matrix Matrix::fromFile(MPI_Comm comm, const std::string& name, const std::string& filename, MatrixCategory category, MatrixType type)
 {
     Matrix      A(comm, name, type);
     PetscViewer viewer;
+
+    PetscCallThrow(PetscViewerBinaryOpen(comm, filename.c_str(), FILE_MODE_READ, &viewer));
+    PetscInt sizes[4];
+    PetscInt dummy;
+    // Read ClassId, Rows, Cols, NNZ
+    PetscCallThrow(PetscViewerBinaryRead(viewer, sizes, 4, &dummy, PETSC_INT));
+    PetscCallThrow(PetscViewerDestroy(&viewer));
+    switch (category) {
+    case MatrixCategory::Dynamics: {
+        PetscInt nstates     = sizes[2];
+        PetscInt mactions    = sizes[1] / sizes[2];
+        PetscInt localStates = PETSC_DECIDE;
+        PetscCallThrow(PetscSplitOwnership(PETSC_COMM_WORLD, &localStates, &nstates));
+        PetscCallThrow(MatSetSizes(A._mat, localStates * mactions, PETSC_DECIDE, PETSC_DECIDE, sizes[2]));
+        break;
+    }
+    case MatrixCategory::Cost: {
+        PetscInt nstates     = sizes[1];
+        PetscInt mactions    = sizes[2];
+        PetscInt localStates = PETSC_DECIDE;
+        PetscCallThrow(PetscSplitOwnership(PETSC_COMM_WORLD, &localStates, &nstates));
+        PetscCallThrow(MatSetSizes(A._mat, localStates, PETSC_DECIDE, PETSC_DECIDE, sizes[2]));
+        break;
+    }
+    default:
+        throw MadupiteException("Unsupported matrix category");
+    }
+
     PetscCallThrow(PetscViewerBinaryOpen(comm, filename.c_str(), FILE_MODE_READ, &viewer));
     PetscCallThrow(MatLoad(A._mat, viewer));
     PetscCallThrow(PetscViewerDestroy(&viewer));

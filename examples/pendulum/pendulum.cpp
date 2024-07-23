@@ -22,8 +22,13 @@ int main(int argc, char** argv)
     mdp.setOption("-num_states", "441");
     mdp.setOption("-num_actions", "9");
 
-    mdp.setSourceStageCostMatrix("data/pend_g_441_9.bin");
-    mdp.setSourceTransitionProbabilityTensor("data/pend_P_441_9.bin");
+    auto comm = PETSC_COMM_WORLD;
+
+    auto g_mat = Matrix::fromFile(comm, "g_file", "data/pend_g_441_9.bin", MatrixCategory::Cost, MatrixType::Dense);
+    auto P_mat = Matrix::fromFile(comm, "P_file", "data/pend_P_441_9.bin", MatrixCategory::Dynamics);
+
+    mdp.setStageCostMatrix(&g_mat);
+    mdp.setTransitionProbabilityTensor(&P_mat);
 
     mdp.solve();
 }
