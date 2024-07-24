@@ -21,4 +21,5 @@ target_include_directories(madupite
 
 set_target_properties(madupite PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
+    POSITION_INDEPENDENT_CODE ON
 )
