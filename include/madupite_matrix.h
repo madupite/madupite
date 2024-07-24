@@ -40,8 +40,6 @@ class Matrix {
     Layout _colLayout;
     Mat    _mat;
 
-// TODO: find better way to handle this
-public:
     // Private constructor setting communicator, name and type (but no size)
     Matrix(MPI_Comm comm, const std::string& name, MatrixType type);
 

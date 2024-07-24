@@ -46,7 +46,13 @@ Matrix::Matrix(
 // TODO PETSc feature proposal: it would be nice if the PETSc loader infers the correct type from the file
 std::shared_ptr<Matrix> Matrix::fromFile(MPI_Comm comm, const std::string& name, const std::string& filename, MatrixCategory category, MatrixType type)
 {
-    auto A = std::make_shared<Matrix>(comm, name, type);
+    // auto A = std::make_shared<Matrix>(comm, name, type);
+    auto A = std::shared_ptr<Matrix>(new Matrix(comm, name, type));
+    // this loses advantage of make_shared (less heap allocations), but needed if we want to call private constructor
+    // https://stackoverflow.com/a/56736075
+    // https://stackoverflow.com/questions/20895648/difference-in-make-shared-and-normal-shared-ptr-in-c/20895705#20895705
+
+
     PetscViewer viewer;
 
     PetscCallThrow(PetscViewerBinaryOpen(comm, filename.c_str(), FILE_MODE_READ, &viewer));
