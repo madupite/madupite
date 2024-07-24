@@ -68,12 +68,6 @@ PetscErrorCode MDP::setValuesFromOptions()
 
     setupCalled = false;
 
-    PetscCall(PetscOptionsGetInt(NULL, NULL, "-num_states", &numStates_, &flg));
-    if (flg) { // set local num states here if numStates_ is set (e.g. not the case for loading from file)
-        splitOwnership();
-    }
-    PetscCall(PetscOptionsGetInt(NULL, NULL, "-num_actions", &numActions_, &flg));
-
     PetscCall(PetscOptionsGetReal(NULL, NULL, "-discount_factor", &discountFactor_, &flg));
     if (!flg) {
         SETERRQ(comm_, 1, "Discount factor not specified. Use -discountFactor <double>.");
@@ -155,6 +149,30 @@ void MDP::setUp()
         return;
 
     setValuesFromOptions();
+
+    // check matrix sizes agree
+    if (transitionProbabilityTensor_->colLayout().localSize() != stageCostMatrix_->rowLayout().localSize()) {
+        // LOG("Error: stageCostMatrix and numStates do not agree.");
+        PetscThrow(comm_, 1,
+            ("Error: number of states do not agree (P != g):" + std::to_string(transitionProbabilityTensor_->colLayout().localSize())
+                + " != " + std::to_string(stageCostMatrix_->rowLayout().localSize()))
+                .c_str());
+    }
+    if (transitionProbabilityTensor_->rowLayout().size() / transitionProbabilityTensor_->colLayout().size() != stageCostMatrix_->colLayout().size()) {
+        // LOG("Error: transitionProbabilityTensor and numStates do not agree.");
+        PetscThrow(comm_, 1,
+            ("Error: number of actions do not agree (P != g):"
+                + std::to_string(transitionProbabilityTensor_->rowLayout().size() / transitionProbabilityTensor_->colLayout().size())
+                + " != " + std::to_string(stageCostMatrix_->colLayout().size()))
+                .c_str());
+    }
+    numStates_      = stageCostMatrix_->rowLayout().size();
+    localNumStates_ = stageCostMatrix_->rowLayout().localSize();
+    numActions_     = stageCostMatrix_->colLayout().size();
+    p_start_        = transitionProbabilityTensor_->rowLayout().start();
+    p_end_          = transitionProbabilityTensor_->rowLayout().end();
+    g_start_        = stageCostMatrix_->rowLayout().start();
+    g_end_          = stageCostMatrix_->rowLayout().end();
 
     setupCalled = true;
 }

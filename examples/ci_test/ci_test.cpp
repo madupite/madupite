@@ -61,8 +61,8 @@ int main(int argc, char** argv)
     mdp.setOption("-atol_pi", "1e-8");
 
     // TODO remove
-    mdp.setOption("-num_states", "50");
-    mdp.setOption("-num_actions", "3");
+    // mdp.setOption("-num_states", "50");
+    // mdp.setOption("-num_actions", "3");
 
     mdp.setOption("-file_stats", "ci_stats.json");
     mdp.setOption("-file_cost", "ci_reward.out");
