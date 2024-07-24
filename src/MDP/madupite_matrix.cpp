@@ -52,6 +52,9 @@ Matrix Matrix::fromFile(MPI_Comm comm, const std::string& name, const std::strin
     PetscCallThrow(PetscViewerBinaryOpen(comm, filename.c_str(), FILE_MODE_READ, &viewer));
     PetscInt sizes[4];
     PetscInt dummy;
+    // must read the following first such that we can specify the distribution of rows (local rows) by ourselves
+    // since we split by the granularity of states and not the rows as equally as possible
+    // to ensure that all data associated with a state is on the same process
     // Read ClassId, Rows, Cols, NNZ
     PetscCallThrow(PetscViewerBinaryRead(viewer, sizes, 4, &dummy, PETSC_INT));
     PetscCallThrow(PetscViewerDestroy(&viewer));
