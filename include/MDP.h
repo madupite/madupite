@@ -74,6 +74,7 @@ private:
     Mat       createJacobian(const Mat transitionProbabilities, PetscReal discountFactor);
 
     // maybe private, depends on usage of output / storing results
+    void writeMat(const Mat& mat, const PetscChar* filename);
     void writeVec(const Vec& vec, const PetscChar* filename);
     void writeIS(const IS& is, const PetscChar* filename);
     void writeJSONmetadata();
@@ -95,9 +96,11 @@ private:
     PetscInt  maxIter_KSP_;
     PetscReal alpha_;
     PetscReal atol_PI_;
-    PetscChar file_policy_[PETSC_MAX_PATH_LEN]; // output
-    PetscChar file_cost_[PETSC_MAX_PATH_LEN];   // output
-    PetscChar file_stats_[PETSC_MAX_PATH_LEN];  // output
+    PetscChar file_policy_[PETSC_MAX_PATH_LEN];                           // output optional
+    PetscChar file_cost_[PETSC_MAX_PATH_LEN];                             // output optional
+    PetscChar file_stats_[PETSC_MAX_PATH_LEN];                            // output
+    PetscChar file_optimal_transition_probabilities_[PETSC_MAX_PATH_LEN]; // output optional
+    PetscChar file_optimal_stage_costs_[PETSC_MAX_PATH_LEN];              // output optional
 
     PetscInt    p_src_ = -1; // 0: from file, 1: from function, -1: not set
     PetscInt    g_src_ = -1; // 0: from file, 1: from function, -1: not set

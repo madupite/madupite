@@ -156,4 +156,7 @@ public:
 
     // Get row in AIJ format
     std::vector<PetscScalar> getRow(PetscInt row) const;
+
+    // write matrix to file
+    void writeToFile(const std::string& filename, MatrixType type) const;
 };

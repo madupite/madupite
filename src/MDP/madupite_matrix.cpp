@@ -101,3 +101,60 @@ std::vector<PetscScalar> Matrix::getRow(PetscInt row) const
     PetscCallThrow(MatRestoreRow(_mat, row, &n, nullptr, &data));
     return result;
 }
+
+// write matrix content to file in ascii format
+// same function as Matrix::writeToFile. This here should be removed, once Matrix is used in MDP
+void Matrix::writeToFile(const std::string& filename, MatrixType type) const
+{
+    if (type == MatrixType::Dense) {
+        PetscViewer viewer;
+        PetscCallThrow(PetscViewerASCIIOpen(PETSC_COMM_WORLD, filename.c_str(), &viewer));
+        PetscCallThrow(MatView(_mat, viewer));
+        PetscCallThrow(PetscViewerDestroy(&viewer));
+    } else if (type == MatrixType::Sparse) {
+        PetscInt    m, n, rstart, rend;
+        PetscViewer viewer;
+        PetscMPIInt rank, size;
+        MatInfo     info;
+        PetscInt    nz_global;
+
+        PetscCallThrow(MatGetSize(_mat, &m, &n));
+        PetscCallThrow(MatGetOwnershipRange(_mat, &rstart, &rend));
+        PetscCallThrow(MPI_Comm_rank(PetscObjectComm((PetscObject)_mat), &rank));
+        PetscCallThrow(MPI_Comm_size(PetscObjectComm((PetscObject)_mat), &size));
+
+        // Get matrix info
+        PetscCallThrow(MatGetInfo(_mat, MAT_GLOBAL_SUM, &info));
+        nz_global = (PetscInt)info.nz_used;
+
+        PetscCallThrow(PetscViewerCreate(PetscObjectComm((PetscObject)_mat), &viewer));
+        PetscCallThrow(PetscViewerSetType(viewer, PETSCVIEWERASCII));
+        PetscCallThrow(PetscViewerFileSetMode(viewer, FILE_MODE_WRITE));
+        PetscCallThrow(PetscViewerFileSetName(viewer, filename.c_str()));
+
+        // Write the first line with matrix dimensions and global non-zeros (global_rows, global_cols, global_nz)
+        if (rank == 0) {
+            PetscCallThrow(PetscViewerASCIIPrintf(viewer, "%d,%d,%d\n", m, n, nz_global));
+        }
+
+        PetscCallThrow(PetscViewerASCIIPushSynchronized(viewer));
+
+        for (PetscInt row = rstart; row < rend; row++) {
+            PetscInt           ncols;
+            const PetscInt*    cols;
+            const PetscScalar* vals;
+            PetscCallThrow(MatGetRow(_mat, row, &ncols, &cols, &vals));
+            for (PetscInt j = 0; j < ncols; j++) {
+                // rowidx, colidx, value
+                PetscCallThrow(PetscViewerASCIISynchronizedPrintf(viewer, "%d,%d,%.15e\n", row, cols[j], (double)PetscRealPart(vals[j])));
+            }
+            PetscCallThrow(MatRestoreRow(_mat, row, &ncols, &cols, &vals));
+        }
+
+        PetscCallThrow(PetscViewerFlush(viewer));
+        PetscCallThrow(PetscViewerASCIIPopSynchronized(viewer));
+        PetscCallThrow(PetscViewerDestroy(&viewer));
+    } else {
+        throw MadupiteException("Unsupported matrix type");
+    }
+}

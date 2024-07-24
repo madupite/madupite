@@ -103,6 +103,15 @@ PetscErrorCode MDP::setValuesFromOptions()
     if (!flg) {
         SETERRQ(comm_, 1, "Filename for statistics not specified. Use -file_stats <string>. (max length: 4096 chars");
     }
+    PetscCall(PetscOptionsGetString(
+        NULL, NULL, "-export_optimal_transition_probabilities", file_optimal_transition_probabilities_, PETSC_MAX_PATH_LEN, &flg));
+    if (!flg) {
+        file_optimal_transition_probabilities_[0] = '\0';
+    }
+    PetscCall(PetscOptionsGetString(NULL, NULL, "-export_optimal_stage_costs", file_optimal_stage_costs_, PETSC_MAX_PATH_LEN, &flg));
+    if (!flg) {
+        file_optimal_stage_costs_[0] = '\0';
+    }
 
     PetscCall(PetscOptionsGetString(NULL, NULL, "-mode", buf, PETSC_MAX_PATH_LEN, &flg));
     if (!flg) {
@@ -175,6 +184,53 @@ void MDP::setUp()
     g_end_          = stageCostMatrix_->rowLayout().end();
 
     setupCalled = true;
+}
+
+// write MPIAIJ matrix as ASCII in COO format to file
+void MDP::writeMat(const Mat& mat, const char* filename)
+{
+    PetscInt    m, n, rstart, rend;
+    PetscViewer viewer;
+    PetscMPIInt rank, size;
+    MatInfo     info;
+    PetscInt    nz_global;
+
+    PetscCallThrow(MatGetSize(mat, &m, &n));
+    PetscCallThrow(MatGetOwnershipRange(mat, &rstart, &rend));
+    PetscCallThrow(MPI_Comm_rank(PetscObjectComm((PetscObject)mat), &rank));
+    PetscCallThrow(MPI_Comm_size(PetscObjectComm((PetscObject)mat), &size));
+
+    // Get matrix info
+    PetscCallThrow(MatGetInfo(mat, MAT_GLOBAL_SUM, &info));
+    nz_global = (PetscInt)info.nz_used;
+
+    PetscCallThrow(PetscViewerCreate(PetscObjectComm((PetscObject)mat), &viewer));
+    PetscCallThrow(PetscViewerSetType(viewer, PETSCVIEWERASCII));
+    PetscCallThrow(PetscViewerFileSetMode(viewer, FILE_MODE_WRITE));
+    PetscCallThrow(PetscViewerFileSetName(viewer, filename));
+
+    // Write the first line with matrix dimensions and global non-zeros (global_rows, global_cols, global_nz)
+    if (rank == 0) {
+        PetscCallThrow(PetscViewerASCIIPrintf(viewer, "%d,%d,%d\n", m, n, nz_global));
+    }
+
+    PetscCallThrow(PetscViewerASCIIPushSynchronized(viewer));
+
+    for (PetscInt row = rstart; row < rend; row++) {
+        PetscInt           ncols;
+        const PetscInt*    cols;
+        const PetscScalar* vals;
+        PetscCallThrow(MatGetRow(mat, row, &ncols, &cols, &vals));
+        for (PetscInt j = 0; j < ncols; j++) {
+            // rowidx, colidx, value
+            PetscCallThrow(PetscViewerASCIISynchronizedPrintf(viewer, "%d,%d,%.15e\n", row, cols[j], (double)PetscRealPart(vals[j])));
+        }
+        PetscCallThrow(MatRestoreRow(mat, row, &ncols, &cols, &vals));
+    }
+
+    PetscCallThrow(PetscViewerFlush(viewer));
+    PetscCallThrow(PetscViewerASCIIPopSynchronized(viewer));
+    PetscCallThrow(PetscViewerDestroy(&viewer));
 }
 
 void MDP::writeVec(const Vec& vec, const char* filename)

@@ -309,6 +309,7 @@ void MDP::solve()
     if (PI_iteration >= maxIter_PI_) {
         // LOG("Warning: maximum number of PI iterations reached. Solution might not be optimal.");
         std::cout << "Warning: maximum number of PI iterations reached. Solution might not be optimal." << std::endl;
+        jsonWriter_->add_data("remark", "Warning: maximum number of iPI iterations reached. Solution might not be optimal.");
     }
 
     jsonWriter_->write_to_file(file_stats_);
@@ -319,6 +320,19 @@ void MDP::solve()
     PetscCallThrow(ISCreateGeneral(comm_, localNumStates_, policyValues.get(), PETSC_USE_POINTER, &optimalPolicy));
     writeVec(V, file_cost_);
     writeIS(optimalPolicy, file_policy_);
+
+    // write optimal transition probabilities and stage costs
+    if (file_optimal_transition_probabilities_[0] != '\0') {
+        auto optimalTransitionProbabilities = getTransitionProbabilities(policyValues);
+        writeMat(optimalTransitionProbabilities, file_optimal_transition_probabilities_);
+        PetscCallThrow(MatDestroy(&optimalTransitionProbabilities));
+    }
+    if (file_optimal_stage_costs_[0] != '\0') {
+        auto optimalStageCosts = getStageCosts(policyValues);
+        writeVec(optimalStageCosts, file_optimal_stage_costs_);
+        PetscCallThrow(VecDestroy(&optimalStageCosts));
+    }
+
     // PetscCallThrow(PetscTime(&endTime));
     // PetscLogDouble duration = (endTime - startTime) * 1000;
     // if (rank_ == 0) {
