@@ -140,13 +140,13 @@ void MDP::setOption(const char* option, const char* value)
 
 void MDP::clearOptions() { PetscCallThrow(PetscOptionsClear(NULL)); }
 
-void MDP::setStageCostMatrix(Matrix* g)
+void MDP::setStageCostMatrix(std::shared_ptr<Matrix> g)
 {
     setupCalled      = false;
     stageCostMatrix_ = g;
 }
 
-void MDP::setTransitionProbabilityTensor(Matrix* P)
+void MDP::setTransitionProbabilityTensor(std::shared_ptr<Matrix> P)
 {
     setupCalled                  = false;
     transitionProbabilityTensor_ = P;

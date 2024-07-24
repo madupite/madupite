@@ -44,9 +44,9 @@ Matrix::Matrix(
 }
 
 // TODO PETSc feature proposal: it would be nice if the PETSc loader infers the correct type from the file
-Matrix Matrix::fromFile(MPI_Comm comm, const std::string& name, const std::string& filename, MatrixCategory category, MatrixType type)
+std::shared_ptr<Matrix> Matrix::fromFile(MPI_Comm comm, const std::string& name, const std::string& filename, MatrixCategory category, MatrixType type)
 {
-    Matrix      A(comm, name, type);
+    auto A = std::make_shared<Matrix>(comm, name, type);
     PetscViewer viewer;
 
     PetscCallThrow(PetscViewerBinaryOpen(comm, filename.c_str(), FILE_MODE_READ, &viewer));
@@ -64,7 +64,7 @@ Matrix Matrix::fromFile(MPI_Comm comm, const std::string& name, const std::strin
         PetscInt numActions     = sizes[1] / sizes[2];
         PetscInt localNumStates = PETSC_DECIDE;
         PetscCallThrow(PetscSplitOwnership(PETSC_COMM_WORLD, &localNumStates, &numStates));
-        PetscCallThrow(MatSetSizes(A._mat, localNumStates * numActions, PETSC_DECIDE, PETSC_DECIDE, sizes[2]));
+        PetscCallThrow(MatSetSizes(A->_mat, localNumStates * numActions, PETSC_DECIDE, PETSC_DECIDE, sizes[2]));
         break;
     }
     case MatrixCategory::Cost: {
@@ -72,7 +72,7 @@ Matrix Matrix::fromFile(MPI_Comm comm, const std::string& name, const std::strin
         PetscInt numActions     = sizes[2];
         PetscInt localNumStates = PETSC_DECIDE;
         PetscCallThrow(PetscSplitOwnership(PETSC_COMM_WORLD, &localNumStates, &numStates));
-        PetscCallThrow(MatSetSizes(A._mat, localNumStates, PETSC_DECIDE, PETSC_DECIDE, sizes[2]));
+        PetscCallThrow(MatSetSizes(A->_mat, localNumStates, PETSC_DECIDE, PETSC_DECIDE, sizes[2]));
         break;
     }
     default:
@@ -80,13 +80,13 @@ Matrix Matrix::fromFile(MPI_Comm comm, const std::string& name, const std::strin
     }
 
     PetscCallThrow(PetscViewerBinaryOpen(comm, filename.c_str(), FILE_MODE_READ, &viewer));
-    PetscCallThrow(MatLoad(A._mat, viewer));
+    PetscCallThrow(MatLoad(A->_mat, viewer));
     PetscCallThrow(PetscViewerDestroy(&viewer));
 
     PetscLayout pRowLayout, pColLayout;
-    PetscCallThrow(MatGetLayouts(A._mat, &pRowLayout, &pColLayout));
-    A._rowLayout = Layout(pRowLayout);
-    A._colLayout = Layout(pColLayout);
+    PetscCallThrow(MatGetLayouts(A->_mat, &pRowLayout, &pColLayout));
+    A->_rowLayout = Layout(pRowLayout);
+    A->_colLayout = Layout(pColLayout);
     return A;
 }
 

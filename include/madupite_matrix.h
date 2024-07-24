@@ -40,6 +40,8 @@ class Matrix {
     Layout _colLayout;
     Mat    _mat;
 
+// TODO: find better way to handle this
+public:
     // Private constructor setting communicator, name and type (but no size)
     Matrix(MPI_Comm comm, const std::string& name, MatrixType type);
 
@@ -89,7 +91,7 @@ public:
     ////////
     static std::string typeToString(MatrixType type);
 
-    static Matrix fromFile(
+    static std::shared_ptr<Matrix> fromFile(
         MPI_Comm comm, const std::string& name, const std::string& filename, MatrixCategory category, MatrixType type = MatrixType::Sparse);
 
     ////////
