@@ -57,19 +57,19 @@ Matrix Matrix::fromFile(MPI_Comm comm, const std::string& name, const std::strin
     PetscCallThrow(PetscViewerDestroy(&viewer));
     switch (category) {
     case MatrixCategory::Dynamics: {
-        PetscInt nstates     = sizes[2];
-        PetscInt mactions    = sizes[1] / sizes[2];
-        PetscInt localStates = PETSC_DECIDE;
-        PetscCallThrow(PetscSplitOwnership(PETSC_COMM_WORLD, &localStates, &nstates));
-        PetscCallThrow(MatSetSizes(A._mat, localStates * mactions, PETSC_DECIDE, PETSC_DECIDE, sizes[2]));
+        PetscInt numStates      = sizes[2];
+        PetscInt numActions     = sizes[1] / sizes[2];
+        PetscInt localNumStates = PETSC_DECIDE;
+        PetscCallThrow(PetscSplitOwnership(PETSC_COMM_WORLD, &localNumStates, &numStates));
+        PetscCallThrow(MatSetSizes(A._mat, localNumStates * numActions, PETSC_DECIDE, PETSC_DECIDE, sizes[2]));
         break;
     }
     case MatrixCategory::Cost: {
-        PetscInt nstates     = sizes[1];
-        PetscInt mactions    = sizes[2];
-        PetscInt localStates = PETSC_DECIDE;
-        PetscCallThrow(PetscSplitOwnership(PETSC_COMM_WORLD, &localStates, &nstates));
-        PetscCallThrow(MatSetSizes(A._mat, localStates, PETSC_DECIDE, PETSC_DECIDE, sizes[2]));
+        PetscInt numStates      = sizes[1];
+        PetscInt numActions     = sizes[2];
+        PetscInt localNumStates = PETSC_DECIDE;
+        PetscCallThrow(PetscSplitOwnership(PETSC_COMM_WORLD, &localNumStates, &numStates));
+        PetscCallThrow(MatSetSizes(A._mat, localNumStates, PETSC_DECIDE, PETSC_DECIDE, sizes[2]));
         break;
     }
     default:
