@@ -81,7 +81,7 @@ int main(int argc, char** argv)
 
     auto comm = PETSC_COMM_WORLD;
 
-    auto g_mat = Matrix::fromFile(comm, "g_file", "data/maze_25x25.bin", MatrixCategory::Cost, MatrixType::Dense);
+    auto g_mat = Matrix::fromFile(comm, "g_file", "../examples/maze/data/maze_25x25.bin", MatrixCategory::Cost, MatrixType::Dense);
     auto P_mat = createTransitionProbabilityTensor(comm, "P_func", _H * _W, 5, P);
 
     mdp.setStageCostMatrix(g_mat);

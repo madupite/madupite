@@ -107,8 +107,8 @@ int main(int argc, char** argv)
     mdp.setOption("-alpha", "0.1");
     // mdp.setOption("-pc_type", "svd"); // standard PI (exact), only works in sequential
 
-    g_mat = Matrix::fromFile(comm, "g_file", "100_50_0.1/g.bin", MatrixCategory::Cost, MatrixType::Dense);
-    P_mat = Matrix::fromFile(comm, "P_file", "100_50_0.1/P.bin", MatrixCategory::Dynamics);
+    g_mat = Matrix::fromFile(comm, "g_file", "../examples/ci_test/100_50_0.1/g.bin", MatrixCategory::Cost, MatrixType::Dense);
+    P_mat = Matrix::fromFile(comm, "P_file", "../examples/ci_test/100_50_0.1/P.bin", MatrixCategory::Dynamics);
 
     mdp.setStageCostMatrix(g_mat);
     mdp.setTransitionProbabilityTensor(P_mat);

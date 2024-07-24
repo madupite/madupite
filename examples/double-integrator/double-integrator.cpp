@@ -19,8 +19,8 @@ int main(int argc, char** argv)
 
     auto comm = PETSC_COMM_WORLD;
 
-    auto g_mat = Matrix::fromFile(comm, "g_file", "data/di_g_4331_11.bin", MatrixCategory::Cost, MatrixType::Dense);
-    auto P_mat = Matrix::fromFile(comm, "P_file", "data/di_P_4331_11.bin", MatrixCategory::Dynamics);
+    auto g_mat = Matrix::fromFile(comm, "g_file", "../examples/double-integrator/data/di_g_4331_11.bin", MatrixCategory::Cost, MatrixType::Dense);
+    auto P_mat = Matrix::fromFile(comm, "P_file", "../examples/double-integrator/data/di_P_4331_11.bin", MatrixCategory::Dynamics);
 
     mdp.setStageCostMatrix(g_mat);
     mdp.setTransitionProbabilityTensor(P_mat);
