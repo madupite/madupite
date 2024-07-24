@@ -71,8 +71,8 @@ int main(int argc, char** argv)
 
     PetscInt numStates = 50, numActions = 3;
 
-    auto g_mat = std::make_shared<Matrix>(createStageCostMatrix(comm, "g_func", numStates, numActions, r));
-    auto P_mat = std::make_shared<Matrix>(createTransitionProbabilityTensor(comm, "P_func", numStates, numActions, P, { .d_nz = 3, .o_nz = 3 }));
+    auto g_mat = createStageCostMatrix(comm, "g_func", numStates, numActions, r);
+    auto P_mat = createTransitionProbabilityTensor(comm, "P_func", numStates, numActions, P, { .d_nz = 3, .o_nz = 3 });
 
     mdp.setStageCostMatrix(g_mat);
     mdp.setTransitionProbabilityTensor(P_mat);
