@@ -90,8 +90,8 @@ int main(int argc, char** argv)
     auto g_mat = Matrix::fromFile(comm, "g_file", "data/maze_25x25.bin", MatrixCategory::Cost, MatrixType::Dense);
     auto P_mat = createTransitionProbabilityTensor(comm, "P_func", _H * _W, 5, P);
 
-    mdp.setStageCostMatrix(&g_mat);
-    mdp.setTransitionProbabilityTensor(&P_mat);
+    mdp.setStageCostMatrix(g_mat);
+    mdp.setTransitionProbabilityTensor(P_mat);
 
     mdp.solve();
 }

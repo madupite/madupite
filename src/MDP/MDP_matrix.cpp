@@ -8,7 +8,7 @@ std::shared_ptr<Matrix> createTransitionProbabilityTensor(
     PetscSplitOwnership(comm, &localStates, &numStates);
     Layout rowLayout(comm, localStates * numActions, true);
     Layout colLayout(comm, localStates, true);
-    auto A = std::make_shared<Matrix>(comm, name, MatrixType::Sparse, rowLayout, colLayout, pa);
+    auto   A  = std::make_shared<Matrix>(comm, name, MatrixType::Sparse, rowLayout, colLayout, pa);
     auto   lo = rowLayout.start();
     auto   hi = rowLayout.end();
 
@@ -33,7 +33,7 @@ std::shared_ptr<Matrix> createStageCostMatrix(MPI_Comm comm, const std::string& 
     PetscInt localActions = PETSC_DECIDE;
     PetscSplitOwnership(comm, &localActions, &numActions);
     Layout colLayout(comm, localActions, true);
-    auto A = std::make_shared<Matrix>(comm, name, MatrixType::Dense, rowLayout, colLayout);
+    auto   A        = std::make_shared<Matrix>(comm, name, MatrixType::Dense, rowLayout, colLayout);
     auto   g_start_ = rowLayout.start();
     auto   g_end_   = rowLayout.end();
 
