@@ -70,7 +70,7 @@ std::shared_ptr<Matrix> Matrix::fromFile(
         PetscInt numActions     = sizes[1] / sizes[2];
         PetscInt localNumStates = PETSC_DECIDE;
         PetscCallThrow(PetscSplitOwnership(PETSC_COMM_WORLD, &localNumStates, &numStates));
-        PetscCallThrow(MatSetSizes(A->_mat, localNumStates * numActions, PETSC_DECIDE, PETSC_DECIDE, sizes[2]));
+        PetscCallThrow(MatSetSizes(A->_mat, localNumStates * numActions, PETSC_DECIDE, PETSC_DECIDE, numStates));
         break;
     }
     case MatrixCategory::Cost: {
@@ -78,7 +78,7 @@ std::shared_ptr<Matrix> Matrix::fromFile(
         PetscInt numActions     = sizes[2];
         PetscInt localNumStates = PETSC_DECIDE;
         PetscCallThrow(PetscSplitOwnership(PETSC_COMM_WORLD, &localNumStates, &numStates));
-        PetscCallThrow(MatSetSizes(A->_mat, localNumStates, PETSC_DECIDE, PETSC_DECIDE, sizes[2]));
+        PetscCallThrow(MatSetSizes(A->_mat, localNumStates, PETSC_DECIDE, PETSC_DECIDE, numActions));
         break;
     }
     default:

@@ -162,18 +162,14 @@ void MDP::setUp()
     // check matrix sizes agree
     if (transitionProbabilityTensor_->colLayout().localSize() != stageCostMatrix_->rowLayout().localSize()) {
         // LOG("Error: stageCostMatrix and numStates do not agree.");
-        PetscThrow(comm_, 1,
-            ("Error: number of states do not agree (P != g):" + std::to_string(transitionProbabilityTensor_->colLayout().localSize())
-                + " != " + std::to_string(stageCostMatrix_->rowLayout().localSize()))
-                .c_str());
+        PetscThrow(comm_, 1, "Error: number of states do not agree (P != g): : %" PetscInt_FMT " != %" PetscInt_FMT,
+            transitionProbabilityTensor_->colLayout().localSize(), stageCostMatrix_->rowLayout().localSize());
     }
     if (transitionProbabilityTensor_->rowLayout().size() / transitionProbabilityTensor_->colLayout().size() != stageCostMatrix_->colLayout().size()) {
         // LOG("Error: transitionProbabilityTensor and numStates do not agree.");
-        PetscThrow(comm_, 1,
-            ("Error: number of actions do not agree (P != g):"
-                + std::to_string(transitionProbabilityTensor_->rowLayout().size() / transitionProbabilityTensor_->colLayout().size())
-                + " != " + std::to_string(stageCostMatrix_->colLayout().size()))
-                .c_str());
+        PetscThrow(comm_, 1, "Error: number of actions do not agree (P != g): %" PetscInt_FMT " != %" PetscInt_FMT,
+            transitionProbabilityTensor_->rowLayout().size() / transitionProbabilityTensor_->colLayout().size(),
+            stageCostMatrix_->colLayout().size());
     }
     numStates_      = stageCostMatrix_->rowLayout().size();
     localNumStates_ = stageCostMatrix_->rowLayout().localSize();
