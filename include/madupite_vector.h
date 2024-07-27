@@ -95,21 +95,24 @@ public:
     // Destructor
     ~Vector() { PetscCallNoThrow(VecDestroy(&_vec)); }
 
-    // Copy constructor
+    // copy constructor (shallow)
     Vector(const Vector& other)
-        : Vector(other.comm(), other.name(), other.layout())
+        : _layout(other._layout)
     {
-        PetscCallThrow(VecCopy(other._vec, _vec));
+        PetscCallThrow(VecDestroy(&_vec)); // No-op if _vec is nullptr
+        _vec = other._vec;
+        PetscCallThrow(PetscObjectReference((PetscObject)other._vec));
     }
 
-    // Copy assignment
+    // copy assignment (shallow)
     Vector& operator=(const Vector& other)
     {
         if (this != &other) {
-            if (other._layout != _layout) {
-                throw MadupiteException("Vector layout does not match");
-            }
-            PetscCallThrow(VecCopy(other._vec, _vec));
+            _layout = other._layout;
+
+            PetscCallThrow(VecDestroy(&_vec)); // No-op if _vec is nullptr
+            _vec = other._vec;
+            PetscCallThrow(PetscObjectReference((PetscObject)other._vec));
         }
         return *this;
     }
@@ -163,6 +166,25 @@ public:
     {
         PetscCallThrow(VecAssemblyBegin(_vec));
         PetscCallThrow(VecAssemblyEnd(_vec));
+    }
+
+    // copy this vector to a new vector
+    Vector deepCopy() const
+    {
+        Vector copy;
+        copy._layout = this->_layout;
+        PetscCallThrow(VecDuplicate(this->_vec, &copy._vec));
+        PetscCallThrow(VecCopy(this->_vec, copy._vec));
+        return copy;
+    }
+
+    // copy into this vector from another vector without allocating a new PETSc vector; layouts must match
+    void deepCopyFrom(const Vector& other)
+    {
+        if (other._layout != _layout) {
+            throw MadupiteException("Vector layout does not match");
+        }
+        PetscCallThrow(VecCopy(other._vec, _vec));
     }
 
     ////////

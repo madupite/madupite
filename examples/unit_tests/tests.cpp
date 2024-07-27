@@ -156,7 +156,7 @@ TEST_F(TF, CopyAssignment)
     Vector                   vec2(comm, "vector2", data2);
     vec2 = vec1;
 
-    EXPECT_EQ(vec2.name(), "vector2");
+    EXPECT_EQ(vec2.name(), "vector1");
 
     for (PetscInt i = vec2.layout().start(); i < vec2.layout().end(); ++i) {
         EXPECT_EQ(vec2(i), data1[i - vec2.layout().start()]);

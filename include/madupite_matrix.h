@@ -1,7 +1,6 @@
 #pragma once
 
 #include <functional>
-#include <iostream>
 #include <memory>
 #include <string>
 #include <utility>
@@ -48,21 +47,41 @@ public:
     // Constructors, destructors and assignment
     ////////
 
-    // Create a matrix with given communicator, name, type and size with or without preallocation
+    // create a matrix with given communicator, name, type and size with or without preallocation
     Matrix(MPI_Comm comm, const std::string& name, MatrixType type, const Layout& rowLayout, const Layout& colLayout,
         const MatrixPreallocation& pa = {});
 
-    // Destructor
+    // destructor
     ~Matrix()
     {
         PetscCallNoThrow(MatDestroy(&_mat)); // No-op if _mat is nullptr
     }
 
-    // Forbid copy for now
-    Matrix(const Matrix&)            = delete;
-    Matrix& operator=(const Matrix&) = delete;
+    // copy constructor (shallow)
+    Matrix(const Matrix& other)
+        : _rowLayout(other._rowLayout)
+        , _colLayout(other._colLayout)
+    {
+        PetscCallThrow(MatDestroy(&_mat)); // No-op if _mat is nullptr
+        _mat = other._mat;
+        PetscCallThrow(PetscObjectReference((PetscObject)other._mat));
+    }
 
-    // Move constructor
+    // copy assignment (shallow)
+    Matrix& operator=(const Matrix& other)
+    {
+        if (this != &other) {
+            _rowLayout = other._rowLayout;
+            _colLayout = other._colLayout;
+
+            PetscCallThrow(MatDestroy(&_mat)); // No-op if _mat is nullptr
+            _mat = other._mat;
+            PetscCallThrow(PetscObjectReference((PetscObject)other._mat));
+        }
+        return *this;
+    }
+
+    // move constructor
     Matrix(Matrix&& other) noexcept
         : _rowLayout(std::move(other._rowLayout))
         , _colLayout(std::move(other._colLayout))
@@ -71,7 +90,7 @@ public:
         _mat = std::exchange(other._mat, nullptr);
     }
 
-    // Move assignment
+    // move assignment
     Matrix& operator=(Matrix&& other) noexcept
     {
         if (this != &other) {
