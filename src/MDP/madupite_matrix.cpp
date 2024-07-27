@@ -109,7 +109,6 @@ std::vector<PetscScalar> Matrix::getRow(PetscInt row) const
 }
 
 // write matrix content to file in ascii format
-// same function as Matrix::writeToFile. This here should be removed, once Matrix is used in MDP
 void Matrix::writeToFile(const std::string& filename, MatrixType type) const
 {
     if (type == MatrixType::Dense) {

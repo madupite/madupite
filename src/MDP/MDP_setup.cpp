@@ -183,6 +183,7 @@ void MDP::setUp()
 }
 
 // write MPIAIJ matrix as ASCII in COO format to file
+// TODO: same function as Matrix::writeToFile. This here should be removed, once Matrix is used in MDP
 void MDP::writeMat(const Mat& mat, const char* filename)
 {
     PetscInt    m, n, rstart, rend;
