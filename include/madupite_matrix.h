@@ -37,7 +37,7 @@ struct MatrixPreallocation {
 class Matrix {
     Layout _rowLayout;
     Layout _colLayout;
-    Mat    _mat;
+    Mat    _mat = nullptr;
 
     // Private constructor setting communicator, name and type (but no size)
     Matrix(MPI_Comm comm, const std::string& name, MatrixType type);
@@ -46,6 +46,9 @@ public:
     ////////
     // Constructors, destructors and assignment
     ////////
+
+    // default constructor creates a 'null' matrix
+    Matrix() = default;
 
     // create a matrix with given communicator, name, type and size with or without preallocation
     Matrix(MPI_Comm comm, const std::string& name, MatrixType type, const Layout& rowLayout, const Layout& colLayout,
@@ -114,6 +117,9 @@ public:
     ////////
     // Operators
     ////////
+
+    // boolean conversion
+    explicit operator bool() const { return _mat != nullptr; }
 
     // single-value getter
     PetscScalar operator()(PetscInt row, PetscInt col) const

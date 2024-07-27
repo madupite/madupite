@@ -12,7 +12,7 @@ public:
     // Constructors, destructors and assignment
     ////////
 
-    // use default constructor only to represent a 'null' layout
+    // default constructor creates a 'null' layout
     Layout() = default;
 
     Layout(MPI_Comm comm, PetscInt N, bool local = false)
@@ -104,4 +104,7 @@ public:
         PetscCallThrow(PetscLayoutCompare(layout, other.layout, &result));
         return result;
     }
+
+    // boolean conversion
+    explicit operator bool() const { return layout != nullptr; }
 };

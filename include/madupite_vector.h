@@ -11,7 +11,7 @@
 
 class Vector {
     Layout _layout;
-    Vec    _vec;
+    Vec    _vec = nullptr;
 
     Vector(MPI_Comm comm, const std::string& name);
 
@@ -79,6 +79,9 @@ public:
     // Constructors, destructors and assignment
     ////////
 
+    // default constructor creates a 'null' vector
+    Vector() = default;
+
     // Create a zero vector
     Vector(MPI_Comm comm, const std::string& name, const Layout& layout)
         : Vector(comm, name)
@@ -145,6 +148,9 @@ public:
     ////////
     // Operators
     ////////
+
+    // boolean conversion
+    explicit operator bool() const { return _vec != nullptr; }
 
     // single-value getter for floating point types
     PetscScalar operator()(PetscInt index) const
