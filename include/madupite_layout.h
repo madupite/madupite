@@ -11,6 +11,10 @@ class Layout {
     PetscLayout layout = nullptr;
 
 public:
+    ////////
+    // Constructors, destructors and assignment
+    ////////
+
     // use default constructor only to represent a 'null' layout
     Layout() = default;
 
@@ -35,7 +39,7 @@ public:
         PetscCallThrow(PetscLayoutReference(petscLayout, &layout));
     }
 
-    // copy constructor
+    // copy constructor (shallow)
     Layout(const Layout& other)
         : comm(other.comm)
         , N(other.N)
@@ -45,7 +49,7 @@ public:
         PetscCallThrow(PetscLayoutReference(other.layout, &layout));
     }
 
-    // copy assignment
+    // copy assignment (shallow)
     Layout& operator=(const Layout& other)
     {
         if (this != &other) {
@@ -90,12 +94,9 @@ public:
         PetscCallNoThrow(PetscLayoutDestroy(&layout));
     }
 
-    bool operator==(const Layout& other) const
-    {
-        PetscBool result;
-        PetscCallThrow(PetscLayoutCompare(layout, other.layout, &result));
-        return result;
-    }
+    ////////
+    // Basic getters
+    ////////
 
     // PetscLayout is locked from changes once PetscLayoutSetUp has been called on it
     const PetscLayout petsc() const
@@ -111,4 +112,16 @@ public:
     PetscInt start() const { return petsc()->rstart; }
 
     PetscInt end() const { return petsc()->rend; }
+
+    ////////
+    // Operators
+    ////////
+
+    // comparison operator
+    bool operator==(const Layout& other) const
+    {
+        PetscBool result;
+        PetscCallThrow(PetscLayoutCompare(layout, other.layout, &result));
+        return result;
+    }
 };
