@@ -26,7 +26,8 @@ public:
     }
 
     // create from an existing PetscLayout
-    Layout(PetscLayout petscLayout) { PetscCallThrow(PetscLayoutReference(petscLayout, &layout)); }
+    // We might consider removing explicit once the usage is fully clear
+    explicit Layout(PetscLayout petscLayout) { PetscCallThrow(PetscLayoutReference(petscLayout, &layout)); }
 
     // copy constructor (shallow)
     Layout(const Layout& other)
