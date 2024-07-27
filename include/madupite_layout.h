@@ -5,9 +5,6 @@
 #include "madupite_errors.h"
 
 class Layout {
-    MPI_Comm    comm   = MPI_COMM_NULL;
-    PetscInt    N      = PETSC_DECIDE;
-    bool        local  = false;
     PetscLayout layout = nullptr;
 
 public:
@@ -19,9 +16,6 @@ public:
     Layout() = default;
 
     Layout(MPI_Comm comm, PetscInt N, bool local = false)
-        : comm(comm)
-        , N(N)
-        , local(local)
     {
         PetscCallThrow(PetscLayoutCreate(comm, &layout));
         if (local) {
@@ -32,18 +26,10 @@ public:
     }
 
     // create from an existing PetscLayout
-    Layout(PetscLayout petscLayout)
-        : comm(petscLayout->comm)
-        , N(petscLayout->N)
-    {
-        PetscCallThrow(PetscLayoutReference(petscLayout, &layout));
-    }
+    Layout(PetscLayout petscLayout) { PetscCallThrow(PetscLayoutReference(petscLayout, &layout)); }
 
     // copy constructor (shallow)
     Layout(const Layout& other)
-        : comm(other.comm)
-        , N(other.N)
-        , local(other.local)
     {
         // If layout already exists it is destroyed first
         PetscCallThrow(PetscLayoutReference(other.layout, &layout));
@@ -53,9 +39,6 @@ public:
     Layout& operator=(const Layout& other)
     {
         if (this != &other) {
-            comm  = other.comm;
-            N     = other.N;
-            local = other.local;
             PetscCallThrow(PetscLayoutReference(other.layout, &layout));
         }
         return *this;
@@ -63,9 +46,6 @@ public:
 
     // move constructor
     Layout(Layout&& other) noexcept
-        : comm(other.comm)
-        , N(other.N)
-        , local(other.local)
     {
         PetscCallNoThrow(PetscLayoutDestroy(&layout));
         layout       = other.layout;
@@ -76,10 +56,6 @@ public:
     Layout& operator=(Layout&& other) noexcept
     {
         if (this != &other) {
-            comm  = other.comm;
-            N     = other.N;
-            local = other.local;
-
             PetscCallNoThrow(PetscLayoutDestroy(&layout));
             layout       = other.layout;
             other.layout = nullptr;
@@ -104,6 +80,9 @@ public:
         PetscCallThrow(PetscLayoutSetUp(layout));
         return layout;
     }
+
+    // Get the MPI communicator
+    MPI_Comm comm() const { return layout->comm; }
 
     PetscInt localSize() const { return petsc()->n; }
 
