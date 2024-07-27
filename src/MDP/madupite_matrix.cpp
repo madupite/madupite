@@ -48,6 +48,7 @@ Matrix Matrix::fromFile(MPI_Comm comm, const std::string& name, const std::strin
 {
     Matrix      A(comm, name, type);
     PetscViewer viewer;
+    auto        mat = A.petsc();
 
     PetscCallThrow(PetscViewerBinaryOpen(comm, filename.c_str(), FILE_MODE_READ, &viewer));
     PetscInt sizes[4];
@@ -64,7 +65,7 @@ Matrix Matrix::fromFile(MPI_Comm comm, const std::string& name, const std::strin
         PetscInt numActions     = sizes[1] / sizes[2];
         PetscInt localNumStates = PETSC_DECIDE;
         PetscCallThrow(PetscSplitOwnership(PETSC_COMM_WORLD, &localNumStates, &numStates));
-        PetscCallThrow(MatSetSizes(A._mat, localNumStates * numActions, PETSC_DECIDE, PETSC_DECIDE, numStates));
+        PetscCallThrow(MatSetSizes(mat, localNumStates * numActions, PETSC_DECIDE, PETSC_DECIDE, numStates));
         break;
     }
     case MatrixCategory::Cost: {
@@ -72,7 +73,7 @@ Matrix Matrix::fromFile(MPI_Comm comm, const std::string& name, const std::strin
         PetscInt numActions     = sizes[2];
         PetscInt localNumStates = PETSC_DECIDE;
         PetscCallThrow(PetscSplitOwnership(PETSC_COMM_WORLD, &localNumStates, &numStates));
-        PetscCallThrow(MatSetSizes(A._mat, localNumStates, PETSC_DECIDE, PETSC_DECIDE, numActions));
+        PetscCallThrow(MatSetSizes(mat, localNumStates, PETSC_DECIDE, PETSC_DECIDE, numActions));
         break;
     }
     default:
@@ -80,11 +81,11 @@ Matrix Matrix::fromFile(MPI_Comm comm, const std::string& name, const std::strin
     }
 
     PetscCallThrow(PetscViewerBinaryOpen(comm, filename.c_str(), FILE_MODE_READ, &viewer));
-    PetscCallThrow(MatLoad(A._mat, viewer));
+    PetscCallThrow(MatLoad(mat, viewer));
     PetscCallThrow(PetscViewerDestroy(&viewer));
 
     PetscLayout pRowLayout, pColLayout;
-    PetscCallThrow(MatGetLayouts(A._mat, &pRowLayout, &pColLayout));
+    PetscCallThrow(MatGetLayouts(mat, &pRowLayout, &pColLayout));
     A._rowLayout = Layout(pRowLayout);
     A._colLayout = Layout(pColLayout);
     return A;
@@ -95,20 +96,22 @@ std::vector<PetscScalar> Matrix::getRow(PetscInt row) const
 {
     PetscInt           n;
     const PetscScalar* data;
+    auto               mat = const_cast<Mat>(petsc());
 
-    PetscCallThrow(MatGetRow(_mat, row, &n, nullptr, &data));
+    PetscCallThrow(MatGetRow(mat, row, &n, nullptr, &data));
     auto result = std::vector<PetscScalar>(data, data + n);
-    PetscCallThrow(MatRestoreRow(_mat, row, &n, nullptr, &data));
+    PetscCallThrow(MatRestoreRow(mat, row, &n, nullptr, &data));
     return result;
 }
 
 // write matrix content to file in ascii format
 void Matrix::writeToFile(const std::string& filename, MatrixType type) const
 {
+    auto mat = const_cast<Mat>(petsc());
     if (type == MatrixType::Dense) {
         PetscViewer viewer;
         PetscCallThrow(PetscViewerASCIIOpen(PETSC_COMM_WORLD, filename.c_str(), &viewer));
-        PetscCallThrow(MatView(_mat, viewer));
+        PetscCallThrow(MatView(mat, viewer));
         PetscCallThrow(PetscViewerDestroy(&viewer));
     } else if (type == MatrixType::Sparse) {
         PetscInt    m, n, rstart, rend;
@@ -117,16 +120,16 @@ void Matrix::writeToFile(const std::string& filename, MatrixType type) const
         MatInfo     info;
         PetscInt    nz_global;
 
-        PetscCallThrow(MatGetSize(_mat, &m, &n));
-        PetscCallThrow(MatGetOwnershipRange(_mat, &rstart, &rend));
-        PetscCallThrow(MPI_Comm_rank(PetscObjectComm((PetscObject)_mat), &rank));
-        PetscCallThrow(MPI_Comm_size(PetscObjectComm((PetscObject)_mat), &size));
+        PetscCallThrow(MatGetSize(mat, &m, &n));
+        PetscCallThrow(MatGetOwnershipRange(mat, &rstart, &rend));
+        PetscCallThrow(MPI_Comm_rank(PetscObjectComm((PetscObject)mat), &rank));
+        PetscCallThrow(MPI_Comm_size(PetscObjectComm((PetscObject)mat), &size));
 
         // Get matrix info
-        PetscCallThrow(MatGetInfo(_mat, MAT_GLOBAL_SUM, &info));
+        PetscCallThrow(MatGetInfo(mat, MAT_GLOBAL_SUM, &info));
         nz_global = (PetscInt)info.nz_used;
 
-        PetscCallThrow(PetscViewerCreate(PetscObjectComm((PetscObject)_mat), &viewer));
+        PetscCallThrow(PetscViewerCreate(PetscObjectComm((PetscObject)mat), &viewer));
         PetscCallThrow(PetscViewerSetType(viewer, PETSCVIEWERASCII));
         PetscCallThrow(PetscViewerFileSetMode(viewer, FILE_MODE_WRITE));
         PetscCallThrow(PetscViewerFileSetName(viewer, filename.c_str()));
@@ -142,12 +145,12 @@ void Matrix::writeToFile(const std::string& filename, MatrixType type) const
             PetscInt           ncols;
             const PetscInt*    cols;
             const PetscScalar* vals;
-            PetscCallThrow(MatGetRow(_mat, row, &ncols, &cols, &vals));
+            PetscCallThrow(MatGetRow(mat, row, &ncols, &cols, &vals));
             for (PetscInt j = 0; j < ncols; j++) {
                 // rowidx, colidx, value
                 PetscCallThrow(PetscViewerASCIISynchronizedPrintf(viewer, "%d,%d,%.15e\n", row, cols[j], (double)PetscRealPart(vals[j])));
             }
-            PetscCallThrow(MatRestoreRow(_mat, row, &ncols, &cols, &vals));
+            PetscCallThrow(MatRestoreRow(mat, row, &ncols, &cols, &vals));
         }
 
         PetscCallThrow(PetscViewerFlush(viewer));

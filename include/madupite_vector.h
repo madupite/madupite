@@ -9,68 +9,51 @@
 #include "madupite_errors.h"
 #include "madupite_layout.h"
 
+using ConstVec = const _p_Vec*;
+
 class Vector {
     Layout _layout;
-    Vec    _vec = nullptr;
+
+    // Inner PETSc vector; should be accessed directly only in constructors and via petsc() otherwise
+    Vec _vec = nullptr;
 
     Vector(MPI_Comm comm, const std::string& name);
 
 public:
-    // A helper class to manage the read lock (RAII principle)
-    class VecReadOnly {
-        // Inner PETSc vector
-        const Vec& _vec;
-
-    public:
-        // Constructor - acquire the read lock
-        VecReadOnly(const Vec& vec)
-            : _vec(vec)
-        {
-            PetscCallThrow(VecLockReadPush(_vec));
-        }
-
-        // Destructor - release the read lock
-        ~VecReadOnly() { PetscCallNoThrow(VecLockReadPop(_vec)); }
-
-        // Disable copy semantics and move assignment
-        VecReadOnly(const VecReadOnly&)             = delete;
-        VecReadOnly& operator=(const VecReadOnly&)  = delete;
-        VecReadOnly& operator=(VecReadOnly&& other) = delete;
-
-        // Move constructor
-        VecReadOnly(VecReadOnly&& other) noexcept
-            : _vec(other._vec)
-        {
-        }
-
-        // Accessor to get the const Vec&
-        const Vec& get() const { return _vec; }
-
-        // Implicit cast to const Vec&
-        operator const Vec&() const { return _vec; }
-    };
-
     ////////
     // Basic getters
     ////////
 
     // Get the MPI communicator
-    MPI_Comm comm() const { return PetscObjectComm((PetscObject)_vec); }
+    MPI_Comm comm() const { return PetscObjectComm((PetscObject)petsc()); }
 
     // Get the name
     std::string name() const
     {
         const char* name;
-        PetscCallThrow(PetscObjectGetName((PetscObject)_vec, &name));
+        PetscCallThrow(PetscObjectGetName((PetscObject)petsc(), &name));
         return std::string(name);
     }
 
     // Get the inner PETSc vector
-    Vec petsc() { return _vec; }
+    Vec petsc()
+    {
+        if (_vec == nullptr) {
+            throw MadupiteException("Vector is uninitialized");
+        }
+        return _vec;
+    }
 
-    // Get the read-only view of the inner PETSc vector.
-    // Can be implicitly cast to `const Vec&` thanks to the `operator const Vec&() const`
-    VecReadOnly petsc() const { return VecReadOnly(_vec); }
+    // Get the inner PETSc vector in the const form.
+    // We currently pass
+    //   const_cast<Vec>(petsc())
+    // to PETSc functions as they currently don't take ConstVec arguments (const _p_Vec *).
+    // This could be a good proposal for PETSc.
+    ConstVec petsc() const
+    {
+        // reuse the non-const implementation
+        return const_cast<ConstVec>(const_cast<Vector*>(this)->petsc());
+    }
 
     // Get the layout
     const Layout& layout() const { return _layout; }
@@ -156,12 +139,12 @@ public:
     PetscScalar operator()(PetscInt index) const
     {
         PetscScalar value;
-        PetscCallThrow(VecGetValues(_vec, 1, &index, &value));
+        PetscCallThrow(VecGetValues(const_cast<Vec>(petsc()), 1, &index, &value));
         return value;
     }
 
     // single-value setter for floating point types
-    void operator()(PetscInt index, PetscScalar value) { PetscCallThrow(VecSetValues(_vec, 1, &index, &value, INSERT_VALUES)); }
+    void operator()(PetscInt index, PetscScalar value) { PetscCallThrow(VecSetValues(petsc(), 1, &index, &value, INSERT_VALUES)); }
 
     ////////
     // Inline methods
@@ -170,8 +153,8 @@ public:
     // Assemble the vector
     void assemble()
     {
-        PetscCallThrow(VecAssemblyBegin(_vec));
-        PetscCallThrow(VecAssemblyEnd(_vec));
+        PetscCallThrow(VecAssemblyBegin(petsc()));
+        PetscCallThrow(VecAssemblyEnd(petsc()));
     }
 
     // copy this vector to a new vector
@@ -179,8 +162,8 @@ public:
     {
         Vector copy;
         copy._layout = this->_layout;
-        PetscCallThrow(VecDuplicate(this->_vec, &copy._vec));
-        PetscCallThrow(VecCopy(this->_vec, copy._vec));
+        PetscCallThrow(VecDuplicate(const_cast<Vec>(petsc()), &copy._vec));
+        PetscCallThrow(VecCopy(const_cast<Vec>(petsc()), copy._vec));
         return copy;
     }
 
@@ -190,7 +173,7 @@ public:
         if (other._layout != _layout) {
             throw MadupiteException("Vector layout does not match");
         }
-        PetscCallThrow(VecCopy(other._vec, _vec));
+        PetscCallThrow(VecCopy(const_cast<Vec>(other.petsc()), petsc()));
     }
 
     ////////

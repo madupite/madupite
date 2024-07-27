@@ -29,11 +29,11 @@ Vector Vector::load(MPI_Comm comm, const std::string& name, const std::string& f
     Vector      x(comm, name);
     PetscViewer viewer;
     PetscCallThrow(PetscViewerBinaryOpen(comm, filename.c_str(), FILE_MODE_READ, &viewer));
-    PetscCallThrow(VecLoad(x._vec, viewer));
+    PetscCallThrow(VecLoad(x.petsc(), viewer));
     PetscCallThrow(PetscViewerDestroy(&viewer));
 
     PetscLayout pLayout;
-    PetscCallThrow(VecGetLayout(x._vec, &pLayout));
+    PetscCallThrow(VecGetLayout(x.petsc(), &pLayout));
     x._layout = Layout(pLayout);
     return x;
 }
@@ -42,6 +42,6 @@ void Vector::write(const std::string& filename) const
 {
     PetscViewer viewer;
     PetscCallThrow(PetscViewerBinaryOpen(comm(), filename.c_str(), FILE_MODE_WRITE, &viewer));
-    PetscCallThrow(VecView(_vec, viewer));
+    PetscCallThrow(VecView(const_cast<Vec>(petsc()), viewer));
     PetscCallThrow(PetscViewerDestroy(&viewer));
 }

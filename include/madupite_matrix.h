@@ -12,6 +12,8 @@
 #include "madupite_layout.h"
 #include "madupite_vector.h"
 
+using ConstMat = const _p_Mat*;
+
 // using std::ranges::range;
 
 enum class MatrixType {
@@ -37,12 +39,47 @@ struct MatrixPreallocation {
 class Matrix {
     Layout _rowLayout;
     Layout _colLayout;
-    Mat    _mat = nullptr;
+
+    // Inner PETSc matrix; should be accessed directly only in constructors and via petsc() otherwise
+    Mat _mat = nullptr;
 
     // Private constructor setting communicator, name and type (but no size)
     Matrix(MPI_Comm comm, const std::string& name, MatrixType type);
 
 public:
+    ////////
+    // Basic getters
+    ////////
+
+    // Get the inner PETSc matrix
+    Mat petsc()
+    {
+        if (_mat == nullptr) {
+            throw MadupiteException("Matrix is uninitialized");
+        }
+        return _mat;
+    }
+
+    // Get the inner PETSc matrix in the const form.
+    // We currently pass
+    //   const_cast<Mat>(petsc())
+    // to PETSc functions as they currently don't take ConstMat arguments (const _p_Mat *).
+    // This could be a good proposal for PETSc.
+    ConstMat petsc() const
+    {
+        // reuse the non-const implementation
+        return const_cast<ConstMat>(const_cast<Matrix*>(this)->petsc());
+    }
+
+    // Get the MPI communicator
+    MPI_Comm comm() const { return PetscObjectComm((PetscObject)petsc()); }
+
+    // Get the row layout
+    const Layout& rowLayout() const { return _rowLayout; }
+
+    // Get the column layout
+    const Layout& colLayout() const { return _colLayout; }
+
     ////////
     // Constructors, destructors and assignment
     ////////
@@ -125,12 +162,12 @@ public:
     PetscScalar operator()(PetscInt row, PetscInt col) const
     {
         PetscScalar value;
-        PetscCallThrow(MatGetValue(_mat, row, col, &value));
+        PetscCallThrow(MatGetValue(const_cast<Mat>(petsc()), row, col, &value));
         return value;
     }
 
     // single-value setter
-    void operator()(PetscInt row, PetscInt col, PetscScalar value) { PetscCallThrow(MatSetValue(_mat, row, col, value, INSERT_VALUES)); }
+    void operator()(PetscInt row, PetscInt col, PetscScalar value) { PetscCallThrow(MatSetValue(petsc(), row, col, value, INSERT_VALUES)); }
 
     // multi-value getter
     std::vector<PetscScalar> operator()(const std::vector<PetscInt>& rows, const std::vector<PetscInt>& cols) const
@@ -139,7 +176,7 @@ public:
         PetscInt n = cols.size();
 
         auto data = std::make_unique<PetscScalar[]>(m * n);
-        PetscCallThrow(MatGetValues(_mat, m, rows.data(), n, cols.data(), data.get()));
+        PetscCallThrow(MatGetValues(const_cast<Mat>(petsc()), m, rows.data(), n, cols.data(), data.get()));
         return std::vector<PetscScalar>(&data[0], &data[m * n]);
     }
 
@@ -147,33 +184,27 @@ public:
     // Inline methods
     ////////
 
-    // Get the MPI communicator
-    MPI_Comm comm() const { return PetscObjectComm((PetscObject)_mat); }
-
     // We currently don't need to have separate assemblyBegin and assemblyEnd
     void assemble()
     {
-        PetscCallThrow(MatAssemblyBegin(_mat, MAT_FINAL_ASSEMBLY));
-        PetscCallThrow(MatAssemblyEnd(_mat, MAT_FINAL_ASSEMBLY));
+        PetscCallThrow(MatAssemblyBegin(petsc(), MAT_FINAL_ASSEMBLY));
+        PetscCallThrow(MatAssemblyEnd(petsc(), MAT_FINAL_ASSEMBLY));
     }
 
     // Matrix-vector multiplication
-    void mult(const Vector& x, Vector& y) const { PetscCallThrow(MatMult(_mat, x.petsc(), y.petsc())); }
+    void mult(const Vector& x, Vector& y) const { PetscCallThrow(MatMult(const_cast<Mat>(petsc()), const_cast<Vec>(x.petsc()), y.petsc())); }
 
     // Transposed matrix-vector multiplication
-    void multT(const Vector& x, Vector& y) const { PetscCallThrow(MatMultTranspose(_mat, x.petsc(), y.petsc())); }
+    void multT(const Vector& x, Vector& y) const
+    {
+        PetscCallThrow(MatMultTranspose(const_cast<Mat>(petsc()), const_cast<Vec>(x.petsc()), y.petsc()));
+    }
 
     // Add another matrix
-    void add(const Matrix& other, MatStructure structure = SAME_NONZERO_PATTERN) { PetscCallThrow(MatAXPY(_mat, 1.0, other._mat, structure)); }
-
-    // Get the inner PETSc matrix
-    Mat petsc() { return _mat; }
-
-    // Get the row layout
-    const Layout& rowLayout() const { return _rowLayout; }
-
-    // Get the column layout
-    const Layout& colLayout() const { return _colLayout; }
+    void add(const Matrix& other, MatStructure structure = SAME_NONZERO_PATTERN)
+    {
+        PetscCallThrow(MatAXPY(petsc(), 1.0, const_cast<Mat>(other.petsc()), structure));
+    }
 
     ////////
     // Out-of-line method declarations
