@@ -44,15 +44,9 @@ Matrix::Matrix(
 }
 
 // TODO PETSc feature proposal: it would be nice if the PETSc loader infers the correct type from the file
-std::shared_ptr<Matrix> Matrix::fromFile(
-    MPI_Comm comm, const std::string& name, const std::string& filename, MatrixCategory category, MatrixType type)
+Matrix Matrix::fromFile(MPI_Comm comm, const std::string& name, const std::string& filename, MatrixCategory category, MatrixType type)
 {
-    // auto A = std::make_shared<Matrix>(comm, name, type);
-    auto A = std::shared_ptr<Matrix>(new Matrix(comm, name, type));
-    // this loses advantage of make_shared (less heap allocations), but needed if we want to call private constructor
-    // https://stackoverflow.com/a/56736075
-    // https://stackoverflow.com/questions/20895648/difference-in-make-shared-and-normal-shared-ptr-in-c/20895705#20895705
-
+    Matrix      A(comm, name, type);
     PetscViewer viewer;
 
     PetscCallThrow(PetscViewerBinaryOpen(comm, filename.c_str(), FILE_MODE_READ, &viewer));
@@ -70,7 +64,7 @@ std::shared_ptr<Matrix> Matrix::fromFile(
         PetscInt numActions     = sizes[1] / sizes[2];
         PetscInt localNumStates = PETSC_DECIDE;
         PetscCallThrow(PetscSplitOwnership(PETSC_COMM_WORLD, &localNumStates, &numStates));
-        PetscCallThrow(MatSetSizes(A->_mat, localNumStates * numActions, PETSC_DECIDE, PETSC_DECIDE, numStates));
+        PetscCallThrow(MatSetSizes(A._mat, localNumStates * numActions, PETSC_DECIDE, PETSC_DECIDE, numStates));
         break;
     }
     case MatrixCategory::Cost: {
@@ -78,7 +72,7 @@ std::shared_ptr<Matrix> Matrix::fromFile(
         PetscInt numActions     = sizes[2];
         PetscInt localNumStates = PETSC_DECIDE;
         PetscCallThrow(PetscSplitOwnership(PETSC_COMM_WORLD, &localNumStates, &numStates));
-        PetscCallThrow(MatSetSizes(A->_mat, localNumStates, PETSC_DECIDE, PETSC_DECIDE, numActions));
+        PetscCallThrow(MatSetSizes(A._mat, localNumStates, PETSC_DECIDE, PETSC_DECIDE, numActions));
         break;
     }
     default:
@@ -86,13 +80,13 @@ std::shared_ptr<Matrix> Matrix::fromFile(
     }
 
     PetscCallThrow(PetscViewerBinaryOpen(comm, filename.c_str(), FILE_MODE_READ, &viewer));
-    PetscCallThrow(MatLoad(A->_mat, viewer));
+    PetscCallThrow(MatLoad(A._mat, viewer));
     PetscCallThrow(PetscViewerDestroy(&viewer));
 
     PetscLayout pRowLayout, pColLayout;
-    PetscCallThrow(MatGetLayouts(A->_mat, &pRowLayout, &pColLayout));
-    A->_rowLayout = Layout(pRowLayout);
-    A->_colLayout = Layout(pColLayout);
+    PetscCallThrow(MatGetLayouts(A._mat, &pRowLayout, &pColLayout));
+    A._rowLayout = Layout(pRowLayout);
+    A._colLayout = Layout(pColLayout);
     return A;
 }
 

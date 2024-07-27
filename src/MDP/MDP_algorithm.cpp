@@ -79,7 +79,7 @@ Mat MDP::getTransitionProbabilities(const std::unique_ptr<PetscInt[]>& policy)
     // LOG("Entering constructFromPolicy [policy]");
     //  compute where local ownership of new P_pi matrix starts
     PetscInt P_pi_start; // start of ownership of new matrix (to be created)
-    PetscCallThrow(MatGetOwnershipRange(transitionProbabilityTensor_->petsc(), &P_pi_start, NULL));
+    PetscCallThrow(MatGetOwnershipRange(transitionProbabilityTensor_.petsc(), &P_pi_start, NULL));
     P_pi_start /= numActions_;
 
     // allocate memory for values
@@ -98,7 +98,7 @@ Mat MDP::getTransitionProbabilities(const std::unique_ptr<PetscInt[]>& policy)
 
     // LOG("Creating transitionProbabilities submatrix");
     // TODO: can MatGetSubMatrix be used here?
-    PetscCallThrow(MatCreateSubMatrix(transitionProbabilityTensor_->petsc(), rowInd, NULL, MAT_INITIAL_MATRIX, &transitionProbabilities));
+    PetscCallThrow(MatCreateSubMatrix(transitionProbabilityTensor_.petsc(), rowInd, NULL, MAT_INITIAL_MATRIX, &transitionProbabilities));
     // TODO: Is this necessary?
     PetscCallThrow(MatAssemblyBegin(transitionProbabilities, MAT_FINAL_ASSEMBLY));
     PetscCallThrow(MatAssemblyEnd(transitionProbabilities, MAT_FINAL_ASSEMBLY));
@@ -121,7 +121,7 @@ Vec MDP::getStageCosts(const std::unique_ptr<PetscInt[]>& policy)
     for (PetscInt localStateInd = 0; localStateInd < localNumStates_; ++localStateInd) {
         actionInd = policy[localStateInd];
         g_srcRow  = g_start_ + localStateInd;
-        PetscCallThrow(MatGetValue(stageCostMatrix_->petsc(), g_srcRow, actionInd, &g_pi_values[localStateInd]));
+        PetscCallThrow(MatGetValue(stageCostMatrix_.petsc(), g_srcRow, actionInd, &g_pi_values[localStateInd]));
     }
 
     IS ind;
@@ -249,7 +249,7 @@ void MDP::solve()
 
     // allocated cost vector used in extractGreedyPolicy (n; DENSE)
     Vec costVector;
-    PetscCallThrow(MatCreateVecs(transitionProbabilityTensor_->petsc(), nullptr, &costVector));
+    PetscCallThrow(MatCreateVecs(transitionProbabilityTensor_.petsc(), nullptr, &costVector));
 
     Vec V;
     PetscCallThrow(VecDuplicate(V0, &V));
@@ -264,14 +264,14 @@ void MDP::solve()
     for (; PI_iteration < maxIter_PI_; ++PI_iteration) { // outer loop
         PetscCallThrow(PetscTime(&startTime));
         // costVector = discountFactor * P * V
-        PetscCallThrow(MatMult(transitionProbabilityTensor_->petsc(), V, costVector));
+        PetscCallThrow(MatMult(transitionProbabilityTensor_.petsc(), V, costVector));
         PetscCallThrow(VecScale(costVector, discountFactor_));
 
         // reshape costVector to costMatrix
         reshapeCostVectorToCostMatrix(costVector, costMatrix);
 
         // add g to costMatrix
-        PetscCallThrow(MatAXPY(costMatrix, 1.0, stageCostMatrix_->petsc(), SAME_NONZERO_PATTERN));
+        PetscCallThrow(MatAXPY(costMatrix, 1.0, stageCostMatrix_.petsc(), SAME_NONZERO_PATTERN));
 
         // extract greedy policy
         auto residualNorm = getGreedyPolicyAndResidualNorm(costMatrix, V, policyValues);

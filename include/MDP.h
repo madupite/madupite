@@ -54,9 +54,9 @@ public:
     MDP(std::shared_ptr<Madupite> madupite, MPI_Comm comm = PETSC_COMM_WORLD);
     void setOption(const char* option, const char* value = NULL);
     void clearOptions();
-    void setStageCostMatrix(std::shared_ptr<Matrix> g);
-    void setTransitionProbabilityTensor(std::shared_ptr<Matrix> P);
-    void setUp(); // call after setting sources
+    void setStageCostMatrix(const Matrix& g);
+    void setTransitionProbabilityTensor(const Matrix& P);
+    void setUp();
     void solve();
 
     PetscErrorCode setValuesFromOptions();
@@ -124,8 +124,8 @@ private:
     std::array<PetscInt, 4> g_file_meta_; // metadata when g is loaded from file (ClassID, rows, cols, nnz)
 
     // MDP data
-    std::shared_ptr<Matrix> transitionProbabilityTensor_; // transition probability tensor (nm x n; MPIAIJ)
-    std::shared_ptr<Matrix> stageCostMatrix_;             // stage cost matrix (also rewards possible) (n x m; DENSE)
+    Matrix transitionProbabilityTensor_; // transition probability tensor (nm x n; MPIAIJ)
+    Matrix stageCostMatrix_;             // stage cost matrix (also rewards possible) (n x m; DENSE)
 
     bool setupCalled = false;
 };

@@ -111,7 +111,7 @@ public:
     ////////
     static std::string typeToString(MatrixType type);
 
-    static std::shared_ptr<Matrix> fromFile(
+    static Matrix fromFile(
         MPI_Comm comm, const std::string& name, const std::string& filename, MatrixCategory category, MatrixType type = MatrixType::Sparse);
 
     ////////

@@ -140,13 +140,13 @@ void MDP::setOption(const char* option, const char* value)
 
 void MDP::clearOptions() { PetscCallThrow(PetscOptionsClear(NULL)); }
 
-void MDP::setStageCostMatrix(std::shared_ptr<Matrix> g)
+void MDP::setStageCostMatrix(const Matrix& g)
 {
     setupCalled      = false;
     stageCostMatrix_ = g;
 }
 
-void MDP::setTransitionProbabilityTensor(std::shared_ptr<Matrix> P)
+void MDP::setTransitionProbabilityTensor(const Matrix& P)
 {
     setupCalled                  = false;
     transitionProbabilityTensor_ = P;
@@ -160,24 +160,23 @@ void MDP::setUp()
     setValuesFromOptions();
 
     // check matrix sizes agree
-    if (transitionProbabilityTensor_->colLayout().localSize() != stageCostMatrix_->rowLayout().localSize()) {
+    if (transitionProbabilityTensor_.colLayout().localSize() != stageCostMatrix_.rowLayout().localSize()) {
         // LOG("Error: stageCostMatrix and numStates do not agree.");
         PetscThrow(comm_, 1, "Error: number of states do not agree (P != g): : %" PetscInt_FMT " != %" PetscInt_FMT,
-            transitionProbabilityTensor_->colLayout().localSize(), stageCostMatrix_->rowLayout().localSize());
+            transitionProbabilityTensor_.colLayout().localSize(), stageCostMatrix_.rowLayout().localSize());
     }
-    if (transitionProbabilityTensor_->rowLayout().size() / transitionProbabilityTensor_->colLayout().size() != stageCostMatrix_->colLayout().size()) {
+    if (transitionProbabilityTensor_.rowLayout().size() / transitionProbabilityTensor_.colLayout().size() != stageCostMatrix_.colLayout().size()) {
         // LOG("Error: transitionProbabilityTensor and numStates do not agree.");
         PetscThrow(comm_, 1, "Error: number of actions do not agree (P != g): %" PetscInt_FMT " != %" PetscInt_FMT,
-            transitionProbabilityTensor_->rowLayout().size() / transitionProbabilityTensor_->colLayout().size(),
-            stageCostMatrix_->colLayout().size());
+            transitionProbabilityTensor_.rowLayout().size() / transitionProbabilityTensor_.colLayout().size(), stageCostMatrix_.colLayout().size());
     }
-    numStates_      = stageCostMatrix_->rowLayout().size();
-    localNumStates_ = stageCostMatrix_->rowLayout().localSize();
-    numActions_     = stageCostMatrix_->colLayout().size();
-    p_start_        = transitionProbabilityTensor_->rowLayout().start();
-    p_end_          = transitionProbabilityTensor_->rowLayout().end();
-    g_start_        = stageCostMatrix_->rowLayout().start();
-    g_end_          = stageCostMatrix_->rowLayout().end();
+    numStates_      = stageCostMatrix_.rowLayout().size();
+    localNumStates_ = stageCostMatrix_.rowLayout().localSize();
+    numActions_     = stageCostMatrix_.colLayout().size();
+    p_start_        = transitionProbabilityTensor_.rowLayout().start();
+    p_end_          = transitionProbabilityTensor_.rowLayout().end();
+    g_start_        = stageCostMatrix_.rowLayout().start();
+    g_end_          = stageCostMatrix_.rowLayout().end();
 
     setupCalled = true;
 }

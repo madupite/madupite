@@ -1,14 +1,14 @@
 #include "MDP_matrix.h"
 #include "madupite_matrix.h"
 
-std::shared_ptr<Matrix> createTransitionProbabilityTensor(
+Matrix createTransitionProbabilityTensor(
     MPI_Comm comm, const std::string& name, PetscInt numStates, PetscInt numActions, Probfunc func, const MatrixPreallocation& pa)
 {
     PetscInt localStates = PETSC_DECIDE;
     PetscSplitOwnership(comm, &localStates, &numStates);
     Layout rowLayout(comm, localStates * numActions, true);
     Layout colLayout(comm, localStates, true);
-    auto   A  = std::make_shared<Matrix>(comm, name, MatrixType::Sparse, rowLayout, colLayout, pa);
+    Matrix A(comm, name, MatrixType::Sparse, rowLayout, colLayout, pa);
     auto   lo = rowLayout.start();
     auto   hi = rowLayout.end();
 
@@ -18,14 +18,14 @@ std::shared_ptr<Matrix> createTransitionProbabilityTensor(
             auto [values, indices] = func(stateInd, actionInd);
             auto rowInd            = stateInd * numActions + actionInd;
             // TODO wrapping function/operator? MatGetRow()/MatRestoreRow()?
-            PetscCallThrow(MatSetValues(A->petsc(), 1, &rowInd, indices.size(), indices.data(), values.data(), INSERT_VALUES));
+            PetscCallThrow(MatSetValues(A.petsc(), 1, &rowInd, indices.size(), indices.data(), values.data(), INSERT_VALUES));
         }
     }
-    A->assemble();
+    A.assemble();
     return A;
 }
 
-std::shared_ptr<Matrix> createStageCostMatrix(MPI_Comm comm, const std::string& name, PetscInt numStates, PetscInt numActions, Costfunc func)
+Matrix createStageCostMatrix(MPI_Comm comm, const std::string& name, PetscInt numStates, PetscInt numActions, Costfunc func)
 {
     PetscInt localStates = PETSC_DECIDE;
     PetscSplitOwnership(comm, &localStates, &numStates);
@@ -33,7 +33,7 @@ std::shared_ptr<Matrix> createStageCostMatrix(MPI_Comm comm, const std::string& 
     PetscInt localActions = PETSC_DECIDE;
     PetscSplitOwnership(comm, &localActions, &numActions);
     Layout colLayout(comm, localActions, true);
-    auto   A        = std::make_shared<Matrix>(comm, name, MatrixType::Dense, rowLayout, colLayout);
+    Matrix A(comm, name, MatrixType::Dense, rowLayout, colLayout);
     auto   g_start_ = rowLayout.start();
     auto   g_end_   = rowLayout.end();
 
@@ -42,9 +42,9 @@ std::shared_ptr<Matrix> createStageCostMatrix(MPI_Comm comm, const std::string& 
         for (PetscInt actionInd = 0; actionInd < numActions; ++actionInd) {
             auto value = func(stateInd, actionInd);
             // TODO wrapping function/operator? MatGetRow()/MatRestoreRow()?
-            PetscCallThrow(MatSetValue(A->petsc(), stateInd, actionInd, value, INSERT_VALUES));
+            PetscCallThrow(MatSetValue(A.petsc(), stateInd, actionInd, value, INSERT_VALUES));
         }
     }
-    A->assemble();
+    A.assemble();
     return A;
 }
