@@ -44,11 +44,11 @@ NB_MODULE(_madupite_impl, m)
     nb::class_<Matrix>(m, "Matrix")
         .def(nb::init<>())
         .def_static("typeToString", &Matrix::typeToString)
-        .def_static("fromFile", &Matrix::fromFile)
+        .def_static("fromFile", &Matrix::fromFile, nb::kw_only(), "comm"_a = PETSC_COMM_WORLD, "name"_a, "filename"_a, "category"_a, "type"_a)
         .def("writeToFile", &Matrix::writeToFile);
 
-    m.def("createTransitionProbabilityTensor", &createTransitionProbabilityTensor);
-    m.def("createStageCostMatrix", &createStageCostMatrix);
+    m.def("createTransitionProbabilityTensor", &createTransitionProbabilityTensor, nb::kw_only(), "comm"_a = PETSC_COMM_WORLD, "name"_a, "numStates"_a, "numActions"_a, "func"_a, "preallocation"_a = MatrixPreallocation{});
+    m.def("createStageCostMatrix", &createStageCostMatrix, nb::kw_only(), "comm"_a = PETSC_COMM_WORLD, "name"_a, "numStates"_a, "numActions"_a, "func"_a);
 
     //////////
     // MDP 
