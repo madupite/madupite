@@ -1,7 +1,4 @@
 #include "MDP.h"
-#include <cassert>
-#include <petsc.h>
-#include <string>
 
 int main(int argc, char** argv)
 {

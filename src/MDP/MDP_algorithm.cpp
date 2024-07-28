@@ -1,9 +1,5 @@
-//
-// Created by robin on 27.04.23.
-//
-
-#include <algorithm> // std::min_element, std::max_element
-#include <iostream>  // TODO: replace with some logger
+#include <algorithm>
+#include <iostream> // TODO: replace with some logger
 #include <memory>
 // #include "../utils/Logger.h"
 

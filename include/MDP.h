@@ -1,17 +1,15 @@
 #pragma once
 
 #include <petscksp.h>
-#include <petscmat.h>
-#include <petscsys.h>
-#include <petscvec.h>
 
 #include <memory>
-#include <vector>
 
 #include "JsonWriter.h"
-#include "MDP_matrix.h"
 #include "madupite_errors.h"
 #include "madupite_matrix.h"
+
+// convenience import so that user code doesn't need to include MDP_matrix.h
+#include "MDP_matrix.h"
 
 class Madupite {
     static std::shared_ptr<Madupite> instance;

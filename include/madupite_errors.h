@@ -1,9 +1,9 @@
 #pragma once
 
+#include <exception>
+
 #include <mpi.h> //TODO this should not be needed if petscerrror.h includes mpi.h
 #include <petscerror.h>
-
-#include <exception>
 
 class PetscException : public std::exception {
     int         ierr;

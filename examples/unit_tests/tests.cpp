@@ -1,9 +1,5 @@
 #include "MDP.h"
-#include "madupite_errors.h"
-#include "madupite_matrix.h"
-#include "petscmat.h"
 #include <gtest/gtest.h>
-#include <mpi.h>
 
 // Test fixture
 class TF : public ::testing::Test {

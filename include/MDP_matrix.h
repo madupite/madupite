@@ -1,7 +1,6 @@
 #pragma once
 
 #include "madupite_matrix.h"
-#include <memory>
 
 // matrices constructed specifically for MDP
 

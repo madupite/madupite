@@ -1,12 +1,8 @@
-//
-// Created by robin on 05.06.23.
-//
-
-#include "MDP.h"
-// #include <mpi.h>
 #include <iostream> // todo: replace with logging
 #include <memory>
 #include <string>
+
+#include "MDP.h"
 
 std::shared_ptr<Madupite> Madupite::instance;
 std::mutex                Madupite::mtx;

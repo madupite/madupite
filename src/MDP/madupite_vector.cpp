@@ -1,7 +1,7 @@
-#include "madupite_vector.h"
-#include "madupite_errors.h"
-#include "petscvec.h"
 #include <numeric>
+
+#include "madupite_errors.h"
+#include "madupite_vector.h"
 
 Vector::Vector(MPI_Comm comm, const std::string& name)
 {

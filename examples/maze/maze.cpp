@@ -1,12 +1,8 @@
-#include "MDP.h"
-#include <cassert>
-#include <fstream>
 #include <iostream>
-#include <limits>
-#include <petsc.h>
-#include <string>
 #include <utility>
 #include <vector>
+
+#include "MDP.h"
 
 // 2D Grid world
 constexpr int       _H = 25, _W = 25; // s = row-major index

@@ -1,6 +1,7 @@
-#include "madupite_matrix.h"
+#include <petscmat.h>
+
 #include "madupite_errors.h"
-#include "petscmat.h"
+#include "madupite_matrix.h"
 
 std::string Matrix::typeToString(MatrixType type)
 {

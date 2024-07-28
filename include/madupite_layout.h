@@ -1,6 +1,6 @@
 #pragma once
 
-#include "petscis.h"
+#include <petscis.h>
 
 #include "madupite_errors.h"
 
