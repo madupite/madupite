@@ -43,22 +43,10 @@ MDP::MDP(std::shared_ptr<Madupite> madupite, MPI_Comm comm)
     : madupite_(madupite)
     , comm_(comm)
 {
-    // MPI parallelization initialization
-    MPI_Comm_rank(comm_, &rank_);
-    MPI_Comm_size(comm_, &size_);
     jsonWriter_ = std::make_unique<JsonWriter>(comm_);
 
     // Logger::setPrefix("[R" + std::to_string(rank_) + "] ");
     // Logger::setFilename("log_R" + std::to_string(rank_) + ".txt"); // remove if all ranks should output to the same file
-}
-
-// Pre: numStates_ is set
-// Post: localNumStates_ is set
-void MDP::splitOwnership()
-{
-    localNumStates_ = PETSC_DECIDE;
-    PetscCallThrow(PetscSplitOwnership(comm_, &localNumStates_, &numStates_));
-    // std::cout << "Rank " << rank_ << " owns " << localNumStates_ << " states." << std::endl;
 }
 
 PetscErrorCode MDP::setValuesFromOptions()
@@ -173,8 +161,6 @@ void MDP::setUp()
     numStates_      = stageCostMatrix_.rowLayout().size();
     localNumStates_ = stageCostMatrix_.rowLayout().localSize();
     numActions_     = stageCostMatrix_.colLayout().size();
-    p_start_        = transitionProbabilityTensor_.rowLayout().start();
-    p_end_          = transitionProbabilityTensor_.rowLayout().end();
     g_start_        = stageCostMatrix_.rowLayout().start();
     g_end_          = stageCostMatrix_.rowLayout().end();
 
@@ -313,6 +299,9 @@ void MDP::writeIS(const IS& is, const char* filename)
 
 void MDP::writeJSONmetadata()
 {
+    PetscMPIInt size;
+    MPI_Comm_size(comm_, &size);
+
     // writes model specifics to file per launch of MDP::ineaxctPolicyIteration
     // ksp_type is written in MDP::iterativePolicyEvaluation (since it's only known there)
     jsonWriter_->add_data("num_states", numStates_);
@@ -322,7 +311,7 @@ void MDP::writeJSONmetadata()
     jsonWriter_->add_data("max_iter_ksp", maxIter_KSP_);
     jsonWriter_->add_data("alpha", alpha_);
     jsonWriter_->add_data("atol_pi", atol_PI_);
-    jsonWriter_->add_data("num_ranks", size_);
+    jsonWriter_->add_data("num_ranks", size);
 
     if (file_policy_[0] != '\0') {
         jsonWriter_->add_data("file_policy", file_policy_);
@@ -332,11 +321,5 @@ void MDP::writeJSONmetadata()
     }
     if (file_stats_[0] != '\0') {
         jsonWriter_->add_data("file_stats", file_stats_);
-    }
-    if (p_src_ == FILE) {
-        jsonWriter_->add_data("file_transition_probabilities", p_file_name_);
-    }
-    if (g_src_ == FILE) {
-        jsonWriter_->add_data("file_stage_costs", g_file_name_);
     }
 }

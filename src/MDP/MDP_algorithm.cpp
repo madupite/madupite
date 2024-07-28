@@ -76,20 +76,15 @@ Mat MDP::getTransitionProbabilities(const std::unique_ptr<PetscInt[]>& policy)
     // Outputs
     Mat transitionProbabilities;
 
-    // LOG("Entering constructFromPolicy [policy]");
-    //  compute where local ownership of new P_pi matrix starts
-    PetscInt P_pi_start; // start of ownership of new matrix (to be created)
-    PetscCallThrow(MatGetOwnershipRange(transitionProbabilityTensor_.petsc(), &P_pi_start, NULL));
-    P_pi_start /= numActions_;
-
     // allocate memory for values
     auto rowIndArr = std::make_unique<PetscInt[]>(localNumStates_);
 
     // compute global row indices for P
+    PetscInt p_start = transitionProbabilityTensor_.rowLayout().start();
     PetscInt actionInd;
     for (PetscInt localStateInd = 0; localStateInd < localNumStates_; ++localStateInd) {
         actionInd                = policy[localStateInd];
-        rowIndArr[localStateInd] = p_start_ + localStateInd * numActions_ + actionInd;
+        rowIndArr[localStateInd] = p_start + localStateInd * numActions_ + actionInd;
     }
 
     // generate index sets
