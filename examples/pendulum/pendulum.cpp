@@ -18,8 +18,6 @@ int main(int argc, char** argv)
     mdp.setOption("-file_cost", "pend_cost.out");
     mdp.setOption("-export_optimal_transition_probabilities", "pend_Ppi.out");
     mdp.setOption("-export_optimal_stage_costs", "pend_gpi.out");
-    // mdp.setOption("-num_states", "441");
-    // mdp.setOption("-num_actions", "9");
 
     auto comm = PETSC_COMM_WORLD;
 

@@ -16,8 +16,6 @@ int main(int argc, char** argv)
     mdp.setOption("-file_stats", "di_stats.json");
     mdp.setOption("-file_policy", "di_policy.out");
     mdp.setOption("-file_cost", "di_cost.out");
-    // mdp.setOption("-num_states", "4331");
-    // mdp.setOption("-num_actions", "11");
 
     auto comm = PETSC_COMM_WORLD;
 
