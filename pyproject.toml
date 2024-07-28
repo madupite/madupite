@@ -1,7 +1,29 @@
 [build-system]
-requires = ["setuptools", "wheel", "scikit-build", "cmake", "nanobind"]
-build-backend = "setuptools.build_meta"
+requires = ["scikit-build-core >=0.4.3", "nanobind >= 1.3.2"]
+build-backend = "scikit_build_core.build"
 
-[tool.cibuildwheel]
-test-requires = ["pytest"]
-test-command = "pytest {project}/tests"
+[project]
+name = "madupite"
+version = "1.0"
+description = "madupite is a package for solving large-scale Markov decision processes."
+authors = [
+    { name = "Robin Sieber", email = "rjs02@hotmail.com" },
+    { name = "Philip Pawlowsky" },
+    { name = "Matilde Gargiani" },
+    { name = "Václav Hapla" },
+    { name = "John Lygeros" }
+]
+classifiers = [
+    "License :: OSI Approved :: BSD License"
+]
+
+[tool.scikit-build]
+minimum-version = "0.4"
+build-dir = "build/{wheel_tag}"
+wheel.py-api = "cp312"
+# wheel.packages = ["src/madupite"]
+# wheel.install-dir = "madupite"
+# install.components = ["lib", "madupite"]
+
+[project.urls]
+Homepage = "https://ethz.ch"
