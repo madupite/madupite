@@ -1,22 +1,18 @@
-//
-// Created by robin on 30.05.23.
-//
+#pragma once
 
-#ifndef DISTRIBUTED_INEXACT_POLICY_ITERATION_JSONWRITER_H
-#define DISTRIBUTED_INEXACT_POLICY_ITERATION_JSONWRITER_H
-
-// #include <mpi.h>
-#include <vector>
-// #include <nlohmann/json.hpp>
-#include "json.h"
 #include <fstream>
+#include <vector>
+
+#include <json.h>
+#include <mpi.h>
+#include <petscsystypes.h>
 
 class JsonWriter {
+    std::vector<nlohmann::json> runs;
+    PetscMPIInt                 rank_;
+
 public:
-    explicit JsonWriter(int rank)
-        : rank_(rank)
-    {
-    }
+    explicit JsonWriter(MPI_Comm comm) { MPI_Comm_rank(comm, &rank_); }
 
     void add_solver_run()
     {
@@ -51,10 +47,4 @@ public:
             file << data.dump(4);
         }
     }
-
-private:
-    std::vector<nlohmann::json> runs;
-    int                         rank_;
 };
-
-#endif // DISTRIBUTED_INEXACT_POLICY_ITERATION_JSONWRITER_H
