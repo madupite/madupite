@@ -1,9 +1,5 @@
-//
-// Created by robin on 27.04.23.
-//
-
-#include <algorithm> // std::min_element, std::max_element
-#include <iostream>  // TODO: replace with some logger
+#include <algorithm>
+#include <iostream> // TODO: replace with some logger
 #include <memory>
 // #include "../utils/Logger.h"
 
@@ -76,20 +72,15 @@ Mat MDP::getTransitionProbabilities(const std::unique_ptr<PetscInt[]>& policy)
     // Outputs
     Mat transitionProbabilities;
 
-    // LOG("Entering constructFromPolicy [policy]");
-    //  compute where local ownership of new P_pi matrix starts
-    PetscInt P_pi_start; // start of ownership of new matrix (to be created)
-    PetscCallThrow(MatGetOwnershipRange(transitionProbabilityTensor_, &P_pi_start, NULL));
-    P_pi_start /= numActions_;
-
     // allocate memory for values
     auto rowIndArr = std::make_unique<PetscInt[]>(localNumStates_);
 
     // compute global row indices for P
+    PetscInt p_start = transitionProbabilityTensor_.rowLayout().start();
     PetscInt actionInd;
     for (PetscInt localStateInd = 0; localStateInd < localNumStates_; ++localStateInd) {
         actionInd                = policy[localStateInd];
-        rowIndArr[localStateInd] = p_start_ + localStateInd * numActions_ + actionInd;
+        rowIndArr[localStateInd] = p_start + localStateInd * numActions_ + actionInd;
     }
 
     // generate index sets
@@ -98,7 +89,7 @@ Mat MDP::getTransitionProbabilities(const std::unique_ptr<PetscInt[]>& policy)
 
     // LOG("Creating transitionProbabilities submatrix");
     // TODO: can MatGetSubMatrix be used here?
-    PetscCallThrow(MatCreateSubMatrix(transitionProbabilityTensor_, rowInd, NULL, MAT_INITIAL_MATRIX, &transitionProbabilities));
+    PetscCallThrow(MatCreateSubMatrix(transitionProbabilityTensor_.petsc(), rowInd, NULL, MAT_INITIAL_MATRIX, &transitionProbabilities));
     // TODO: Is this necessary?
     PetscCallThrow(MatAssemblyBegin(transitionProbabilities, MAT_FINAL_ASSEMBLY));
     PetscCallThrow(MatAssemblyEnd(transitionProbabilities, MAT_FINAL_ASSEMBLY));
@@ -121,7 +112,7 @@ Vec MDP::getStageCosts(const std::unique_ptr<PetscInt[]>& policy)
     for (PetscInt localStateInd = 0; localStateInd < localNumStates_; ++localStateInd) {
         actionInd = policy[localStateInd];
         g_srcRow  = g_start_ + localStateInd;
-        PetscCallThrow(MatGetValue(stageCostMatrix_, g_srcRow, actionInd, &g_pi_values[localStateInd]));
+        PetscCallThrow(MatGetValue(stageCostMatrix_.petsc(), g_srcRow, actionInd, &g_pi_values[localStateInd]));
     }
 
     IS ind;
@@ -249,7 +240,7 @@ void MDP::solve()
 
     // allocated cost vector used in extractGreedyPolicy (n; DENSE)
     Vec costVector;
-    PetscCallThrow(MatCreateVecs(transitionProbabilityTensor_, nullptr, &costVector));
+    PetscCallThrow(MatCreateVecs(transitionProbabilityTensor_.petsc(), nullptr, &costVector));
 
     Vec V;
     PetscCallThrow(VecDuplicate(V0, &V));
@@ -263,16 +254,15 @@ void MDP::solve()
     PetscInt PI_iteration = 0;
     for (; PI_iteration < maxIter_PI_; ++PI_iteration) { // outer loop
         PetscCallThrow(PetscTime(&startTime));
-
         // costVector = discountFactor * P * V
-        PetscCallThrow(MatMult(transitionProbabilityTensor_, V, costVector));
+        PetscCallThrow(MatMult(transitionProbabilityTensor_.petsc(), V, costVector));
         PetscCallThrow(VecScale(costVector, discountFactor_));
 
         // reshape costVector to costMatrix
         reshapeCostVectorToCostMatrix(costVector, costMatrix);
 
         // add g to costMatrix
-        PetscCallThrow(MatAXPY(costMatrix, 1.0, stageCostMatrix_, SAME_NONZERO_PATTERN));
+        PetscCallThrow(MatAXPY(costMatrix, 1.0, stageCostMatrix_.petsc(), SAME_NONZERO_PATTERN));
 
         // extract greedy policy
         auto residualNorm = getGreedyPolicyAndResidualNorm(costMatrix, V, policyValues);
@@ -310,6 +300,7 @@ void MDP::solve()
     if (PI_iteration >= maxIter_PI_) {
         // LOG("Warning: maximum number of PI iterations reached. Solution might not be optimal.");
         std::cout << "Warning: maximum number of PI iterations reached. Solution might not be optimal." << std::endl;
+        jsonWriter_->add_data("remark", "Warning: maximum number of iPI iterations reached. Solution might not be optimal.");
     }
 
     jsonWriter_->write_to_file(file_stats_);
@@ -320,6 +311,19 @@ void MDP::solve()
     PetscCallThrow(ISCreateGeneral(comm_, localNumStates_, policyValues.get(), PETSC_USE_POINTER, &optimalPolicy));
     writeVec(V, file_cost_);
     writeIS(optimalPolicy, file_policy_);
+
+    // write optimal transition probabilities and stage costs
+    if (file_optimal_transition_probabilities_[0] != '\0') {
+        auto optimalTransitionProbabilities = getTransitionProbabilities(policyValues);
+        writeMat(optimalTransitionProbabilities, file_optimal_transition_probabilities_);
+        PetscCallThrow(MatDestroy(&optimalTransitionProbabilities));
+    }
+    if (file_optimal_stage_costs_[0] != '\0') {
+        auto optimalStageCosts = getStageCosts(policyValues);
+        writeVec(optimalStageCosts, file_optimal_stage_costs_);
+        PetscCallThrow(VecDestroy(&optimalStageCosts));
+    }
+
     // PetscCallThrow(PetscTime(&endTime));
     // PetscLogDouble duration = (endTime - startTime) * 1000;
     // if (rank_ == 0) {

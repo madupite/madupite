@@ -1,12 +1,8 @@
-#include "MDP.h"
-#include <cassert>
-#include <fstream>
 #include <iostream>
-#include <limits>
-#include <petsc.h>
-#include <string>
 #include <utility>
 #include <vector>
+
+#include "MDP.h"
 
 // 2D Grid world
 constexpr int       _H = 25, _W = 25; // s = row-major index
@@ -78,15 +74,18 @@ int main(int argc, char** argv)
     mdp.setOption("-max_iter_ksp", "1000");
     mdp.setOption("-alpha", "1e-6");
     mdp.setOption("-atol_pi", "1e-8");
-    mdp.setOption("-num_states", std::to_string(_H * _W).c_str());
-    mdp.setOption("-num_actions", "5");
     mdp.setOption("-file_stats", "maze_stats.json");
     mdp.setOption("-file_cost", "maze_cost.out");
     mdp.setOption("-file_policy", "maze_policy.out");
     mdp.setOption("-ksp_type", "tfqmr");
 
-    mdp.setSourceStageCostMatrix("data/maze_25x25.bin");
-    mdp.setSourceTransitionProbabilityTensor(P, 1, {}, 1, {});
+    auto comm = PETSC_COMM_WORLD;
+
+    auto g_mat = Matrix::fromFile(comm, "g_file", "data/maze_25x25.bin", MatrixCategory::Cost, MatrixType::Dense);
+    auto P_mat = createTransitionProbabilityTensor(comm, "P_func", _H * _W, 5, P);
+
+    mdp.setStageCostMatrix(g_mat);
+    mdp.setTransitionProbabilityTensor(P_mat);
 
     mdp.solve();
 }

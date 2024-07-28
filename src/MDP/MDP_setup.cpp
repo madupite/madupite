@@ -1,12 +1,8 @@
-//
-// Created by robin on 05.06.23.
-//
-
-#include "MDP.h"
-// #include <mpi.h>
 #include <iostream> // todo: replace with logging
 #include <memory>
 #include <string>
+
+#include "MDP.h"
 
 std::shared_ptr<Madupite> Madupite::instance;
 std::mutex                Madupite::mtx;
@@ -43,28 +39,10 @@ MDP::MDP(std::shared_ptr<Madupite> madupite, MPI_Comm comm)
     : madupite_(madupite)
     , comm_(comm)
 {
-    // MPI parallelization initialization
-    MPI_Comm_rank(comm_, &rank_);
-    MPI_Comm_size(comm_, &size_);
-    jsonWriter_ = std::make_unique<JsonWriter>(rank_);
+    jsonWriter_ = std::make_unique<JsonWriter>(comm_);
 
     // Logger::setPrefix("[R" + std::to_string(rank_) + "] ");
     // Logger::setFilename("log_R" + std::to_string(rank_) + ".txt"); // remove if all ranks should output to the same file
-}
-
-MDP::~MDP()
-{
-    PetscCallNoThrow(MatDestroy(&transitionProbabilityTensor_));
-    PetscCallNoThrow(MatDestroy(&stageCostMatrix_));
-}
-
-// Pre: numStates_ is set
-// Post: localNumStates_ is set
-void MDP::splitOwnership()
-{
-    localNumStates_ = PETSC_DECIDE;
-    PetscCallThrow(PetscSplitOwnership(comm_, &localNumStates_, &numStates_));
-    // std::cout << "Rank " << rank_ << " owns " << localNumStates_ << " states." << std::endl;
 }
 
 PetscErrorCode MDP::setValuesFromOptions()
@@ -73,12 +51,6 @@ PetscErrorCode MDP::setValuesFromOptions()
     PetscChar buf[PETSC_MAX_PATH_LEN];
 
     setupCalled = false;
-
-    PetscCall(PetscOptionsGetInt(NULL, NULL, "-num_states", &numStates_, &flg));
-    if (flg) { // set local num states here if numStates_ is set (e.g. not the case for loading from file)
-        splitOwnership();
-    }
-    PetscCall(PetscOptionsGetInt(NULL, NULL, "-num_actions", &numActions_, &flg));
 
     PetscCall(PetscOptionsGetReal(NULL, NULL, "-discount_factor", &discountFactor_, &flg));
     if (!flg) {
@@ -115,6 +87,15 @@ PetscErrorCode MDP::setValuesFromOptions()
     if (!flg) {
         SETERRQ(comm_, 1, "Filename for statistics not specified. Use -file_stats <string>. (max length: 4096 chars");
     }
+    PetscCall(PetscOptionsGetString(
+        NULL, NULL, "-export_optimal_transition_probabilities", file_optimal_transition_probabilities_, PETSC_MAX_PATH_LEN, &flg));
+    if (!flg) {
+        file_optimal_transition_probabilities_[0] = '\0';
+    }
+    PetscCall(PetscOptionsGetString(NULL, NULL, "-export_optimal_stage_costs", file_optimal_stage_costs_, PETSC_MAX_PATH_LEN, &flg));
+    if (!flg) {
+        file_optimal_stage_costs_[0] = '\0';
+    }
 
     PetscCall(PetscOptionsGetString(NULL, NULL, "-mode", buf, PETSC_MAX_PATH_LEN, &flg));
     if (!flg) {
@@ -130,15 +111,6 @@ PetscErrorCode MDP::setValuesFromOptions()
         SETERRQ(comm_, 1, "Input mode not recognized. Use -mode MINCOST or MAXREWARD.");
     }
 
-    PetscCall(PetscOptionsGetString(NULL, NULL, "-file_p", buf, PETSC_MAX_PATH_LEN, &flg));
-    if (flg) {
-        setSourceTransitionProbabilityTensor(buf);
-    }
-    PetscCall(PetscOptionsGetString(NULL, NULL, "-file_g", buf, PETSC_MAX_PATH_LEN, &flg));
-    if (flg) {
-        setSourceStageCostMatrix(buf);
-    }
-
     return 0;
 }
 
@@ -152,166 +124,16 @@ void MDP::setOption(const char* option, const char* value)
 
 void MDP::clearOptions() { PetscCallThrow(PetscOptionsClear(NULL)); }
 
-void MDP::setSourceStageCostMatrix(const std::string filename)
+void MDP::setStageCostMatrix(const Matrix& g)
 {
-    setupCalled  = false;
-    g_file_name_ = filename;
-    g_src_       = FILE;
-    PetscViewer viewer;
-    PetscCallThrow(PetscViewerBinaryOpen(comm_, g_file_name_.c_str(), FILE_MODE_READ, &viewer));
-    PetscCallThrow(PetscViewerBinaryRead(viewer, &g_file_meta_, 4, PETSC_NULLPTR, PETSC_INT));
-    PetscCallThrow(PetscViewerDestroy(&viewer));
+    setupCalled      = false;
+    stageCostMatrix_ = g;
 }
 
-void MDP::setSourceStageCostMatrix(const Costfunc& g)
+void MDP::setTransitionProbabilityTensor(const Matrix& P)
 {
-    setupCalled = false;
-    g_src_      = FUNCTION;
-    g_func_     = g;
-}
-
-void MDP::setSourceTransitionProbabilityTensor(const std::string filename)
-{
-    setupCalled  = false;
-    p_file_name_ = filename;
-    p_src_       = FILE;
-    PetscViewer viewer;
-    PetscCallThrow(PetscViewerBinaryOpen(comm_, p_file_name_.c_str(), FILE_MODE_READ, &viewer));
-    PetscCallThrow(PetscViewerBinaryRead(viewer, &p_file_meta_, 4, PETSC_NULLPTR, PETSC_INT));
-    PetscCallThrow(PetscViewerDestroy(&viewer));
-}
-
-void MDP::setSourceTransitionProbabilityTensor(const Probfunc& P)
-{
-    setupCalled = false;
-    p_src_      = FUNCTION;
-    p_func_     = P;
-}
-
-void MDP::setSourceTransitionProbabilityTensor(
-    const Probfunc& P, PetscInt d_nz, const std::vector<int>& d_nnz, PetscInt o_nz, const std::vector<int>& o_nnz)
-{
-    setupCalled = false;
-    p_src_      = FUNCTION;
-    p_func_     = P;
-    p_prealloc_ = true;
-    p_nnz_      = std::make_tuple(d_nz, d_nnz, o_nz, o_nnz);
-}
-
-void MDP::loadTransitionProbabilityTensor()
-{
-    std::cout << "Loading transition probability tensor from binary file: " << p_file_name_ << std::endl;
-    if (transitionProbabilityTensor_ != nullptr) {
-        PetscCallThrow(MatDestroy(&transitionProbabilityTensor_));
-    }
-    PetscCallThrow(MatCreate(comm_, &transitionProbabilityTensor_));
-    PetscCallThrow(MatSetFromOptions(transitionProbabilityTensor_));
-    PetscCallThrow(MatSetSizes(transitionProbabilityTensor_, localNumStates_ * numActions_, localNumStates_, numStates_ * numActions_, numStates_));
-    PetscCallThrow(MatSetUp(transitionProbabilityTensor_));
-    PetscViewer viewer;
-    PetscCallThrow(PetscViewerBinaryOpen(comm_, p_file_name_.c_str(), FILE_MODE_READ, &viewer));
-    PetscCallThrow(MatLoad(transitionProbabilityTensor_, viewer));
-    PetscCallThrow(PetscViewerDestroy(&viewer));
-    PetscCallThrow(MatGetOwnershipRange(transitionProbabilityTensor_, &p_start_, &p_end_));
-}
-
-void MDP::loadStageCostMatrix()
-{
-    std::cout << "Loading stage cost matrix from binary file: " << g_file_name_ << std::endl;
-    if (stageCostMatrix_ != nullptr) {
-        PetscCallThrow(MatDestroy(&stageCostMatrix_));
-    }
-    PetscCallThrow(MatCreate(comm_, &stageCostMatrix_));
-    PetscCallThrow(MatSetFromOptions(stageCostMatrix_));
-    PetscCallThrow(MatSetSizes(stageCostMatrix_, localNumStates_, PETSC_DECIDE, numStates_, numActions_));
-    PetscCallThrow(MatSetUp(stageCostMatrix_));
-    PetscViewer viewer;
-    PetscCallThrow(PetscViewerBinaryOpen(comm_, g_file_name_.c_str(), FILE_MODE_READ, &viewer));
-    PetscCallThrow(MatLoad(stageCostMatrix_, viewer));
-    PetscCallThrow(PetscViewerDestroy(&viewer));
-    PetscCallThrow(MatConvert(stageCostMatrix_, MATDENSE, MAT_INPLACE_MATRIX, &stageCostMatrix_)); // convert to dense matrix!
-    PetscCallThrow(MatGetOwnershipRange(stageCostMatrix_, &g_start_, &g_end_));
-}
-
-// Pre: localNumStates_, numStates_, numActions_ are set
-void MDP::createStageCostMatrix()
-{
-    std::cout << "Creating stage cost matrix from function" << std::endl;
-    if (stageCostMatrix_ != nullptr) {
-        PetscCallThrow(MatDestroy(&stageCostMatrix_));
-    }
-    PetscCallThrow(MatCreate(comm_, &stageCostMatrix_));
-    PetscCallThrow(MatSetSizes(stageCostMatrix_, localNumStates_, PETSC_DECIDE, numStates_, numActions_));
-    PetscCallThrow(MatSetType(stageCostMatrix_, MATDENSE));
-    // MatSetFromOptions(stageCostMatrix_);
-    PetscCallThrow(MatSetUp(stageCostMatrix_));
-    PetscCallThrow(MatGetOwnershipRange(stageCostMatrix_, &g_start_, &g_end_));
-
-    // fill
-    double value;
-    for (PetscInt stateInd = g_start_; stateInd < g_end_; ++stateInd) {
-        for (PetscInt actionInd = 0; actionInd < numActions_; ++actionInd) {
-            value = g_func_(stateInd, actionInd);
-            PetscCallThrow(MatSetValue(stageCostMatrix_, stateInd, actionInd, value, INSERT_VALUES));
-        }
-    }
-    PetscCallThrow(MatAssemblyBegin(stageCostMatrix_, MAT_FINAL_ASSEMBLY));
-    PetscCallThrow(MatAssemblyEnd(stageCostMatrix_, MAT_FINAL_ASSEMBLY));
-}
-
-void MDP::createTransitionProbabilityTensorPrealloc()
-{
-    std::cout << "Creating transition probability tensor from function with preallocation" << std::endl;
-    if (transitionProbabilityTensor_ != nullptr) {
-        PetscCallThrow(MatDestroy(&transitionProbabilityTensor_));
-    }
-    auto [d_nz, d_nnz, o_nz, o_nnz] = p_nnz_;
-    const PetscInt *d_nnz_ptr = d_nnz.data(), *o_nnz_ptr = o_nnz.data();
-    if (d_nnz.empty())
-        d_nnz_ptr = nullptr;
-    if (o_nnz.empty())
-        o_nnz_ptr = nullptr;
-    PetscCallThrow(MatCreate(comm_, &transitionProbabilityTensor_));
-    PetscCallThrow(MatSetSizes(transitionProbabilityTensor_, localNumStates_ * numActions_, PETSC_DECIDE, numStates_ * numActions_, numStates_));
-    PetscCallThrow(MatSetFromOptions(transitionProbabilityTensor_));
-    PetscCallThrow(MatMPIAIJSetPreallocation(transitionProbabilityTensor_, d_nz, d_nnz_ptr, o_nz, o_nnz_ptr));
-    PetscCallThrow(MatSetUp(transitionProbabilityTensor_));
-    PetscCallThrow(MatGetOwnershipRange(transitionProbabilityTensor_, &p_start_, &p_end_));
-
-    // fill
-    for (PetscInt stateInd = p_start_ / numActions_; stateInd < p_end_ / numActions_; ++stateInd) {
-        for (PetscInt actionInd = 0; actionInd < numActions_; ++actionInd) {
-            auto [values, indices] = p_func_(stateInd, actionInd);
-            PetscInt rowInd        = stateInd * numActions_ + actionInd;
-            PetscCallThrow(MatSetValues(transitionProbabilityTensor_, 1, &rowInd, indices.size(), indices.data(), values.data(), INSERT_VALUES));
-        }
-    }
-    PetscCallThrow(MatAssemblyBegin(transitionProbabilityTensor_, MAT_FINAL_ASSEMBLY));
-    PetscCallThrow(MatAssemblyEnd(transitionProbabilityTensor_, MAT_FINAL_ASSEMBLY));
-}
-
-void MDP::createTransitionProbabilityTensor()
-{
-    std::cout << "Creating transition probability tensor from function without preallocation" << std::endl;
-    if (transitionProbabilityTensor_ != nullptr) {
-        PetscCallThrow(MatDestroy(&transitionProbabilityTensor_));
-    }
-    PetscCallThrow(MatCreate(comm_, &transitionProbabilityTensor_));
-    PetscCallThrow(MatSetSizes(transitionProbabilityTensor_, localNumStates_ * numActions_, PETSC_DECIDE, numStates_ * numActions_, numStates_));
-    PetscCallThrow(MatSetFromOptions(transitionProbabilityTensor_));
-    PetscCallThrow(MatSetUp(transitionProbabilityTensor_));
-    PetscCallThrow(MatGetOwnershipRange(transitionProbabilityTensor_, &p_start_, &p_end_));
-
-    // fill
-    for (PetscInt stateInd = p_start_ / numActions_; stateInd < p_end_ / numActions_; ++stateInd) {
-        for (PetscInt actionInd = 0; actionInd < numActions_; ++actionInd) {
-            auto [values, indices] = p_func_(stateInd, actionInd);
-            PetscInt rowInd        = stateInd * numActions_ + actionInd;
-            PetscCallThrow(MatSetValues(transitionProbabilityTensor_, 1, &rowInd, indices.size(), indices.data(), values.data(), INSERT_VALUES));
-        }
-    }
-    PetscCallThrow(MatAssemblyBegin(transitionProbabilityTensor_, MAT_FINAL_ASSEMBLY));
-    PetscCallThrow(MatAssemblyEnd(transitionProbabilityTensor_, MAT_FINAL_ASSEMBLY));
+    setupCalled                  = false;
+    transitionProbabilityTensor_ = P;
 }
 
 void MDP::setUp()
@@ -321,48 +143,72 @@ void MDP::setUp()
 
     setValuesFromOptions();
 
-    if (p_src_ == FILE && g_src_ == FILE) {
-        // P: nm x n, g: n x m
-        // meta = [ClassID, Rows, Cols, NNZ]
-        if (p_file_meta_[1] != g_file_meta_[1] * g_file_meta_[2] || p_file_meta_[2] != g_file_meta_[1]) {
-            PetscThrow(comm_, 1,
-                "Sizes of cost matrix and transition probability tensor not compatible.\n"
-                "It should hold that P: nm x n, g: n x m,\n"
-                "where n is the number of states and m is the number of actions.\n");
-        }
-        numStates_  = p_file_meta_[2];
-        numActions_ = g_file_meta_[2];
-        splitOwnership();
-        loadTransitionProbabilityTensor();
-        loadStageCostMatrix();
-    } else if (p_src_ == FUNCTION && g_src_ == FUNCTION) {
-        splitOwnership();
-        if (p_prealloc_)
-            createTransitionProbabilityTensorPrealloc();
-        else
-            createTransitionProbabilityTensor();
-        createStageCostMatrix();
-    } else if (p_src_ == FILE && g_src_ == FUNCTION) {
-        if (p_file_meta_[1] != numStates_ * numActions_ || p_file_meta_[2] != numStates_) {
-            PetscThrow(
-                comm_, 1, "Size of transition probability tensor in the file doesn't match the specified options -num_states and -num_actions.");
-        }
-        splitOwnership();
-        loadTransitionProbabilityTensor();
-        createStageCostMatrix();
-    } else if (p_src_ == FUNCTION && g_src_ == FILE) {
-        if (g_file_meta_[1] != numStates_ || g_file_meta_[2] != numActions_) {
-            PetscThrow(comm_, 1, "Size of stage cost matrix in the file doesn't match the specified options -num_states and -num_actions.");
-        }
-        splitOwnership();
-        if (p_prealloc_)
-            createTransitionProbabilityTensorPrealloc();
-        else
-            createTransitionProbabilityTensor();
-        loadStageCostMatrix();
+    // check matrix sizes agree
+    if (transitionProbabilityTensor_.colLayout().localSize() != stageCostMatrix_.rowLayout().localSize()) {
+        // LOG("Error: stageCostMatrix and numStates do not agree.");
+        PetscThrow(comm_, 1, "Error: number of states do not agree (P != g): : %" PetscInt_FMT " != %" PetscInt_FMT,
+            transitionProbabilityTensor_.colLayout().localSize(), stageCostMatrix_.rowLayout().localSize());
     }
+    if (transitionProbabilityTensor_.rowLayout().size() / transitionProbabilityTensor_.colLayout().size() != stageCostMatrix_.colLayout().size()) {
+        // LOG("Error: transitionProbabilityTensor and numStates do not agree.");
+        PetscThrow(comm_, 1, "Error: number of actions do not agree (P != g): %" PetscInt_FMT " != %" PetscInt_FMT,
+            transitionProbabilityTensor_.rowLayout().size() / transitionProbabilityTensor_.colLayout().size(), stageCostMatrix_.colLayout().size());
+    }
+    numStates_      = stageCostMatrix_.rowLayout().size();
+    localNumStates_ = stageCostMatrix_.rowLayout().localSize();
+    numActions_     = stageCostMatrix_.colLayout().size();
+    g_start_        = stageCostMatrix_.rowLayout().start();
+    g_end_          = stageCostMatrix_.rowLayout().end();
 
     setupCalled = true;
+}
+
+// write MPIAIJ matrix as ASCII in COO format to file
+// TODO: same function as Matrix::writeToFile. This here should be removed, once Matrix is used in MDP
+void MDP::writeMat(const Mat& mat, const char* filename)
+{
+    PetscInt    m, n, rstart, rend;
+    PetscViewer viewer;
+    PetscMPIInt rank, size;
+    MatInfo     info;
+    PetscInt    nz_global;
+
+    PetscCallThrow(MatGetSize(mat, &m, &n));
+    PetscCallThrow(MatGetOwnershipRange(mat, &rstart, &rend));
+    PetscCallThrow(MPI_Comm_rank(PetscObjectComm((PetscObject)mat), &rank));
+    PetscCallThrow(MPI_Comm_size(PetscObjectComm((PetscObject)mat), &size));
+
+    // Get matrix info
+    PetscCallThrow(MatGetInfo(mat, MAT_GLOBAL_SUM, &info));
+    nz_global = (PetscInt)info.nz_used;
+
+    PetscCallThrow(PetscViewerCreate(PetscObjectComm((PetscObject)mat), &viewer));
+    PetscCallThrow(PetscViewerSetType(viewer, PETSCVIEWERASCII));
+    PetscCallThrow(PetscViewerFileSetMode(viewer, FILE_MODE_WRITE));
+    PetscCallThrow(PetscViewerFileSetName(viewer, filename));
+
+    // Write the first line with matrix dimensions and global non-zeros (global_rows, global_cols, global_nz)
+    if (rank == 0) {
+        PetscCallThrow(PetscViewerASCIIPrintf(viewer, "%d,%d,%d\n", m, n, nz_global));
+    }
+
+    PetscCallThrow(PetscViewerASCIIPushSynchronized(viewer));
+
+    for (PetscInt row = rstart; row < rend; row++) {
+        PetscInt           ncols;
+        const PetscInt*    cols;
+        const PetscScalar* vals;
+        PetscCallThrow(MatGetRow(mat, row, &ncols, &cols, &vals));
+        for (PetscInt j = 0; j < ncols; j++) {
+            // rowidx, colidx, value
+            PetscCallThrow(PetscViewerASCIISynchronizedPrintf(viewer, "%d,%d,%.15e\n", row, cols[j], (double)PetscRealPart(vals[j])));
+        }
+        PetscCallThrow(MatRestoreRow(mat, row, &ncols, &cols, &vals));
+    }
+
+    PetscCallThrow(PetscViewerFlush(viewer));
+    PetscCallThrow(PetscViewerASCIIPopSynchronized(viewer));
+    PetscCallThrow(PetscViewerDestroy(&viewer));
 }
 
 void MDP::writeVec(const Vec& vec, const char* filename)
@@ -372,8 +218,6 @@ void MDP::writeVec(const Vec& vec, const char* filename)
     PetscInt   size;
 
     PetscCallThrow(VecGetSize(vec, &size));
-
-    PetscCallThrow(VecCreateSeq(PETSC_COMM_SELF, size, &MPIVec));
 
     PetscCallThrow(VecScatterCreateToAll(vec, &ctx, &MPIVec));
     PetscCallThrow(VecScatterBegin(ctx, vec, MPIVec, INSERT_VALUES, SCATTER_FORWARD));
@@ -451,6 +295,9 @@ void MDP::writeIS(const IS& is, const char* filename)
 
 void MDP::writeJSONmetadata()
 {
+    PetscMPIInt size;
+    MPI_Comm_size(comm_, &size);
+
     // writes model specifics to file per launch of MDP::ineaxctPolicyIteration
     // ksp_type is written in MDP::iterativePolicyEvaluation (since it's only known there)
     jsonWriter_->add_data("num_states", numStates_);
@@ -460,7 +307,7 @@ void MDP::writeJSONmetadata()
     jsonWriter_->add_data("max_iter_ksp", maxIter_KSP_);
     jsonWriter_->add_data("alpha", alpha_);
     jsonWriter_->add_data("atol_pi", atol_PI_);
-    jsonWriter_->add_data("num_ranks", size_);
+    jsonWriter_->add_data("num_ranks", size);
 
     if (file_policy_[0] != '\0') {
         jsonWriter_->add_data("file_policy", file_policy_);
@@ -470,11 +317,5 @@ void MDP::writeJSONmetadata()
     }
     if (file_stats_[0] != '\0') {
         jsonWriter_->add_data("file_stats", file_stats_);
-    }
-    if (p_src_ == FILE) {
-        jsonWriter_->add_data("file_transition_probabilities", p_file_name_);
-    }
-    if (g_src_ == FILE) {
-        jsonWriter_->add_data("file_stage_costs", g_file_name_);
     }
 }
