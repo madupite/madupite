@@ -1,9 +1,4 @@
-//
-// Created by robin on 27.04.23.
-//
-
-#ifndef DISTRIBUTED_INEXACT_POLICY_ITERATION_MDP_H
-#define DISTRIBUTED_INEXACT_POLICY_ITERATION_MDP_H
+#pragma once
 
 #include <petscksp.h>
 #include <petscmat.h>
@@ -110,5 +105,3 @@ private:
 
     bool setupCalled = false;
 };
-
-#endif // DISTRIBUTED_INEXACT_POLICY_ITERATION_MDP_H
