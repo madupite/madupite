@@ -6,6 +6,7 @@
 
 std::shared_ptr<Madupite> Madupite::instance;
 std::mutex                Madupite::mtx;
+MPI_Comm           Madupite::comm_;
 
 std::shared_ptr<Madupite> Madupite::initialize(int* argc, char*** argv)
 {
@@ -32,6 +33,7 @@ std::shared_ptr<Madupite> Madupite::initialize(int* argc, char*** argv)
         instance = std::make_shared<EnableMakeShared>();
         PetscCallThrow(PetscInitialize(argc, argv, PETSC_NULLPTR, PETSC_NULLPTR));
     }
+    comm_ = PETSC_COMM_WORLD;
     return instance;
 }
 
@@ -39,7 +41,7 @@ MDP::MDP(std::shared_ptr<Madupite> madupite, MPI_Comm comm)
     : madupite_(madupite)
     , comm_(comm)
 {
-    jsonWriter_ = std::make_unique<JsonWriter>(comm_);
+    jsonWriter_ = std::make_unique<JsonWriter>(Madupite::getCommWorld());
 
     // Logger::setPrefix("[R" + std::to_string(rank_) + "] ");
     // Logger::setFilename("log_R" + std::to_string(rank_) + ".txt"); // remove if all ranks should output to the same file
@@ -54,23 +56,23 @@ PetscErrorCode MDP::setValuesFromOptions()
 
     PetscCall(PetscOptionsGetReal(NULL, NULL, "-discount_factor", &discountFactor_, &flg));
     if (!flg) {
-        SETERRQ(comm_, 1, "Discount factor not specified. Use -discountFactor <double>.");
+        SETERRQ(Madupite::getCommWorld(), 1, "Discount factor not specified. Use -discountFactor <double>.");
     }
     PetscCall(PetscOptionsGetInt(NULL, NULL, "-max_iter_pi", &maxIter_PI_, &flg));
     if (!flg) {
-        SETERRQ(comm_, 1, "Maximum number of policy iterations not specified. Use -maxIter_PI <int>.");
+        SETERRQ(Madupite::getCommWorld(), 1, "Maximum number of policy iterations not specified. Use -maxIter_PI <int>.");
     }
     PetscCall(PetscOptionsGetInt(NULL, NULL, "-max_iter_ksp", &maxIter_KSP_, &flg));
     if (!flg) {
-        SETERRQ(comm_, 1, "Maximum number of KSP iterations not specified. Use -maxIter_KSP <int>.");
+        SETERRQ(Madupite::getCommWorld(), 1, "Maximum number of KSP iterations not specified. Use -maxIter_KSP <int>.");
     }
     PetscCall(PetscOptionsGetReal(NULL, NULL, "-alpha", &alpha_, &flg));
     if (!flg) {
-        SETERRQ(comm_, 1, "Relative tolerance for KSP not specified. Use -alpha <double>.");
+        SETERRQ(Madupite::getCommWorld(), 1, "Relative tolerance for KSP not specified. Use -alpha <double>.");
     }
     PetscCall(PetscOptionsGetReal(NULL, NULL, "-atol_pi", &atol_PI_, &flg));
     if (!flg) {
-        SETERRQ(comm_, 1, "Absolute tolerance for policy iteration not specified. Use -atol_PI <double>.");
+        SETERRQ(Madupite::getCommWorld(), 1, "Absolute tolerance for policy iteration not specified. Use -atol_PI <double>.");
     }
     // jsonWriter_->add_data("atol_PI", atol_PI_);
     PetscCall(PetscOptionsGetString(NULL, NULL, "-file_policy", file_policy_, PETSC_MAX_PATH_LEN, &flg));
@@ -85,7 +87,7 @@ PetscErrorCode MDP::setValuesFromOptions()
     }
     PetscCall(PetscOptionsGetString(NULL, NULL, "-file_stats", file_stats_, PETSC_MAX_PATH_LEN, &flg));
     if (!flg) {
-        SETERRQ(comm_, 1, "Filename for statistics not specified. Use -file_stats <string>. (max length: 4096 chars");
+        SETERRQ(Madupite::getCommWorld(), 1, "Filename for statistics not specified. Use -file_stats <string>. (max length: 4096 chars");
     }
     PetscCall(PetscOptionsGetString(
         NULL, NULL, "-export_optimal_transition_probabilities", file_optimal_transition_probabilities_, PETSC_MAX_PATH_LEN, &flg));
@@ -99,7 +101,7 @@ PetscErrorCode MDP::setValuesFromOptions()
 
     PetscCall(PetscOptionsGetString(NULL, NULL, "-mode", buf, PETSC_MAX_PATH_LEN, &flg));
     if (!flg) {
-        SETERRQ(comm_, 1, "Input mode not specified. Use -mode MINCOST or MAXREWARD.");
+        SETERRQ(Madupite::getCommWorld(), 1, "Input mode not specified. Use -mode MINCOST or MAXREWARD.");
     }
     if (strcmp(buf, "MINCOST") == 0) {
         mode_ = MINCOST;
@@ -108,7 +110,7 @@ PetscErrorCode MDP::setValuesFromOptions()
         mode_ = MAXREWARD;
         // jsonWriter_->add_data("mode", "MAXREWARD");
     } else {
-        SETERRQ(comm_, 1, "Input mode not recognized. Use -mode MINCOST or MAXREWARD.");
+        SETERRQ(Madupite::getCommWorld(), 1, "Input mode not recognized. Use -mode MINCOST or MAXREWARD.");
     }
 
     return 0;
@@ -146,12 +148,12 @@ void MDP::setUp()
     // check matrix sizes agree
     if (transitionProbabilityTensor_.colLayout().localSize() != stageCostMatrix_.rowLayout().localSize()) {
         // LOG("Error: stageCostMatrix and numStates do not agree.");
-        PetscThrow(comm_, 1, "Error: number of states do not agree (P != g): : %" PetscInt_FMT " != %" PetscInt_FMT,
+        PetscThrow(Madupite::getCommWorld(), 1, "Error: number of states do not agree (P != g): : %" PetscInt_FMT " != %" PetscInt_FMT,
             transitionProbabilityTensor_.colLayout().localSize(), stageCostMatrix_.rowLayout().localSize());
     }
     if (transitionProbabilityTensor_.rowLayout().size() / transitionProbabilityTensor_.colLayout().size() != stageCostMatrix_.colLayout().size()) {
         // LOG("Error: transitionProbabilityTensor and numStates do not agree.");
-        PetscThrow(comm_, 1, "Error: number of actions do not agree (P != g): %" PetscInt_FMT " != %" PetscInt_FMT,
+        PetscThrow(Madupite::getCommWorld(), 1, "Error: number of actions do not agree (P != g): %" PetscInt_FMT " != %" PetscInt_FMT,
             transitionProbabilityTensor_.rowLayout().size() / transitionProbabilityTensor_.colLayout().size(), stageCostMatrix_.colLayout().size());
     }
     numStates_      = stageCostMatrix_.rowLayout().size();
@@ -227,7 +229,7 @@ void MDP::writeVec(const Vec& vec, const char* filename)
     PetscCallThrow(VecGetArrayRead(MPIVec, &values));
 
     PetscMPIInt rank;
-    PetscCallThrow(MPI_Comm_rank(comm_, &rank));
+    PetscCallThrow(MPI_Comm_rank(Madupite::getCommWorld(), &rank));
 
     // Rank 0 writes to file
     if (rank == 0) {
@@ -259,21 +261,21 @@ void MDP::writeIS(const IS& is, const char* filename)
     PetscCallThrow(ISGetIndices(is, &indices));
 
     PetscMPIInt rank;
-    PetscCallThrow(MPI_Comm_rank(comm_, &rank));
+    PetscCallThrow(MPI_Comm_rank(Madupite::getCommWorld(), &rank));
 
     if (rank == 0) {
         PetscCallThrow(PetscMalloc1(size, &allIndices));
         PetscCallThrow(PetscMalloc1(size, &recvcounts));
         PetscCallThrow(PetscMalloc1(size, &displs));
 
-        PetscCallThrow(MPI_Gather(&localSize, 1, MPI_INT, recvcounts, 1, MPI_INT, 0, comm_));
+        PetscCallThrow(MPI_Gather(&localSize, 1, MPI_INT, recvcounts, 1, MPI_INT, 0, Madupite::getCommWorld()));
 
         displs[0] = 0;
         for (PetscInt i = 1; i < size; ++i) {
             displs[i] = displs[i - 1] + recvcounts[i - 1];
         }
 
-        PetscCallThrow(MPI_Gatherv(indices, localSize, MPI_INT, allIndices, recvcounts, displs, MPI_INT, 0, comm_));
+        PetscCallThrow(MPI_Gatherv(indices, localSize, MPI_INT, allIndices, recvcounts, displs, MPI_INT, 0, Madupite::getCommWorld()));
 
         // Rank 0 writes to file
         std::ofstream out(filename);
@@ -286,8 +288,8 @@ void MDP::writeIS(const IS& is, const char* filename)
         PetscCallThrow(PetscFree(recvcounts));
         PetscCallThrow(PetscFree(displs));
     } else {
-        PetscCallThrow(MPI_Gather(&localSize, 1, MPI_INT, NULL, 0, MPI_INT, 0, comm_));
-        PetscCallThrow(MPI_Gatherv(indices, localSize, MPI_INT, NULL, NULL, NULL, MPI_INT, 0, comm_));
+        PetscCallThrow(MPI_Gather(&localSize, 1, MPI_INT, NULL, 0, MPI_INT, 0, Madupite::getCommWorld()));
+        PetscCallThrow(MPI_Gatherv(indices, localSize, MPI_INT, NULL, NULL, NULL, MPI_INT, 0, Madupite::getCommWorld()));
     }
 
     PetscCallThrow(ISRestoreIndices(is, &indices));
@@ -296,7 +298,7 @@ void MDP::writeIS(const IS& is, const char* filename)
 void MDP::writeJSONmetadata()
 {
     PetscMPIInt size;
-    MPI_Comm_size(comm_, &size);
+    MPI_Comm_size(Madupite::getCommWorld(), &size);
 
     // writes model specifics to file per launch of MDP::ineaxctPolicyIteration
     // ksp_type is written in MDP::iterativePolicyEvaluation (since it's only known there)

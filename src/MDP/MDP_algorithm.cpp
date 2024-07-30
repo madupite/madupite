@@ -11,8 +11,8 @@ void MDP::reshapeCostVectorToCostMatrix(const Vec costVector, Mat costMatrix)
     IS               rows, cols;
     const PetscReal* vals;
     PetscCallThrow(VecGetArrayRead(costVector, &vals));
-    PetscCallThrow(ISCreateStride(comm_, localNumStates_, g_start_, 1, &rows));
-    PetscCallThrow(ISCreateStride(comm_, numActions_, 0, 1, &cols));
+    PetscCallThrow(ISCreateStride(Madupite::getCommWorld(), localNumStates_, g_start_, 1, &rows));
+    PetscCallThrow(ISCreateStride(Madupite::getCommWorld(), numActions_, 0, 1, &cols));
     PetscCallThrow(MatSetValuesIS(costMatrix, rows, cols, vals, INSERT_VALUES));
     PetscCallThrow(VecRestoreArrayRead(costVector, &vals));
     PetscCallThrow(MatAssemblyBegin(costMatrix, MAT_FINAL_ASSEMBLY));
@@ -31,7 +31,7 @@ PetscReal MDP::getGreedyPolicyAndResidualNorm(Mat costMatrix, const Vec V, const
 
     // find minimum for each row and compute Bellman residual norm
     Vec residual;
-    PetscCallThrow(VecCreateMPI(comm_, localNumStates_, numStates_, &residual));
+    PetscCallThrow(VecCreateMPI(Madupite::getCommWorld(), localNumStates_, numStates_, &residual));
 
     PetscInt         nnz;
     const PetscInt*  colIdx;
@@ -85,7 +85,7 @@ Mat MDP::getTransitionProbabilities(const std::unique_ptr<PetscInt[]>& policy)
 
     // generate index sets
     IS rowInd;
-    PetscCallThrow(ISCreateGeneral(comm_, localNumStates_, rowIndArr.get(), PETSC_USE_POINTER, &rowInd));
+    PetscCallThrow(ISCreateGeneral(Madupite::getCommWorld(), localNumStates_, rowIndArr.get(), PETSC_USE_POINTER, &rowInd));
 
     // LOG("Creating transitionProbabilities submatrix");
     // TODO: can MatGetSubMatrix be used here?
@@ -116,11 +116,11 @@ Vec MDP::getStageCosts(const std::unique_ptr<PetscInt[]>& policy)
     }
 
     IS ind;
-    PetscCallThrow(ISCreateStride(comm_, localNumStates_, g_start_, 1, &ind));
+    PetscCallThrow(ISCreateStride(Madupite::getCommWorld(), localNumStates_, g_start_, 1, &ind));
 
     // LOG("Creating stageCosts vector");
     const PetscInt* indArr;
-    PetscCallThrow(VecCreateMPI(comm_, localNumStates_, numStates_, &stageCosts));
+    PetscCallThrow(VecCreateMPI(Madupite::getCommWorld(), localNumStates_, numStates_, &stageCosts));
     PetscCallThrow(ISGetIndices(ind, &indArr));
     PetscCallThrow(VecSetValues(stageCosts, localNumStates_, indArr, g_pi_values.get(), INSERT_VALUES));
     PetscCallThrow(ISRestoreIndices(ind, &indArr));
@@ -139,7 +139,7 @@ PetscInt MDP::iterativePolicyEvaluation(const Mat jacobian, const Vec stageCosts
 
     // KSP setup
     KSP ksp;
-    PetscCallThrow(KSPCreate(comm_, &ksp));
+    PetscCallThrow(KSPCreate(Madupite::getCommWorld(), &ksp));
     PetscCallThrow(KSPSetOperators(ksp, jacobian, jacobian));
 
     // PC setup
@@ -205,7 +205,7 @@ Mat MDP::createJacobian(const Mat transitionProbabilities, PetscReal discountFac
     Mat jacobian;
     // TODO: Could I use s smart pointer here?
     auto ctx = new MDPJacobian(transitionProbabilities, discountFactor);
-    PetscCallThrow(MatCreateShell(comm_, localNumStates_, localNumStates_, numStates_, numStates_, ctx, &jacobian));
+    PetscCallThrow(MatCreateShell(Madupite::getCommWorld(), localNumStates_, localNumStates_, numStates_, numStates_, ctx, &jacobian));
     PetscCallThrow(MatShellSetContextDestroy(jacobian, [](void* ctx) -> PetscErrorCode {
         delete (MDPJacobian*)ctx;
         return 0;
@@ -228,12 +228,12 @@ void MDP::solve()
 
     // init guess V0
     Vec V0;
-    PetscCallThrow(VecCreateMPI(comm_, localNumStates_, numStates_, &V0));
+    PetscCallThrow(VecCreateMPI(Madupite::getCommWorld(), localNumStates_, numStates_, &V0));
     PetscCallThrow(VecSet(V0, 1.0));
 
     // allocate cost matrix used in extractGreedyPolicy (n x m; DENSE)
     Mat costMatrix;
-    PetscCallThrow(MatCreate(comm_, &costMatrix));
+    PetscCallThrow(MatCreate(Madupite::getCommWorld(), &costMatrix));
     PetscCallThrow(MatSetType(costMatrix, MATDENSE));
     PetscCallThrow(MatSetSizes(costMatrix, localNumStates_, PETSC_DECIDE, numStates_, numActions_));
     PetscCallThrow(MatSetUp(costMatrix));
@@ -308,7 +308,7 @@ void MDP::solve()
     // output results
     IS optimalPolicy;
     // PetscCallThrow(PetscTime(&startTime));
-    PetscCallThrow(ISCreateGeneral(comm_, localNumStates_, policyValues.get(), PETSC_USE_POINTER, &optimalPolicy));
+    PetscCallThrow(ISCreateGeneral(Madupite::getCommWorld(), localNumStates_, policyValues.get(), PETSC_USE_POINTER, &optimalPolicy));
     writeVec(V, file_cost_);
     writeIS(optimalPolicy, file_policy_);
 

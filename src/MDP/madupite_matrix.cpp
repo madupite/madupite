@@ -47,6 +47,10 @@ Matrix::Matrix(
 // TODO PETSc feature proposal: it would be nice if the PETSc loader infers the correct type from the file
 Matrix Matrix::fromFile(MPI_Comm comm, const std::string& name, const std::string& filename, MatrixCategory category, MatrixType type)
 {
+    if (comm == MPI_COMM_NULL) {
+        throw MadupiteException("MADUPITE: Invalid MPI communicator");
+    }
+
     Matrix      A(comm, name, type);
     PetscViewer viewer;
     auto        mat = A.petsc();
@@ -65,7 +69,7 @@ Matrix Matrix::fromFile(MPI_Comm comm, const std::string& name, const std::strin
         PetscInt numStates      = sizes[2];
         PetscInt numActions     = sizes[1] / sizes[2];
         PetscInt localNumStates = PETSC_DECIDE;
-        PetscCallThrow(PetscSplitOwnership(PETSC_COMM_WORLD, &localNumStates, &numStates));
+        PetscCallThrow(PetscSplitOwnership(comm, &localNumStates, &numStates));
         PetscCallThrow(MatSetSizes(mat, localNumStates * numActions, PETSC_DECIDE, PETSC_DECIDE, numStates));
         break;
     }
@@ -73,7 +77,7 @@ Matrix Matrix::fromFile(MPI_Comm comm, const std::string& name, const std::strin
         PetscInt numStates      = sizes[1];
         PetscInt numActions     = sizes[2];
         PetscInt localNumStates = PETSC_DECIDE;
-        PetscCallThrow(PetscSplitOwnership(PETSC_COMM_WORLD, &localNumStates, &numStates));
+        PetscCallThrow(PetscSplitOwnership(comm, &localNumStates, &numStates));
         PetscCallThrow(MatSetSizes(mat, localNumStates, PETSC_DECIDE, PETSC_DECIDE, numActions));
         break;
     }

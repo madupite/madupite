@@ -14,6 +14,7 @@
 class Madupite {
     static std::shared_ptr<Madupite> instance;
     static std::mutex                mtx;
+    static MPI_Comm comm_;
 
     Madupite() = default;
 
@@ -33,6 +34,7 @@ public:
             throw MadupiteException("Madupite not initialized");
         return instance;
     }
+    static MPI_Comm getCommWorld() { return comm_; }
 
     ~Madupite()
     {
@@ -44,7 +46,7 @@ public:
 
 class MDP {
 public:
-    MDP(std::shared_ptr<Madupite> madupite, MPI_Comm comm = PETSC_COMM_WORLD);
+    MDP(std::shared_ptr<Madupite> madupite, MPI_Comm comm = Madupite::getCommWorld());
     void setOption(const char* option, const char* value = NULL);
     void clearOptions();
     void setStageCostMatrix(const Matrix& g);
