@@ -1,9 +1,9 @@
 import madupite
 
-def r(s, a):
+def rewardfunc(s, a):
     return 1.0 if s == 41 else 0.0
 
-def P(s, a):
+def probfunc(s, a):
     if a == 0:  # stay
         values = [0.9, 0.05, 0.05]
         indices = [s, (s - 1 + 50) % 50, (s + 1) % 50]
@@ -49,16 +49,16 @@ def main():
     mdp.setOption("-file_policy", "ci_policy.out")
     mdp.setOption("-ksp_type", "gmres")
 
-    # num_states = 50
-    # num_actions = 3
-    # prealloc = madupite.MatrixPreallocation()
-    # prealloc.o_nz = 3
-    # prealloc.d_nz = 3
-    # g = madupite.createStageCostMatrix(name="g", numStates=num_states, numActions=num_actions, func=r)
-    # P = madupite.createTransitionProbabilityTensor(name="P", numStates=num_states, numActions=num_actions, func=P, preallocation=prealloc)
+    num_states = 50
+    num_actions = 3
+    prealloc = madupite.MatrixPreallocation()
+    prealloc.o_nz = 3
+    prealloc.d_nz = 3
+    g = madupite.createStageCostMatrix(name="g", numStates=num_states, numActions=num_actions, func=rewardfunc)
+    P = madupite.createTransitionProbabilityTensor(name="P", numStates=num_states, numActions=num_actions, func=probfunc, preallocation=prealloc)
 
-    g = madupite.Matrix.fromFile(comm=madupite.getCommWorld(), name="g", filename="100_50_0.1/g.bin", category=madupite.MatrixCategory.Cost, type=madupite.MatrixType.Dense)
-    P = madupite.Matrix.fromFile(comm=madupite.getCommWorld(), name="P", filename="100_50_0.1/P.bin", category=madupite.MatrixCategory.Dynamics, type=madupite.MatrixType.Sparse)
+    # g = madupite.Matrix.fromFile(comm=madupite.getCommWorld(), name="g", filename="100_50_0.1/g.bin", category=madupite.MatrixCategory.Cost, type=madupite.MatrixType.Dense)
+    # P = madupite.Matrix.fromFile(comm=madupite.getCommWorld(), name="P", filename="100_50_0.1/P.bin", category=madupite.MatrixCategory.Dynamics, type=madupite.MatrixType.Sparse)
 
     mdp.setStageCostMatrix(g)
     mdp.setTransitionProbabilityTensor(P)
