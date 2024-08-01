@@ -58,12 +58,20 @@ init:
 build:
   stage: build
   script:
+    - pip install .
+    - mkdir -p build
+    - cd build
+    - cmake ..
     - make
   artifacts:
     paths:
-      - examples/*/bin/
+      - build/
 
 test:
   stage: test
   script:
+    - cd build
     - make test
+    - ctest --output-on-failure
+  dependencies:
+    - build

@@ -6,7 +6,7 @@
 
 std::shared_ptr<Madupite> Madupite::instance;
 std::mutex                Madupite::mtx;
-MPI_Comm           Madupite::comm_;
+MPI_Comm                  Madupite::comm_;
 
 std::shared_ptr<Madupite> Madupite::initialize(int* argc, char*** argv)
 {

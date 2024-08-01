@@ -14,7 +14,7 @@
 class Madupite {
     static std::shared_ptr<Madupite> instance;
     static std::mutex                mtx;
-    static MPI_Comm comm_;
+    static MPI_Comm                  comm_;
 
     Madupite() = default;
 

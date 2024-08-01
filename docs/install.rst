@@ -9,23 +9,23 @@ First, you need to make sure that the dependencies are available. A convenient w
 ::
 
    conda env create -f environment.yml
-   conda activate petscmadupite
+   conda activate madupiteenv
 
-Users that want to use their own PETSc or MPI version should make sure that cmake can find them with pkg-config.
+Users that want to use their own PETSc or MPI version should make sure that cmake can find them.
 
 ----------------
  Python package
 ----------------
 
-Assuming you have a working version of PETSc, e.g. by activating the conda environment above, you can install with pip inside the repo.
+Assuming you have a working version of PETSc, e.g. by activating the conda environment above, you can run pip:
 ::
 
    pip install .
 
-Make sure to always run your executables with mpirun. <number_of_ranks> could be the number of cores on your machine:
+Make sure to run your executables with mpirun. <number_of_ranks> could be the number of cores on your machine:
 ::
 
-   mpirun -N <number_of_ranks> python main.py
+   mpirun -n <number_of_ranks> python main.py
 
 
 ---------------
@@ -40,28 +40,28 @@ Assuming you have a working version of PETSc, e.g. by activating the conda envir
    make
 
 Now, you can change the main.cc file according to your application.
-Make sure to always run your executables with mpirun. <number_of_ranks> could be the number of cores on your machine:
+Make sure to run your executables with mpirun. <number_of_ranks> could be the number of cores on your machine:
 ::
 
-   mpirun -N <number_of_ranks> ./build/main
+   mpirun -n <number_of_ranks> ./build/main
 
+.. TODO
+.. ------------------------------
+..  Euler (ETH Zurich Cluster)
+.. ------------------------------
+.. Make sure to use the new software stack (run the command env2lmod). The file moduleload.sh is provided in the repo.
+.. ::
 
-------------------------------
- Euler (ETH Zurich Cluster)
-------------------------------
-Make sure to use the new software stack (run the command env2lmod). The file moduleload.sh is provided in the repo.
-::
+..    # this loads the correct software dependencies
+..    source moduleload.sh
 
-   # this loads the correct software dependencies
-   source moduleload.sh
+..    # Python-Version:
+..    pip install .
 
-   # Python-Version:
-   pip install .
+..    # C++-Version:
+..    mkdir build
+..    cd build
+..    cmake ..
+..    make
 
-   # C++-Version:
-   mkdir build
-   cd build
-   cmake ..
-   make
-
-Specify your job and the compute ressources in the launch.sh file.
+.. Specify your job and the compute ressources in the launch.sh file.

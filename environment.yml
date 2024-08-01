@@ -31,3 +31,4 @@ dependencies:
   - numpy
   - numba
   - gtest
+  - nanobind

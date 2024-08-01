@@ -5,9 +5,9 @@
 #include <nanobind/nanobind.h>
 #include <nanobind/stl/function.h>
 #include <nanobind/stl/pair.h>
+#include <nanobind/stl/shared_ptr.h>
 #include <nanobind/stl/string.h>
 #include <nanobind/stl/vector.h>
-#include <nanobind/stl/shared_ptr.h>
 
 namespace nb = nanobind;
 using namespace nb::literals;
@@ -21,7 +21,7 @@ NB_MODULE(_madupite_impl, m)
     // nb::class_<MPI_Comm>(m, "MPI_Comm");
     // m.def("COMM_WORLD", []() { return PETSC_COMM_WORLD; }, "Global communicator for MPI");
     // m.def("petsc_initialize")
-    
+
     m.def("mpi_rank_size", []() {
         int rank, size;
         MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
@@ -32,15 +32,9 @@ NB_MODULE(_madupite_impl, m)
     //////////
     // Matrix
     //////////
-    nb::enum_<MatrixType>(m, "MatrixType")
-        .value("Dense", MatrixType::Dense)
-        .value("Sparse", MatrixType::Sparse)
-        .export_values();
+    nb::enum_<MatrixType>(m, "MatrixType").value("Dense", MatrixType::Dense).value("Sparse", MatrixType::Sparse).export_values();
 
-    nb::enum_<MatrixCategory>(m, "MatrixCategory")
-        .value("Dynamics", MatrixCategory::Dynamics)
-        .value("Cost", MatrixCategory::Cost)
-        .export_values();
+    nb::enum_<MatrixCategory>(m, "MatrixCategory").value("Dynamics", MatrixCategory::Dynamics).value("Cost", MatrixCategory::Cost).export_values();
 
     nb::class_<MatrixPreallocation>(m, "MatrixPreallocation")
         .def(nb::init<>())
@@ -55,17 +49,17 @@ NB_MODULE(_madupite_impl, m)
         .def_static("fromFile", &Matrix::fromFile, nb::kw_only(), "comm"_a = Madupite::getCommWorld(), "name"_a, "filename"_a, "category"_a, "type"_a)
         .def("writeToFile", &Matrix::writeToFile);
 
-    m.def("createTransitionProbabilityTensor", &createTransitionProbabilityTensor, nb::kw_only(), "comm"_a = Madupite::getCommWorld(), "name"_a, "numStates"_a, "numActions"_a, "func"_a, "preallocation"_a = MatrixPreallocation{});
-    m.def("createStageCostMatrix", &createStageCostMatrix, nb::kw_only(), "comm"_a = Madupite::getCommWorld(), "name"_a, "numStates"_a, "numActions"_a, "func"_a);
+    m.def("createTransitionProbabilityTensor", &createTransitionProbabilityTensor, nb::kw_only(), "comm"_a = Madupite::getCommWorld(), "name"_a,
+        "numStates"_a, "numActions"_a, "func"_a, "preallocation"_a                                         = MatrixPreallocation {});
+    m.def("createStageCostMatrix", &createStageCostMatrix, nb::kw_only(), "comm"_a = Madupite::getCommWorld(), "name"_a, "numStates"_a,
+        "numActions"_a, "func"_a);
 
     //////////
-    // MDP 
+    // MDP
     //////////
     nb::class_<MDP>(m, "MDP")
-        .def(nb::init<std::shared_ptr<Madupite>, MPI_Comm>(), 
-             nb::arg("madupite"), nb::arg("comm") = Madupite::getCommWorld())
-        .def("setOption", &MDP::setOption,
-             nb::arg("option"), nb::arg("value") = nullptr)
+        .def(nb::init<std::shared_ptr<Madupite>, MPI_Comm>(), nb::arg("madupite"), nb::arg("comm") = Madupite::getCommWorld())
+        .def("setOption", &MDP::setOption, nb::arg("option"), nb::arg("value") = nullptr)
         .def("clearOptions", &MDP::clearOptions)
         .def("setStageCostMatrix", &MDP::setStageCostMatrix)
         .def("setTransitionProbabilityTensor", &MDP::setTransitionProbabilityTensor)
