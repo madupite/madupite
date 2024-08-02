@@ -10,7 +10,7 @@ option(BUILD_TESTS "Build the unit tests" OFF)
 
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 find_package(PkgConfig REQUIRED)
-pkg_search_module(PETSC REQUIRED IMPORTED_TARGET PetSc)
+pkg_search_module(PETSC REQUIRED IMPORTED_TARGET PETSc)
 
 find_package(MPI REQUIRED)
 
