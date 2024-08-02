@@ -61,7 +61,7 @@ build:
     - pip install .
     - mkdir -p build
     - cd build
-    - cmake ..
+    - cmake .. -DBUILD_TESTS=ON
     - make
   artifacts:
     paths:
