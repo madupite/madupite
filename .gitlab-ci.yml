@@ -58,7 +58,6 @@ init:
 build:
   stage: build
   script:
-    - pip install .
     - mkdir -p build
     - cd build
     - cmake .. -DBUILD_TESTS=ON
@@ -70,6 +69,7 @@ build:
 test:
   stage: test
   script:
+    - pip install .
     - cd build
     - ctest --output-on-failure
   dependencies:
