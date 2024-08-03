@@ -56,7 +56,7 @@ PetscErrorCode MDP::setValuesFromOptions()
 
     PetscCall(PetscOptionsGetReal(NULL, NULL, "-discount_factor", &discountFactor_, &flg));
     if (!flg) {
-        SETERRQ(Madupite::getCommWorld(), 1, "Discount factor not specified. Use -discountFactor <double>.");
+        SETERRQ(Madupite::getCommWorld(), 1, "Discount factor not specified. Use -discount_factor <double>.");
     }
     PetscCall(PetscOptionsGetInt(NULL, NULL, "-max_iter_pi", &maxIter_PI_, &flg));
     if (!flg) {
