@@ -71,7 +71,6 @@ test:
   stage: test
   script:
     - cd build
-    - make test
     - ctest --output-on-failure
   dependencies:
     - build

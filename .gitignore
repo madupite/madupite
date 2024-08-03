@@ -24,3 +24,4 @@ petsc-env
 bin/
 lib/
 petsc*-env
+.pytest_cache/
