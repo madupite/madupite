@@ -23,33 +23,48 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 # Automatically collect source and header files
-file(GLOB MDP_SOURCES "src/MDP/*.cpp" "include/*.h")
+file(GLOB MDP_SOURCES "src/*.cpp")
+list(REMOVE_ITEM MDP_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/pymadupite.cpp")
 
 # Check if the project is being built with pip install .
 if (SKBUILD)
-  find_package(Python 3.8
+  find_package(
+    Python 3.8
     REQUIRED COMPONENTS Interpreter Development.Module
-    OPTIONAL_COMPONENTS Development.SABIModule)
+    OPTIONAL_COMPONENTS Development.SABIModule
+  )
 
   find_package(nanobind CONFIG REQUIRED)
 
   # Build the Python extension using nanobind
   nanobind_add_module(
-    _madupite_impl
+    madupite
     STABLE_ABI
     NB_STATIC
     src/pymadupite.cpp
     ${MDP_SOURCES}
   )
 
-  target_link_libraries(_madupite_impl
+  target_link_libraries(
+    madupite
     PRIVATE
     PkgConfig::PETSC
     MPI::MPI_CXX
   )
 
   # Install the Python module
-  install(TARGETS _madupite_impl LIBRARY DESTINATION madupite)
+  install(TARGETS madupite LIBRARY DESTINATION madupite)
+
+  nanobind_add_stub(
+    madupite_stub
+    MODULE madupite
+    OUTPUT madupite.pyi
+    PYTHON_PATH $<TARGET_FILE_DIR:madupite>
+    DEPENDS madupite
+    MARKER_FILE py.typed
+  )
+
+  install(FILES ${CMAKE_BINARY_DIR}/madupite.pyi ${CMAKE_BINARY_DIR}/py.typed DESTINATION madupite)
 
 else()
   add_library(madupite

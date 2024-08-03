@@ -12,7 +12,7 @@
 namespace nb = nanobind;
 using namespace nb::literals;
 
-NB_MODULE(_madupite_impl, m)
+NB_MODULE(madupite, m)
 {
     // Madupite
     nb::class_<Madupite>(m, "Madupite");
