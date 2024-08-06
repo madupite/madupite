@@ -1,5 +1,5 @@
 from . import madupite as madupite
-from .madupite import (
+from .madupite import (  # type: ignore
     MDP as MDP,
     Madupite as Madupite,
     Matrix as Matrix,

@@ -66,6 +66,9 @@ def main():
         func=probfunc,
         preallocation=prealloc,
     )
+    mdp.setStageCostMatrix(g)
+    mdp.setTransitionProbabilityTensor(P)
+    mdp.solve()
 
     g = madupite.Matrix.fromFile(
         comm=madupite.getCommWorld(),

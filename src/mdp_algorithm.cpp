@@ -1,7 +1,6 @@
 #include <algorithm>
 #include <iostream> // TODO: replace with some logger
 #include <memory>
-// #include "../utils/Logger.h"
 
 #include "MDP.h"
 
@@ -11,8 +10,8 @@ void MDP::reshapeCostVectorToCostMatrix(const Vec costVector, Mat costMatrix)
     IS               rows, cols;
     const PetscReal* vals;
     PetscCallThrow(VecGetArrayRead(costVector, &vals));
-    PetscCallThrow(ISCreateStride(Madupite::getCommWorld(), localNumStates_, g_start_, 1, &rows));
-    PetscCallThrow(ISCreateStride(Madupite::getCommWorld(), numActions_, 0, 1, &cols));
+    PetscCallThrow(ISCreateStride(Madupite::getCommWorld(), local_num_states_, g_start_, 1, &rows));
+    PetscCallThrow(ISCreateStride(Madupite::getCommWorld(), num_actions_, 0, 1, &cols));
     PetscCallThrow(MatSetValuesIS(costMatrix, rows, cols, vals, INSERT_VALUES));
     PetscCallThrow(VecRestoreArrayRead(costVector, &vals));
     PetscCallThrow(MatAssemblyBegin(costMatrix, MAT_FINAL_ASSEMBLY));
@@ -22,7 +21,7 @@ void MDP::reshapeCostVectorToCostMatrix(const Vec costVector, Mat costMatrix)
 }
 
 // find $\argmin_{\pi} \{ g^\pi + \gamma P^\pi V \}$
-// PRE: policy is a array of size localNumStates_ and must be allocated.
+// PRE: policy is a array of size local_num_states_ and must be allocated.
 // POST: returns infinity norm of Bellman residual and writes optimal policy into policy
 PetscReal MDP::getGreedyPolicyAndResidualNorm(Mat costMatrix, const Vec V, const std::unique_ptr<PetscInt[]>& policy)
 {
@@ -31,7 +30,7 @@ PetscReal MDP::getGreedyPolicyAndResidualNorm(Mat costMatrix, const Vec V, const
 
     // find minimum for each row and compute Bellman residual norm
     Vec residual;
-    PetscCallThrow(VecCreateMPI(Madupite::getCommWorld(), localNumStates_, numStates_, &residual));
+    PetscCallThrow(VecCreateMPI(Madupite::getCommWorld(), local_num_states_, num_states_, &residual));
 
     PetscInt         nnz;
     const PetscInt*  colIdx;
@@ -39,7 +38,7 @@ PetscReal MDP::getGreedyPolicyAndResidualNorm(Mat costMatrix, const Vec V, const
 
     // TODO VH: MatGetRow/MatRestoreRow might be inefficient for a dense matrix
     if (mode_ == mode::MINCOST) {
-        for (PetscInt rowInd = 0; rowInd < localNumStates_; ++rowInd) {
+        for (PetscInt rowInd = 0; rowInd < local_num_states_; ++rowInd) {
             PetscCallThrow(MatGetRow(costMatrix, rowInd + g_start_, &nnz, &colIdx, &vals));
             const PetscReal* min = std::min_element(vals, vals + nnz);
             policy[rowInd]       = colIdx[min - vals];
@@ -47,7 +46,7 @@ PetscReal MDP::getGreedyPolicyAndResidualNorm(Mat costMatrix, const Vec V, const
             PetscCallThrow(MatRestoreRow(costMatrix, rowInd + g_start_, &nnz, &colIdx, &vals));
         }
     } else if (mode_ == mode::MAXREWARD) {
-        for (PetscInt rowInd = 0; rowInd < localNumStates_; ++rowInd) {
+        for (PetscInt rowInd = 0; rowInd < local_num_states_; ++rowInd) {
             PetscCallThrow(MatGetRow(costMatrix, rowInd + g_start_, &nnz, &colIdx, &vals));
             const PetscReal* max = std::max_element(vals, vals + nnz);
             policy[rowInd]       = colIdx[max - vals];
@@ -73,23 +72,22 @@ Mat MDP::getTransitionProbabilities(const std::unique_ptr<PetscInt[]>& policy)
     Mat transitionProbabilities;
 
     // allocate memory for values
-    auto rowIndArr = std::make_unique<PetscInt[]>(localNumStates_);
+    auto rowIndArr = std::make_unique<PetscInt[]>(local_num_states_);
 
     // compute global row indices for P
-    PetscInt p_start = transitionProbabilityTensor_.rowLayout().start();
+    PetscInt p_start = transition_probability_tensor_.rowLayout().start();
     PetscInt actionInd;
-    for (PetscInt localStateInd = 0; localStateInd < localNumStates_; ++localStateInd) {
+    for (PetscInt localStateInd = 0; localStateInd < local_num_states_; ++localStateInd) {
         actionInd                = policy[localStateInd];
-        rowIndArr[localStateInd] = p_start + localStateInd * numActions_ + actionInd;
+        rowIndArr[localStateInd] = p_start + localStateInd * num_actions_ + actionInd;
     }
 
     // generate index sets
     IS rowInd;
-    PetscCallThrow(ISCreateGeneral(Madupite::getCommWorld(), localNumStates_, rowIndArr.get(), PETSC_USE_POINTER, &rowInd));
+    PetscCallThrow(ISCreateGeneral(Madupite::getCommWorld(), local_num_states_, rowIndArr.get(), PETSC_USE_POINTER, &rowInd));
 
-    // LOG("Creating transitionProbabilities submatrix");
     // TODO: can MatGetSubMatrix be used here?
-    PetscCallThrow(MatCreateSubMatrix(transitionProbabilityTensor_.petsc(), rowInd, NULL, MAT_INITIAL_MATRIX, &transitionProbabilities));
+    PetscCallThrow(MatCreateSubMatrix(transition_probability_tensor_.petsc(), rowInd, NULL, MAT_INITIAL_MATRIX, &transitionProbabilities));
     // TODO: Is this necessary?
     PetscCallThrow(MatAssemblyBegin(transitionProbabilities, MAT_FINAL_ASSEMBLY));
     PetscCallThrow(MatAssemblyEnd(transitionProbabilities, MAT_FINAL_ASSEMBLY));
@@ -105,24 +103,23 @@ Vec MDP::getStageCosts(const std::unique_ptr<PetscInt[]>& policy)
     Vec stageCosts;
 
     // allocate memory for values
-    auto g_pi_values = std::make_unique<PetscScalar[]>(localNumStates_);
+    auto g_pi_values = std::make_unique<PetscScalar[]>(local_num_states_);
 
     // get values for g_pi
     PetscInt g_srcRow, actionInd;
-    for (PetscInt localStateInd = 0; localStateInd < localNumStates_; ++localStateInd) {
+    for (PetscInt localStateInd = 0; localStateInd < local_num_states_; ++localStateInd) {
         actionInd = policy[localStateInd];
         g_srcRow  = g_start_ + localStateInd;
-        PetscCallThrow(MatGetValue(stageCostMatrix_.petsc(), g_srcRow, actionInd, &g_pi_values[localStateInd]));
+        PetscCallThrow(MatGetValue(stage_cost_matrix_.petsc(), g_srcRow, actionInd, &g_pi_values[localStateInd]));
     }
 
     IS ind;
-    PetscCallThrow(ISCreateStride(Madupite::getCommWorld(), localNumStates_, g_start_, 1, &ind));
+    PetscCallThrow(ISCreateStride(Madupite::getCommWorld(), local_num_states_, g_start_, 1, &ind));
 
-    // LOG("Creating stageCosts vector");
     const PetscInt* indArr;
-    PetscCallThrow(VecCreateMPI(Madupite::getCommWorld(), localNumStates_, numStates_, &stageCosts));
+    PetscCallThrow(VecCreateMPI(Madupite::getCommWorld(), local_num_states_, num_states_, &stageCosts));
     PetscCallThrow(ISGetIndices(ind, &indArr));
-    PetscCallThrow(VecSetValues(stageCosts, localNumStates_, indArr, g_pi_values.get(), INSERT_VALUES));
+    PetscCallThrow(VecSetValues(stageCosts, local_num_states_, indArr, g_pi_values.get(), INSERT_VALUES));
     PetscCallThrow(ISRestoreIndices(ind, &indArr));
     PetscCallThrow(VecAssemblyBegin(stageCosts));
     PetscCallThrow(VecAssemblyEnd(stageCosts));
@@ -151,19 +148,16 @@ PetscInt MDP::iterativePolicyEvaluation(const Mat jacobian, const Vec stageCosts
     PetscCallThrow(KSPSetInitialGuessNonzero(ksp, PETSC_TRUE));
     // Use L2 norm of residual to compare. This works since ||x||_2 >= ||x||_inf. Much faster than infinity norm.
     PetscCallThrow(KSPSetTolerances(ksp, 1e-40, threshold, PETSC_DEFAULT, maxIter));
-    // ierr = KSPSetConvergenceTest(ksp, &MDP::cvgTest, &ctx, NULL); CHKERRQ(ierr); // custom convergence test using infinity norm
 
-    // Inner loop itself
     PetscCallThrow(KSPSolve(ksp, stageCosts, V));
 
-    // Save KSP info to JSON
     KSPType ksptype;
     PCType  pctype;
     PetscCallThrow(KSPGetType(ksp, &ksptype));
     // must be written here since KSPType is only available after KSPSolve. Other data should be written in MDP::writeJSONmetadata
     PetscCallThrow(PCGetType(pc, &pctype));
-    jsonWriter_->add_data("KSPType", ksptype);
-    jsonWriter_->add_data("PCType", pctype);
+    json_writer_->add_data("KSPType", ksptype);
+    json_writer_->add_data("PCType", pctype);
 
     // Output iteration count
     PetscInt kspIterations;
@@ -203,9 +197,9 @@ struct MDPJacobian {
 Mat MDP::createJacobian(const Mat transitionProbabilities, PetscReal discountFactor)
 {
     Mat jacobian;
-    // TODO: Could I use s smart pointer here?
+    // TODO: Should we use a smart pointer here?
     auto ctx = new MDPJacobian(transitionProbabilities, discountFactor);
-    PetscCallThrow(MatCreateShell(Madupite::getCommWorld(), localNumStates_, localNumStates_, numStates_, numStates_, ctx, &jacobian));
+    PetscCallThrow(MatCreateShell(Madupite::getCommWorld(), local_num_states_, local_num_states_, num_states_, num_states_, ctx, &jacobian));
     PetscCallThrow(MatShellSetContextDestroy(jacobian, [](void* ctx) -> PetscErrorCode {
         delete (MDPJacobian*)ctx;
         return 0;
@@ -219,28 +213,26 @@ Mat MDP::createJacobian(const Mat transitionProbabilities, PetscReal discountFac
 
 void MDP::solve()
 {
-    // make sure MDP is set up
     setUp();
 
-    // if(rank_ == 0) LOG("Entering solve");
-    jsonWriter_->add_solver_run();
+    json_writer_->add_solver_run();
     writeJSONmetadata();
 
-    // init guess V0
+    // initial guess V0
     Vec V0;
-    PetscCallThrow(VecCreateMPI(Madupite::getCommWorld(), localNumStates_, numStates_, &V0));
+    PetscCallThrow(VecCreateMPI(Madupite::getCommWorld(), local_num_states_, num_states_, &V0));
     PetscCallThrow(VecSet(V0, 1.0));
 
     // allocate cost matrix used in extractGreedyPolicy (n x m; DENSE)
     Mat costMatrix;
     PetscCallThrow(MatCreate(Madupite::getCommWorld(), &costMatrix));
     PetscCallThrow(MatSetType(costMatrix, MATDENSE));
-    PetscCallThrow(MatSetSizes(costMatrix, localNumStates_, PETSC_DECIDE, numStates_, numActions_));
+    PetscCallThrow(MatSetSizes(costMatrix, local_num_states_, PETSC_DECIDE, num_states_, num_actions_));
     PetscCallThrow(MatSetUp(costMatrix));
 
     // allocated cost vector used in extractGreedyPolicy (n; DENSE)
     Vec costVector;
-    PetscCallThrow(MatCreateVecs(transitionProbabilityTensor_.petsc(), nullptr, &costVector));
+    PetscCallThrow(MatCreateVecs(transition_probability_tensor_.petsc(), nullptr, &costVector));
 
     Vec V;
     PetscCallThrow(VecDuplicate(V0, &V));
@@ -248,29 +240,28 @@ void MDP::solve()
 
     PetscLogDouble startTime, endTime, startiPI, endiPI;
 
-    auto policyValues = std::make_unique<PetscInt[]>(localNumStates_);
+    auto policyValues = std::make_unique<PetscInt[]>(local_num_states_);
 
     PetscCallThrow(PetscTime(&startiPI));
     PetscInt PI_iteration = 0;
-    for (; PI_iteration < maxIter_PI_; ++PI_iteration) { // outer loop
+    for (; PI_iteration < max_iter_pi_; ++PI_iteration) { // outer loop
         PetscCallThrow(PetscTime(&startTime));
         // costVector = discountFactor * P * V
-        PetscCallThrow(MatMult(transitionProbabilityTensor_.petsc(), V, costVector));
-        PetscCallThrow(VecScale(costVector, discountFactor_));
+        PetscCallThrow(MatMult(transition_probability_tensor_.petsc(), V, costVector));
+        PetscCallThrow(VecScale(costVector, discount_factor_));
 
         // reshape costVector to costMatrix
         reshapeCostVectorToCostMatrix(costVector, costMatrix);
 
         // add g to costMatrix
-        PetscCallThrow(MatAXPY(costMatrix, 1.0, stageCostMatrix_.petsc(), SAME_NONZERO_PATTERN));
+        PetscCallThrow(MatAXPY(costMatrix, 1.0, stage_cost_matrix_.petsc(), SAME_NONZERO_PATTERN));
 
         // extract greedy policy
         auto residualNorm = getGreedyPolicyAndResidualNorm(costMatrix, V, policyValues);
 
-        if (residualNorm < atol_PI_) {
+        if (residualNorm < atol_pi_) {
             PetscCallThrow(PetscTime(&endTime));
-            jsonWriter_->add_iteration_data(PI_iteration, 0, (endTime - startTime) * 1000, residualNorm);
-            // if(rank_ == 0) LOG("Iteration " + std::to_string(PI_iteration) + " residual norm: " + std::to_string(residualNorm));
+            json_writer_->add_iteration_data(PI_iteration, 0, (endTime - startTime) * 1000, residualNorm);
             break;
         }
 
@@ -280,35 +271,32 @@ void MDP::solve()
         auto stageCosts              = getStageCosts(policyValues);
 
         // create jacobian
-        auto jacobian = createJacobian(transitionProbabilities, discountFactor_);
+        auto jacobian = createJacobian(transitionProbabilities, discount_factor_);
 
         // inner loop: solve linear system
         auto threshold     = residualNorm * alpha_;
-        auto kspIterations = iterativePolicyEvaluation(jacobian, stageCosts, maxIter_KSP_, threshold, V);
+        auto kspIterations = iterativePolicyEvaluation(jacobian, stageCosts, max_iter_ksp_, threshold, V);
 
         PetscCallThrow(MatDestroy(&transitionProbabilities));
-        PetscCallThrow(MatDestroy(&jacobian)); // avoid memory leak
+        PetscCallThrow(MatDestroy(&jacobian));
         PetscCallThrow(VecDestroy(&stageCosts));
 
         PetscCallThrow(PetscTime(&endTime));
-        jsonWriter_->add_iteration_data(PI_iteration, kspIterations, (endTime - startTime) * 1000, residualNorm);
-        // if(rank_ == 0) LOG("Iteration " + std::to_string(PI_iteration) + " residual norm: " + std::to_string(residualNorm));
+        json_writer_->add_iteration_data(PI_iteration, kspIterations, (endTime - startTime) * 1000, residualNorm);
     }
     PetscCallThrow(PetscTime(&endiPI));
-    // LOG("Inexact Policy Iteration took: " + std::to_string((endiPI - startiPI) * 1000) + " ms");
 
-    if (PI_iteration >= maxIter_PI_) {
-        // LOG("Warning: maximum number of PI iterations reached. Solution might not be optimal.");
+    if (PI_iteration >= max_iter_pi_) {
         std::cout << "Warning: maximum number of PI iterations reached. Solution might not be optimal." << std::endl;
-        jsonWriter_->add_data("remark", "Warning: maximum number of iPI iterations reached. Solution might not be optimal.");
+        json_writer_->add_data("remark", "Warning: maximum number of iPI iterations reached. Solution might not be optimal.");
     }
 
-    jsonWriter_->write_to_file(file_stats_);
+    json_writer_->write_to_file(file_stats_);
 
     // output results
     IS optimalPolicy;
     // PetscCallThrow(PetscTime(&startTime));
-    PetscCallThrow(ISCreateGeneral(Madupite::getCommWorld(), localNumStates_, policyValues.get(), PETSC_USE_POINTER, &optimalPolicy));
+    PetscCallThrow(ISCreateGeneral(Madupite::getCommWorld(), local_num_states_, policyValues.get(), PETSC_USE_POINTER, &optimalPolicy));
     writeVec(V, file_cost_);
     writeIS(optimalPolicy, file_policy_);
 
@@ -323,12 +311,6 @@ void MDP::solve()
         writeVec(optimalStageCosts, file_optimal_stage_costs_);
         PetscCallThrow(VecDestroy(&optimalStageCosts));
     }
-
-    // PetscCallThrow(PetscTime(&endTime));
-    // PetscLogDouble duration = (endTime - startTime) * 1000;
-    // if (rank_ == 0) {
-    //     LOG("Saving results took: " + std::to_string(duration) + " ms");
-    // }
 
     PetscCallThrow(ISDestroy(&optimalPolicy));
     PetscCallThrow(VecDestroy(&V0));

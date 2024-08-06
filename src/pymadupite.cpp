@@ -16,7 +16,7 @@ NB_MODULE(madupite, m)
 {
     nb::class_<Madupite>(m, "Madupite");
 
-    m.def("initialize_madupite", []() { return Madupite::initialize(nullptr, nullptr); }, "Initialize Madupite instance");
+    m.def("initialize_madupite", []() { return Madupite::initialize(nullptr, nullptr); }, R"pbdoc(Initialize Madupite instance)pbdoc");
 
     m.def("getCommWorld", []() { return Madupite::getCommWorld(); }, "Get global communicator for MPI");
 

@@ -40,11 +40,12 @@ public:
 
     void write_to_file(const std::string& filename)
     {
-        if (rank_ == 0) {
-            nlohmann::json data;
-            data["runs"] = runs;
-            std::ofstream file(filename);
-            file << data.dump(4);
-        }
+        if (filename[0] != '\0')
+            if (rank_ == 0) {
+                nlohmann::json data;
+                data["runs"] = runs;
+                std::ofstream file(filename);
+                file << data.dump(4);
+            }
     }
 };

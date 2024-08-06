@@ -41,128 +41,117 @@ MDP::MDP(std::shared_ptr<Madupite> madupite, MPI_Comm comm)
     : madupite_(madupite)
     , comm_(comm)
 {
-    jsonWriter_ = std::make_unique<JsonWriter>(Madupite::getCommWorld());
-
-    // Logger::setPrefix("[R" + std::to_string(rank_) + "] ");
-    // Logger::setFilename("log_R" + std::to_string(rank_) + ".txt"); // remove if all ranks should output to the same file
+    json_writer_ = std::make_unique<JsonWriter>(Madupite::getCommWorld());
 }
+
+#define GET_OPTION(type, name, default_value, parse_fn, print_fn)                                                                                    \
+    do {                                                                                                                                             \
+        PetscBool flg;                                                                                                                               \
+        PetscCall(parse_fn(NULL, NULL, "-" #name, &name##_, &flg));                                                                                  \
+        if (!flg) {                                                                                                                                  \
+            print_fn(Madupite::getCommWorld(), #name " not specified. Using default value: " #default_value ".\n");                                  \
+            name##_ = default_value;                                                                                                                 \
+        }                                                                                                                                            \
+    } while (0)
+
+#define GET_STRING_OPTION(name, buffer)                                                                                                              \
+    do {                                                                                                                                             \
+        PetscBool flg;                                                                                                                               \
+        PetscCall(PetscOptionsGetString(NULL, NULL, "-" #name, buffer, PETSC_MAX_PATH_LEN, &flg));                                                   \
+        if (!flg) {                                                                                                                                  \
+            buffer[0] = '\0';                                                                                                                        \
+        }                                                                                                                                            \
+    } while (0)
 
 PetscErrorCode MDP::setValuesFromOptions()
 {
     PetscBool flg;
     PetscChar buf[PETSC_MAX_PATH_LEN];
 
-    setupCalled = false;
+    setup_called = false;
 
-    PetscCall(PetscOptionsGetReal(NULL, NULL, "-discount_factor", &discountFactor_, &flg));
+    // Mandatory options
+    PetscCall(PetscOptionsGetReal(NULL, NULL, "-discount_factor", &discount_factor_, &flg));
     if (!flg) {
-        SETERRQ(Madupite::getCommWorld(), 1, "Discount factor not specified. Use -discount_factor <double>.");
+        SETERRQ(Madupite::getCommWorld(), 1, "Discount factor not specified. Use -discount_factor <double>.\n");
     }
-    PetscCall(PetscOptionsGetInt(NULL, NULL, "-max_iter_pi", &maxIter_PI_, &flg));
-    if (!flg) {
-        SETERRQ(Madupite::getCommWorld(), 1, "Maximum number of policy iterations not specified. Use -maxIter_PI <int>.");
-    }
-    PetscCall(PetscOptionsGetInt(NULL, NULL, "-max_iter_ksp", &maxIter_KSP_, &flg));
-    if (!flg) {
-        SETERRQ(Madupite::getCommWorld(), 1, "Maximum number of KSP iterations not specified. Use -maxIter_KSP <int>.");
-    }
-    PetscCall(PetscOptionsGetReal(NULL, NULL, "-alpha", &alpha_, &flg));
-    if (!flg) {
-        SETERRQ(Madupite::getCommWorld(), 1, "Relative tolerance for KSP not specified. Use -alpha <double>.");
-    }
-    PetscCall(PetscOptionsGetReal(NULL, NULL, "-atol_pi", &atol_PI_, &flg));
-    if (!flg) {
-        SETERRQ(Madupite::getCommWorld(), 1, "Absolute tolerance for policy iteration not specified. Use -atol_PI <double>.");
-    }
-    // jsonWriter_->add_data("atol_PI", atol_PI_);
-    PetscCall(PetscOptionsGetString(NULL, NULL, "-file_policy", file_policy_, PETSC_MAX_PATH_LEN, &flg));
-    if (!flg) {
-        // LOG("Filename for policy not specified. Optimal policy will not be written to file.");
-        file_policy_[0] = '\0';
-    }
-    PetscCall(PetscOptionsGetString(NULL, NULL, "-file_cost", file_cost_, PETSC_MAX_PATH_LEN, &flg));
-    if (!flg) {
-        // LOG("Filename for cost not specified. Optimal cost will not be written to file.");
-        file_cost_[0] = '\0';
-    }
-    PetscCall(PetscOptionsGetString(NULL, NULL, "-file_stats", file_stats_, PETSC_MAX_PATH_LEN, &flg));
-    if (!flg) {
-        SETERRQ(Madupite::getCommWorld(), 1, "Filename for statistics not specified. Use -file_stats <string>. (max length: 4096 chars");
-    }
-    PetscCall(PetscOptionsGetString(
-        NULL, NULL, "-export_optimal_transition_probabilities", file_optimal_transition_probabilities_, PETSC_MAX_PATH_LEN, &flg));
-    if (!flg) {
-        file_optimal_transition_probabilities_[0] = '\0';
-    }
-    PetscCall(PetscOptionsGetString(NULL, NULL, "-export_optimal_stage_costs", file_optimal_stage_costs_, PETSC_MAX_PATH_LEN, &flg));
-    if (!flg) {
-        file_optimal_stage_costs_[0] = '\0';
-    }
-
     PetscCall(PetscOptionsGetString(NULL, NULL, "-mode", buf, PETSC_MAX_PATH_LEN, &flg));
     if (!flg) {
-        SETERRQ(Madupite::getCommWorld(), 1, "Input mode not specified. Use -mode MINCOST or MAXREWARD.");
-    }
-    if (strcmp(buf, "MINCOST") == 0) {
+        SETERRQ(Madupite::getCommWorld(), 1, "Input mode not specified. Use -mode MINCOST or MAXREWARD.\n");
+    } else if (strcmp(buf, "MINCOST") == 0) {
         mode_ = MINCOST;
-        // jsonWriter_->add_data("mode", "MINCOST");
     } else if (strcmp(buf, "MAXREWARD") == 0) {
         mode_ = MAXREWARD;
-        // jsonWriter_->add_data("mode", "MAXREWARD");
     } else {
-        SETERRQ(Madupite::getCommWorld(), 1, "Input mode not recognized. Use -mode MINCOST or MAXREWARD.");
+        SETERRQ(Madupite::getCommWorld(), 1, "Input mode not recognized. Use -mode MINCOST or MAXREWARD.\n");
     }
+    // Optional options with defaults
+    GET_OPTION(int, max_iter_pi, 1000, PetscOptionsGetInt, PetscPrintf);
+    GET_OPTION(int, max_iter_ksp, 1000, PetscOptionsGetInt, PetscPrintf);
+    GET_OPTION(double, alpha, 1e-4, PetscOptionsGetReal, PetscPrintf);
+    GET_OPTION(double, atol_pi, 1e-8, PetscOptionsGetReal, PetscPrintf);
 
+    GET_STRING_OPTION(file_policy, file_policy_);
+    GET_STRING_OPTION(file_cost, file_cost_);
+    GET_STRING_OPTION(file_stats, file_stats_);
+    GET_STRING_OPTION(export_optimal_transition_probabilities, file_optimal_transition_probabilities_);
+    GET_STRING_OPTION(export_optimal_stage_costs, file_optimal_stage_costs_);
     return 0;
 }
 
-void MDP::setOption(const char* option, const char* value)
+PetscErrorCode MDP::setOption(const char* option, const char* value)
 {
-    setupCalled = false;
-    // todo: should only be possible for:
-    // -discountFactor, -maxIter_PI, -maxIter_KSP, -numPIRuns, -alpha, -atol_PI, -file_policy, -file_cost, -file_stats, -mode
-    PetscCallThrow(PetscOptionsSetValue(NULL, option, value));
+    setup_called = false;
+    if (strcmp(option, "-discount_factor") == 0 || strcmp(option, "-max_iter_pi") == 0 || strcmp(option, "-max_iter_ksp") == 0
+        || strcmp(option, "-num_pi_runs") == 0 || strcmp(option, "-alpha") == 0 || strcmp(option, "-atol_pi") == 0
+        || strcmp(option, "-file_policy") == 0 || strcmp(option, "-file_cost") == 0 || strcmp(option, "-file_stats") == 0
+        || strcmp(option, "-mode") == 0) {
+        PetscCallThrow(PetscOptionsSetValue(NULL, option, value));
+    } else {
+        SETERRQ(Madupite::getCommWorld(), 1, ("Invalid option: " + std::string(option)).c_str());
+    }
+    return 0;
 }
 
 void MDP::clearOptions() { PetscCallThrow(PetscOptionsClear(NULL)); }
 
 void MDP::setStageCostMatrix(const Matrix& g)
 {
-    setupCalled      = false;
-    stageCostMatrix_ = g;
+    setup_called       = false;
+    stage_cost_matrix_ = g;
 }
 
 void MDP::setTransitionProbabilityTensor(const Matrix& P)
 {
-    setupCalled                  = false;
-    transitionProbabilityTensor_ = P;
+    setup_called                   = false;
+    transition_probability_tensor_ = P;
 }
 
 void MDP::setUp()
 {
-    if (setupCalled)
+    if (setup_called)
         return;
 
     setValuesFromOptions();
 
     // check matrix sizes agree
-    if (transitionProbabilityTensor_.colLayout().localSize() != stageCostMatrix_.rowLayout().localSize()) {
-        // LOG("Error: stageCostMatrix and numStates do not agree.");
+    if (transition_probability_tensor_.colLayout().localSize() != stage_cost_matrix_.rowLayout().localSize()) {
         PetscThrow(Madupite::getCommWorld(), 1, "Error: number of states do not agree (P != g): : %" PetscInt_FMT " != %" PetscInt_FMT,
-            transitionProbabilityTensor_.colLayout().localSize(), stageCostMatrix_.rowLayout().localSize());
+            transition_probability_tensor_.colLayout().localSize(), stage_cost_matrix_.rowLayout().localSize());
     }
-    if (transitionProbabilityTensor_.rowLayout().size() / transitionProbabilityTensor_.colLayout().size() != stageCostMatrix_.colLayout().size()) {
-        // LOG("Error: transitionProbabilityTensor and numStates do not agree.");
+    if (transition_probability_tensor_.rowLayout().size() / transition_probability_tensor_.colLayout().size()
+        != stage_cost_matrix_.colLayout().size()) {
         PetscThrow(Madupite::getCommWorld(), 1, "Error: number of actions do not agree (P != g): %" PetscInt_FMT " != %" PetscInt_FMT,
-            transitionProbabilityTensor_.rowLayout().size() / transitionProbabilityTensor_.colLayout().size(), stageCostMatrix_.colLayout().size());
+            transition_probability_tensor_.rowLayout().size() / transition_probability_tensor_.colLayout().size(),
+            stage_cost_matrix_.colLayout().size());
     }
-    numStates_      = stageCostMatrix_.rowLayout().size();
-    localNumStates_ = stageCostMatrix_.rowLayout().localSize();
-    numActions_     = stageCostMatrix_.colLayout().size();
-    g_start_        = stageCostMatrix_.rowLayout().start();
-    g_end_          = stageCostMatrix_.rowLayout().end();
+    num_states_       = stage_cost_matrix_.rowLayout().size();
+    local_num_states_ = stage_cost_matrix_.rowLayout().localSize();
+    num_actions_      = stage_cost_matrix_.colLayout().size();
+    g_start_          = stage_cost_matrix_.rowLayout().start();
+    g_end_            = stage_cost_matrix_.rowLayout().end();
 
-    setupCalled = true;
+    setup_called = true;
 }
 
 // write MPIAIJ matrix as ASCII in COO format to file
@@ -231,7 +220,6 @@ void MDP::writeVec(const Vec& vec, const char* filename)
     PetscMPIInt rank;
     PetscCallThrow(MPI_Comm_rank(Madupite::getCommWorld(), &rank));
 
-    // Rank 0 writes to file
     if (rank == 0) {
         std::ofstream out(filename);
         for (PetscInt i = 0; i < size; ++i) {
@@ -277,7 +265,6 @@ void MDP::writeIS(const IS& is, const char* filename)
 
         PetscCallThrow(MPI_Gatherv(indices, localSize, MPI_INT, allIndices, recvcounts, displs, MPI_INT, 0, Madupite::getCommWorld()));
 
-        // Rank 0 writes to file
         std::ofstream out(filename);
         for (PetscInt i = 0; i < size; ++i) {
             out << allIndices[i] << "\n";
@@ -300,24 +287,24 @@ void MDP::writeJSONmetadata()
     PetscMPIInt size;
     MPI_Comm_size(Madupite::getCommWorld(), &size);
 
-    // writes model specifics to file per launch of MDP::ineaxctPolicyIteration
-    // ksp_type is written in MDP::iterativePolicyEvaluation (since it's only known there)
-    jsonWriter_->add_data("num_states", numStates_);
-    jsonWriter_->add_data("num_actions", numActions_);
-    jsonWriter_->add_data("discount_factor", discountFactor_);
-    jsonWriter_->add_data("max_iter_pi", maxIter_PI_);
-    jsonWriter_->add_data("max_iter_ksp", maxIter_KSP_);
-    jsonWriter_->add_data("alpha", alpha_);
-    jsonWriter_->add_data("atol_pi", atol_PI_);
-    jsonWriter_->add_data("num_ranks", size);
+    // writes model specifics to file per launch of MDP::solve
+    // ksp_type is written in MDP::solve (since it's only known there)
+    json_writer_->add_data("num_states", num_states_);
+    json_writer_->add_data("num_actions", num_actions_);
+    json_writer_->add_data("discount_factor", discount_factor_);
+    json_writer_->add_data("max_iter_pi", max_iter_pi_);
+    json_writer_->add_data("max_iter_ksp", max_iter_ksp_);
+    json_writer_->add_data("alpha", alpha_);
+    json_writer_->add_data("atol_pi", atol_pi_);
+    json_writer_->add_data("num_ranks", size);
 
     if (file_policy_[0] != '\0') {
-        jsonWriter_->add_data("file_policy", file_policy_);
+        json_writer_->add_data("file_policy", file_policy_);
     }
     if (file_cost_[0] != '\0') {
-        jsonWriter_->add_data("file_cost", file_cost_);
+        json_writer_->add_data("file_cost", file_cost_);
     }
     if (file_stats_[0] != '\0') {
-        jsonWriter_->add_data("file_stats", file_stats_);
+        json_writer_->add_data("file_stats", file_stats_);
     }
 }
