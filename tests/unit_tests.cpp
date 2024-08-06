@@ -1,4 +1,4 @@
-#include "MDP.h"
+#include "mdp.h"
 #include <gtest/gtest.h>
 
 // Test fixture

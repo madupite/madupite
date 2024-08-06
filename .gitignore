@@ -25,4 +25,4 @@ bin/
 lib/
 petsc*-env
 .pytest_cache/
-doc/_*
+docs/_*

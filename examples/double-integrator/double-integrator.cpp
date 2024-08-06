@@ -1,4 +1,4 @@
-#include "MDP.h"
+#include "mdp.h"
 
 int main(int argc, char** argv)
 {

@@ -2,7 +2,7 @@
 #include <utility>
 #include <vector>
 
-#include "MDP.h"
+#include "mdp.h"
 
 // 2D Grid world
 constexpr int       _H = 25, _W = 25; // s = row-major index

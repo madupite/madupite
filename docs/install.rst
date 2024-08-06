@@ -39,7 +39,6 @@ Assuming you have a working version of PETSc, e.g. by activating the conda envir
    cmake ..
    make
 
-Now, you can change the main.cc file according to your application.
 Make sure to run your executables with mpirun. <number_of_ranks> could be the number of cores on your machine:
 ::
 

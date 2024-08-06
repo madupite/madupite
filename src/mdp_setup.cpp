@@ -2,7 +2,7 @@
 #include <memory>
 #include <string>
 
-#include "MDP.h"
+#include "mdp.h"
 
 std::shared_ptr<Madupite> Madupite::instance;
 std::mutex                Madupite::mtx;

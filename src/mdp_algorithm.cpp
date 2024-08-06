@@ -2,7 +2,7 @@
 #include <iostream> // TODO: replace with some logger
 #include <memory>
 
-#include "MDP.h"
+#include "mdp.h"
 
 // reshape costVector into costMatrix
 void MDP::reshapeCostVectorToCostMatrix(const Vec costVector, Mat costMatrix)

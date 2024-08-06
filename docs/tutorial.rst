@@ -7,7 +7,7 @@ The distributed sparse linear solvers for madupite rely on calls to MPI from PET
 
 ::
 
-    export OMP_NUM_THREADS=1 # optional, see explaination below
+    export OMP_NUM_THREADS=1 # optional, see explanation below
     mpirun -n <number of ranks> python main.py
 
 The number of MPI ranks is specified by the -n option. While PETSc's parallelism is based solely on MPI, the underlying BLAS/LAPACK routines may be parallelized with OpenMP, which can be controlled by setting the environment variable ``OMP_NUM_THREADS``. More details can be found in `the manual of PETSc <https://petsc.org/main/manual/blas-lapack/>`_ and the manual for mpirun of your MPI implementation.
@@ -21,11 +21,26 @@ This example demonstrates how to quickly load and solve a MDP.
 .. code-block :: python
 
     import madupite as md
-    with md.PETScContextManager():
-        # create an mdp instance and load the transition probabilities and stage-costs
-        mdp = md.PyMdp("./transprob.bin", "./stagecost.bin")
-        # generate an initial cost and solve the MDP according to the default options
-        mdp.solve("./outputDirectory/")
+    # always initialize madupite
+    md.initialize_madupite()
+    g = md.Matrix.fromFile(
+        name="g",
+        filename="g.bin",
+        category=md.MatrixCategory.Cost,
+        type=md.MatrixType.Dense,
+    )
+    P = md.Matrix.fromFile(
+        name="P",
+        filename="P.bin",
+        category=md.MatrixCategory.Dynamics,
+        type=md.MatrixType.Sparse,
+    )
+    mdp.setStageCostMatrix(g)
+    mdp.setTransitionProbabilityTensor(P)
+
+    mdp.setOption("-mode", "MAXREWARD")
+    mdp.setOption("-discount_factor", "0.95")
+    mdp.solve()
 
 --------------------------------------------------------------
 Generate an artificial MDP and solve it with various options
@@ -73,48 +88,33 @@ It holds that :math:`P_{i,j,k}=P'_{i*\#actions+j,k}` and can be implemented in P
     1stdim, 2nddim, 3rddim = transprobtensor.shape
     transprobmat = transprobtensor.reshape(1stdim * 2nddim, 3rddim)
 
-------------------------
-The options.json file
-------------------------
-
-Specify the details of the solver. Every call of mdp.solve(...) will solve the loaded mdp according to the details set in the solver. If you want to solve the same MDP multiple times with different settings just change the options in the json file. The repository contains a template optionstemplate.json.
-
-.. jsonschema:: optionstemplate.json
-
-
---------------------
-Metadata format
---------------------
-
-The metadata provides insights about convergence and timings. It copies the options used during solving and adds the following.
-
-.. jsonschema:: metadatatemplate.json
-
-.. code-block :: python
-
-    import json
-    metadata = json.load("./metadata.json")
-    # access the total execution time of the solver
-    totaltime = metadata["residual log"][-1]["time"]
-    # get a list of the Bellman residuals for each iPI iteration
-    residuals = [d["residual"] for d in metadata["residual log"]]
 
 --------------------------------------------------------------
 Generate arbitrary MDPs
 --------------------------------------------------------------
-`generateMDP() <https://n.ethz.ch/~ppawlowsky/madupite/apiref.html#madupite.generateMDP>`_ allows generating arbitrary MDPs. Users have to specify a function that returns the transition probabilities for a state-action pair in form of an index array and the corresponding values. The stage-cost function should return the cost of a state-action pair. The following examples show how to create the MDPs for the `forest management scenario by PyMDPToolbox <https://pymdptoolbox.readthedocs.io/en/latest/api/example.html#mdptoolbox.example.forest>`_ and the `tiger-antelope example by AI-Toolbox <https://github.com/Svalorzen/AI-Toolbox/blob/master/examples/MDP/tiger_antelope.cpp>`_.
-
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Forest management example
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
+The transition probabilities can be defined for a state-action pair in form of an index array and the corresponding values. 
+The stage-cost function should return the cost of a state-action pair. 
+The following examples show how to create the MDPs for the `forest management scenario by PyMDPToolbox <https://pymdptoolbox.readthedocs.io/en/latest/api/example.html#mdptoolbox.example.forest>`_. 
 
 .. code-block :: python
 
     import madupite as md
     import numpy as np
 
-    def probfunc(state, action):
+    num_states = 10
+    num_actions = 2
+
+    def stage_cost_function(state, action):
+        if action == 0 and state == nstates - 1:
+            return -r1
+        if action == 1 and state > 0:
+            if state == nstates - 1:
+                return -r2
+            else:
+                return -1
+        return 0
+
+    def transition_probability_function(state, action):
         if action == 0:
             idx, val = np.array(
                 [0, min(state + 1, nstates - 1)], dtype=np.float64
@@ -126,24 +126,18 @@ Forest management example
             )
             return idx, val
 
-    def costfunc(state, action):
-        if action == 0 and state == nstates - 1:
-            return -r1
-        if action == 1 and state > 0:
-            if state == nstates - 1:
-                return -r2
-            else:
-                return -1
-        return 0
-
-    md.generateMDP(
-        nstates,
-        mactions,
-        probfunc,
-        costfunc,
-        "./data/sparse/P" + str(nstates) + ".bin",
-        "./data/sparse/G" + str(nstates) + ".bin",
+    # madupite.Matrix object containing the stage costs
+    g = madupite.createStageCostMatrix(
+        name="g", numStates=num_states, numActions=num_actions, func=stage_cost_function
     )
+    # madupite.Matrix object containing the transition probabilities
+    P = madupite.createTransitionProbabilityTensor(
+        name="P",
+        numStates=num_states,
+        numActions=num_actions,
+        func=transition_probability_function,
+    )
+
 
 This will create the following MDP::
 
@@ -174,11 +168,3 @@ This will create the following MDP::
                  |  .  |
                  |  1  |
                  |  r2 |
-
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-tiger-antelope example
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-The tiger chases the antelope on a 2d-grid with periodic boundary conditions ("wrap-around world"). The tiger can choose to move by one field in any direction (left, right, up, down or stay). The antelope can move to the same fields, but moves randomly. It does not move to the cell where the tiger is at. The original formulation assigns a negative cost to the finnal absorbing state but an equivalent formulation could assign a positive cost to every state but the absorbing state.
-
-TODO .. literalinclude :: ../benchmarks/aitoolbox/gen.py
-   :language: python

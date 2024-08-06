@@ -6,7 +6,7 @@
 #include <utility>
 #include <vector>
 
-#include "MDP.h"
+#include "mdp.h"
 
 // MDP: 1d grid world (=circle); 50 states; 3 actions (stay, left, right),
 // 0: 90% stay, 5% left, 5% right

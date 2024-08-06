@@ -1,7 +1,7 @@
-#include "MDP.h"
-#include "MDP_matrix.h"
 #include "madupite_matrix.h"
 #include "madupite_vector.h"
+#include "mdp.h"
+#include "mdp_matrix.h"
 #include <nanobind/nanobind.h>
 #include <nanobind/stl/function.h>
 #include <nanobind/stl/pair.h>

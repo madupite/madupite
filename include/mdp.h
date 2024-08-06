@@ -9,7 +9,7 @@
 #include "madupite_matrix.h"
 
 // convenience import so that user code doesn't need to include MDP_matrix.h
-#include "MDP_matrix.h"
+#include "mdp_matrix.h"
 
 class Madupite {
     static std::shared_ptr<Madupite> instance;

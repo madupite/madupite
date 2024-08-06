@@ -1,5 +1,5 @@
-#include "MDP_matrix.h"
-#include "MDP.h"
+#include "mdp_matrix.h"
+#include "mdp.h"
 
 Matrix createTransitionProbabilityTensor(
     MPI_Comm comm, const std::string& name, PetscInt numStates, PetscInt numActions, Probfunc func, const MatrixPreallocation& pa)
