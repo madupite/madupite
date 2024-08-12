@@ -44,6 +44,9 @@ autosummary_generate = True
 
 html_theme = "pydata_sphinx_theme"
 
+html_title = "madupite"
+
+html_logo = "_static/madupite_logo.png"
 
 html_theme_options = {
     "footer_end": ["theme-version", "last-updated"],
@@ -51,6 +54,10 @@ html_theme_options = {
     "header_links_before_dropdown": 10,
     "navigation_with_keys":True,
     'nosidebar': True,
+    "logo": {
+        "text": "madupite",
+        "image_dark": "_static/madupite_logo.png",
+    },
 }
 
 html_sidebars = {

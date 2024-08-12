@@ -105,7 +105,7 @@ PetscErrorCode MDP::setOption(const char* option, const char* value)
     if (strcmp(option, "-discount_factor") == 0 || strcmp(option, "-max_iter_pi") == 0 || strcmp(option, "-max_iter_ksp") == 0
         || strcmp(option, "-num_pi_runs") == 0 || strcmp(option, "-alpha") == 0 || strcmp(option, "-atol_pi") == 0
         || strcmp(option, "-file_policy") == 0 || strcmp(option, "-file_cost") == 0 || strcmp(option, "-file_stats") == 0
-        || strcmp(option, "-mode") == 0) {
+        || strcmp(option, "-mode") == 0 || strcmp(option, "-ksp_type") == 0) {
         PetscCallThrow(PetscOptionsSetValue(NULL, option, value));
     } else {
         SETERRQ(Madupite::getCommWorld(), 1, ("Invalid option: " + std::string(option)).c_str());

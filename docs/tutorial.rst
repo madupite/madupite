@@ -103,12 +103,14 @@ The following examples show how to create the MDPs for the `forest management sc
 
     num_states = 10
     num_actions = 2
-
+    r1=0.5
+    r2=5
+    p=0.5
     def stage_cost_function(state, action):
-        if action == 0 and state == nstates - 1:
+        if action == 0 and state == num_states - 1:
             return -r1
         if action == 1 and state > 0:
-            if state == nstates - 1:
+            if state == num_states - 1:
                 return -r2
             else:
                 return -1
@@ -117,25 +119,30 @@ The following examples show how to create the MDPs for the `forest management sc
     def transition_probability_function(state, action):
         if action == 0:
             idx, val = np.array(
-                [0, min(state + 1, nstates - 1)], dtype=np.float64
+                [0, min(state + 1, num_states - 1)], dtype=np.int32
             ), np.array([p, 1 - p])
-            return idx, val
+            return val.tolist(), idx.tolist()
         else:
-            idx, val = np.array([0], dtype=np.float64), np.array(
+            idx, val = np.array([0], dtype=np.int32), np.array(
                 [1], dtype=np.float64
             )
-            return idx, val
+            return val.tolist(), idx.tolist()
 
-    # madupite.Matrix object containing the stage costs
-    g = madupite.createStageCostMatrix(
+    # md.Matrix object containing the stage costs
+    g = md.createStageCostMatrix(
         name="g", numStates=num_states, numActions=num_actions, func=stage_cost_function
     )
-    # madupite.Matrix object containing the transition probabilities
-    P = madupite.createTransitionProbabilityTensor(
+
+    prealloc = md.MatrixPreallocation()
+    prealloc.o_nz = 3
+    prealloc.d_nz = 3
+    # md.Matrix object containing the transition probabilities
+    P = md.createTransitionProbabilityTensor(
         name="P",
         numStates=num_states,
         numActions=num_actions,
         func=transition_probability_function,
+        preallocation=prealloc,
     )
 
 

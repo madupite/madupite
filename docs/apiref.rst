@@ -1,29 +1,18 @@
 API Reference
 =====================
-The `madupite` module provides interfaces for working with the Madupite library, including functions and classes for managing matrices, Markov Decision Processes (MDP), and MPI communications.
-
-Functions
----------
+The `madupite` module provides an interface for working with the Madupite C++ library.
 
 .. autosummary::
    :toctree: _autosummary
 
-   madupite.initialize_madupite
-   madupite.getCommWorld
-   madupite.mpi_rank_size
    madupite.createTransitionProbabilityTensor
    madupite.createStageCostMatrix
+   madupite.MDP
+   madupite.MatrixPreallocation
+   madupite.getCommWorld
+   madupite.mpi_rank_size
    madupite.writePETScBinary
-
-Classes
--------
-
-.. autosummary::
-   :toctree: _autosummary
-
-   madupite.Madupite
    madupite.MatrixType
    madupite.MatrixCategory
-   madupite.MatrixPreallocation
    madupite.Matrix
-   madupite.MDP
+   madupite.initialize_madupite

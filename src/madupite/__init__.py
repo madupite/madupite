@@ -1,7 +1,7 @@
 """
 madupite is a Python package for solving Markov Decision Processes (MDPs).
 """
-from .madupite import (  # type: ignore
+from ._madupite_impl import (  # type: ignore
     Madupite,
     MatrixPreallocation,
     Matrix,
@@ -13,8 +13,9 @@ from .madupite import (  # type: ignore
     mpi_rank_size,
     createTransitionProbabilityTensor,
     createStageCostMatrix,
+    __doc__,
 )
 from .util import writePETScBinary
 
 # Avoid having users forget to initialize madupite.
-madupite.initialize_madupite()
+instance = initialize_madupite()
