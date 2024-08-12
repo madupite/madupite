@@ -5,7 +5,8 @@ exclude: |
     ^dist/|
     ^docs/|
     __init__.py|
-    ^vscode.example/
+    ^vscode.example/|
+    pymadupite.cpp
     )
 
 repos:

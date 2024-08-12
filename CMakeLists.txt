@@ -34,11 +34,16 @@ if (SKBUILD)
     OPTIONAL_COMPONENTS Development.SABIModule
   )
 
+  if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+    execute_process(
+      COMMAND "${Python_EXECUTABLE}" -m nanobind --cmake_dir
+      OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE nanobind_ROOT)
+  endif()
   find_package(nanobind CONFIG REQUIRED)
 
   # Build the Python extension using nanobind
   nanobind_add_module(
-    madupite
+    _madupite_impl
     STABLE_ABI
     NB_STATIC
     src/pymadupite.cpp
@@ -46,21 +51,21 @@ if (SKBUILD)
   )
 
   target_link_libraries(
-    madupite
+    _madupite_impl
     PRIVATE
     PkgConfig::PETSC
     MPI::MPI_CXX
   )
 
   # Install the Python module
-  install(TARGETS madupite LIBRARY DESTINATION madupite)
+  install(TARGETS _madupite_impl LIBRARY DESTINATION madupite)
 
   nanobind_add_stub(
     madupite_stub
-    MODULE madupite
+    MODULE _madupite_impl
     OUTPUT madupite.pyi
-    PYTHON_PATH $<TARGET_FILE_DIR:madupite>
-    DEPENDS madupite
+    PYTHON_PATH $<TARGET_FILE_DIR:_madupite_impl>
+    DEPENDS _madupite_impl
     MARKER_FILE py.typed
   )
 
