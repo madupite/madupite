@@ -79,7 +79,7 @@ Optional Options
 
    Defines a file to write the optimal transition probabilities matrix.
 
-   Exports the :math:`n \times n`-matrix of optimal transition probabilities in ASCII and COO format. The file header contains `num_rows`, `num_cols`, `num_nonzeros`, and `num_zeros`. Subsequent lines contain the row, column, and value of non-zero entries.
+   Exports the :math:`n \times n`-matrix of optimal transition probabilities in ASCII and COO format. The file header contains ``num_rows``, ``num_cols``, ``num_nonzeros``. Subsequent lines contain the row, column, and value of non-zero entries.
 
 .. option:: -export_optimal_stage_costs <STRING>
 
@@ -158,3 +158,4 @@ For more information on available KSP types and preconditioners, refer to the PE
 
 * KSP types: https://petsc.org/release/manualpages/KSP/KSPType/
 * Preconditioner types: https://petsc.org/release/manualpages/PC/PCType/
+* PETSc options: https://petsc.org/release/manualpages/Sys/
