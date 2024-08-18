@@ -1,177 +1,54 @@
 Tutorial
 ===============
------------
-mpirun
------------
-The distributed sparse linear solvers for madupite rely on calls to MPI from PETSc. Therefore, you always need to use mpirun:
 
-::
+Let's start with a minimal example that demonstrates how to quickly load and solve for the optimal value function and policy of a Markov Decision Process (MDP) using ``madupite``.
 
-    export OMP_NUM_THREADS=1 # optional, see explanation below
-    mpirun -n <number of ranks> python main.py
-
-The number of MPI ranks is specified by the -n option. While PETSc's parallelism is based solely on MPI, the underlying BLAS/LAPACK routines may be parallelized with OpenMP, which can be controlled by setting the environment variable ``OMP_NUM_THREADS``. More details can be found in `the manual of PETSc <https://petsc.org/main/manual/blas-lapack/>`_ and the manual for mpirun of your MPI implementation.
+We define an MDP as a tuple :math:`(\mathcal{S}, \mathcal{A}, P, g, \gamma)`, where: 
+- :math:`\mathcal{S} = \{0, 1, \dots, n-1\}` is the set of states,
+- :math:`\mathcal{A} = \{0, 1, \dots, m-1\}` is the set of actions,
+- :math:`P : \mathcal{S} \times \mathcal{A} \times \mathcal{S} \to [0, 1]` is the transition probability function, where :math:`P(s, a, s') = \text{Pr}(s_{t+1} = s' | s_t = s, a_t = a)` and :math:`\sum_{s' \in \mathcal{S}} P(s, a, s') = 1` for all :math:`s \in \mathcal{S}` and :math:`a \in \mathcal{A}`,
+- :math:`g : \mathcal{S} \times \mathcal{A} \to \mathbb{R}` is the stage cost function (or reward in an alternative but equivalent formulation),
+- :math:`\gamma \in (0, 1)` is the discount factor.
 
 
----------------------------
-Minimal example
----------------------------
-This example demonstrates how to quickly load and solve a MDP.
+Example 1
+----------
 
-.. code-block :: python
+We start with a simple example: We have an agent that lives on a periodic 1-dimensional line of length 50. At each time step, the agent has to choose between moving to the left, to the right or staying in place. The goal is to move to the state with index 42. We want to find the optimal policy that minimizes the expected number of steps to reach the goal.
 
-    import madupite as md
-    # always initialize madupite
-    md.initialize_madupite()
-    g = md.Matrix.fromFile(
-        name="g",
-        filename="g.bin",
-        category=md.MatrixCategory.Cost,
-        type=md.MatrixType.Dense,
-    )
-    P = md.Matrix.fromFile(
-        name="P",
-        filename="P.bin",
-        category=md.MatrixCategory.Dynamics,
-        type=md.MatrixType.Sparse,
-    )
-    mdp.setStageCostMatrix(g)
-    mdp.setTransitionProbabilityTensor(P)
+.. image:: _static/tutorial_ex1.pdf
+    :align: center
 
-    mdp.setOption("-mode", "MAXREWARD")
-    mdp.setOption("-discount_factor", "0.95")
-    mdp.solve()
+Note that we use 0-based indexing to facilitate translating the mathematical model into code later.
 
---------------------------------------------------------------
-Generate an artificial MDP and solve it with various options
---------------------------------------------------------------
-Since the routines for MDP generating are sequential they need only be executed by the main rank, which is why they are contained inside the ``if md.MPI_master()`` statement.
+To do so, we first define the state space :math:`\mathcal{S} = \{0, 1, \dots, 49\}` and the action space :math:`\mathcal{A} = \{0, 1, 2\}` where 0 means staying in place, 1 means moving to the left and 2 means moving to the right. 
 
-
-TODO .. literalinclude :: ../examples/example1.py
-   :language: python
-
-
---------------------
-Input data format
---------------------
-The data for the MDP (transition probability tensor and stage cost matrix) must be provided in the PETSc binary format. The installation with pip provides a generator for artificial MDPs and a converter from numpy/scipy matrices to PETSc binary.
-
-::
-
-    import madupite as md
-    md.writePETScBinary(matrix, "path/to/matrix.bin")
-
-If you want to create your own MDP you must match the data layout of this solver:
-
-- stagecost matrix: :math:`G_{i,j}=` "expected stage-cost of applying input j in state i".
-
-- The transition probability is often expressed as a 3-dimensional tensor. In order to make use of the parallel matrix layout from PETSc, the first 2-dimensions must be combined:
+For the usage in ``madupite``, we need to provide a transition probability function that returns for a given state-action pair :math:`(s, a)` a list of probabilities and a list of corresponding next states. In this case, the model is deterministic and thus the probabilities are always 1. The transition probability function is defined as follows:
 
 .. math::
 
-    P_{i,j,k}= \text{"transition probability from state i to k given input j"}
+    P(s, a) = \begin{cases}
+        ((1), (s)) & \text{if } a = 0 \\
+        ((1), ((s-1) \mod 50)) & \text{if } a = 1 \\
+        ((1), ((s+1) \mod 50)) & \text{if } a = 2
+    \end{cases}
 
-is flattened into a matrix:
+Stochasticity can be introduced by making the movements non-deterministic. Let's say the when the agent moves to left or right, there is a 10% chance that they will stay in place instead. And when the agent stays in place, there is a 10% chance each that they will move to the left or right. The transition probability function is defined as follows:
 
 .. math::
 
-    i&=\left\lfloor\frac{x}{\# actions}\right\rfloor \\
-    a&=x\mod \# actions \\
-    P'_{x,j}&= \text{"transition probability from state } i \text{ to state j given input } a.
+    P(s, a) = \begin{cases}
+        ((0.1, 0.8, 0.1), ((s-1) \mod 50, s, (s+1) \mod 50)) & \text{if } a = 0 \\
+        ((0.1, 0.9), (s, (s-1) \mod 50)) & \text{if } a = 1 \\
+        ((0.1, 0.9), (s, (s+1) \mod 50)) & \text{if } a = 2
+    \end{cases}
 
-It holds that :math:`P_{i,j,k}=P'_{i*\#actions+j,k}` and can be implemented in Python as:
+Instead of defining a stage cost function, we define a reward function and set the optimization mode to maximize instead of minimize later. The reward function is defined as follows:
 
-.. code-block :: python
-
-    # combine first and second dimension of a 3d numpy array in python
-    1stdim, 2nddim, 3rddim = transprobtensor.shape
-    transprobmat = transprobtensor.reshape(1stdim * 2nddim, 3rddim)
-
-
---------------------------------------------------------------
-Generate arbitrary MDPs
---------------------------------------------------------------
-The transition probabilities can be defined for a state-action pair in form of an index array and the corresponding values. 
-The stage-cost function should return the cost of a state-action pair. 
-The following examples show how to create the MDPs for the `forest management scenario by PyMDPToolbox <https://pymdptoolbox.readthedocs.io/en/latest/api/example.html#mdptoolbox.example.forest>`_. 
-
-.. code-block :: python
-
-    import madupite as md
-    import numpy as np
-
-    num_states = 10
-    num_actions = 2
-    r1=0.5
-    r2=5
-    p=0.5
-    def stage_cost_function(state, action):
-        if action == 0 and state == num_states - 1:
-            return -r1
-        if action == 1 and state > 0:
-            if state == num_states - 1:
-                return -r2
-            else:
-                return -1
-        return 0
-
-    def transition_probability_function(state, action):
-        if action == 0:
-            idx, val = np.array(
-                [0, min(state + 1, num_states - 1)], dtype=np.int32
-            ), np.array([p, 1 - p])
-            return val.tolist(), idx.tolist()
-        else:
-            idx, val = np.array([0], dtype=np.int32), np.array(
-                [1], dtype=np.float64
-            )
-            return val.tolist(), idx.tolist()
-
-    # md.Matrix object containing the stage costs
-    g = md.createStageCostMatrix(
-        name="g", numStates=num_states, numActions=num_actions, func=stage_cost_function
-    )
-
-    prealloc = md.MatrixPreallocation()
-    prealloc.o_nz = 3
-    prealloc.d_nz = 3
-    # md.Matrix object containing the transition probabilities
-    P = md.createTransitionProbabilityTensor(
-        name="P",
-        numStates=num_states,
-        numActions=num_actions,
-        func=transition_probability_function,
-        preallocation=prealloc,
-    )
+.. math::
+    r(s, a) = \begin{cases}
+        1 & \text{if } s = 42 \\
+        0 & \text{otherwise}
+    \end{cases}
 
 
-This will create the following MDP::
-
-                   | p 1-p 0.......0  |
-                   | .  0 1-p 0....0  |
-        P[:,0,:] = | .  .  0  .       |
-                   | .  .        .    |
-                   | .  .         1-p |
-                   | p  0  0....0 1-p |
-
-                   | 1 0..........0 |
-                   | . .          . |
-        P[:,1,:] = | . .          . |
-                   | . .          . |
-                   | . .          . |
-                   | 1 0..........0 |
-
-                 |  0  |
-                 |  .  |
-        R[:,0] = |  .  |
-                 |  .  |
-                 |  0  |
-                 |  r1 |
-
-                 |  0  |
-                 |  1  |
-        R[:,1] = |  .  |
-                 |  .  |
-                 |  1  |
-                 |  r2 |
