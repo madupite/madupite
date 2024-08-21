@@ -20,21 +20,6 @@ def probfunc(s, a):
     return values, indices
 
 
-# num_states = 50
-# num_actions = 3
-# prealloc = madupite.MatrixPreallocation()
-# prealloc.o_nz = 3
-# prealloc.d_nz = 3
-# g = madupite.createStageCostMatrix(name="g", numStates=num_states, numActions=num_actions, func=r)
-# P = madupite.createTransitionProbabilityTensor(name="P", numStates=num_states, numActions=num_actions, func=P, preallocation=prealloc)
-
-# mdp.setStageCostMatrix(g)
-# mdp.setTransitionProbabilityTensor(P)
-# mdp.solve()
-
-# FUNC
-
-
 def main():
     instance = madupite.initialize_madupite()
 

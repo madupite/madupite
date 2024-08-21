@@ -1,6 +1,8 @@
 #pragma once
 
+#include <filesystem>
 #include <fstream>
+#include <sstream>
 #include <vector>
 
 #include <json.h>
@@ -38,14 +40,42 @@ public:
         }
     }
 
-    void write_to_file(const std::string& filename)
+    void write_to_file(const std::string& filename, bool overwrite = false)
     {
-        if (filename[0] != '\0')
-            if (rank_ == 0) {
-                nlohmann::json data;
-                data["runs"] = runs;
-                std::ofstream file(filename);
-                file << data.dump(4);
+        if (filename.empty())
+            return;
+
+        if (rank_ == 0) {
+            std::string new_filename = filename;
+            int         counter      = 1;
+
+            // Check if the file exists and generate a new filename if it does
+            if (!overwrite) {
+                std::string extension;
+                std::size_t dot_pos       = filename.find_last_of(".");
+                std::string base_filename = filename;
+                if (dot_pos != std::string::npos) {
+                    base_filename = filename.substr(0, dot_pos);
+                    extension     = filename.substr(dot_pos);
+                }
+                while (std::filesystem::exists(new_filename)) {
+                    std::stringstream ss;
+                    ss << base_filename << "_" << counter << extension;
+                    new_filename = ss.str();
+                    counter++;
+                }
             }
+
+            nlohmann::json data;
+            data["runs"] = runs;
+
+            std::ofstream file(new_filename);
+            if (file.is_open()) {
+                file << data.dump(4);
+                file.close();
+            } else {
+                throw std::runtime_error("Failed to open file: " + new_filename);
+            }
+        }
     }
 };
