@@ -281,7 +281,7 @@ madupite.madupite.Matrix
     // MDP
     //////////
 
-    nb::class_<MDP>(m, "MDP", 
+    nb::class_<MDP>(m, "MDP",
     R"doc(
 Represents a Markov Decision Process (MDP).
 
@@ -332,11 +332,17 @@ solve(self)
     This method computes the optimal policy and value function for the defined MDP.
 
     )doc")
-        .def(nb::init<std::shared_ptr<Madupite>, MPI_Comm>(), "madupite"_a = Madupite::initialize(nullptr, nullptr), "comm"_a = Madupite::getCommWorld(), "Initialize MDP with Madupite instance and MPI communicator")
+        .def(nb::init<std::shared_ptr<Madupite>, MPI_Comm>(), "madupite"_a = Madupite::initialize(nullptr, nullptr),
+            "comm"_a = Madupite::getCommWorld(), "Initialize MDP with Madupite instance and MPI communicator")
         .def("setOption", &MDP::setOption, "option"_a, "value"_a = nullptr, "Set options for MDP")
         .def("clearOptions", &MDP::clearOptions, "Clear all options for MDP")
         .def("setStageCostMatrix", &MDP::setStageCostMatrix, "Set the stage cost matrix")
         .def("setTransitionProbabilityTensor", &MDP::setTransitionProbabilityTensor, "Set the transition probability tensor")
         .def("setUp", &MDP::setUp, "Set up the MDP class")
-        .def("solve", &MDP::solve, "Solve the MDP problem");
+        .def("solve", &MDP::solve, "Solve the MDP problem")
+        .def(
+            "__setitem__",
+            [](MDP& self, const char* key, nb::handle value) {
+                self.setOption(key, nb::str(value).c_str());
+            });
 }
