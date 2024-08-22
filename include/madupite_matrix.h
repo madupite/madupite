@@ -214,5 +214,5 @@ public:
     std::vector<PetscScalar> getRow(PetscInt row) const;
 
     // write matrix to file
-    void writeToFile(const std::string& filename, MatrixType type) const;
+    void writeToFile(const std::string& filename, MatrixType type, bool binary) const;
 };
