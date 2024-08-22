@@ -1,0 +1,27 @@
+# First,
+#   cp petsc-env-conda.example petsc-env-conda
+# and adjust the latter as needed.
+# Please don't commit changes to this file.
+#
+# Then to load the environment into your shell,
+# you need to
+#   . ./petsc-env-conda
+# or
+#   source ./petsc-env-conda
+
+eval "$(conda shell.bash hook)"
+conda activate --no-stack madupiteenv
+
+export PETSC_DIR=${CONDA_PREFIX}
+export PETSC_ARCH=
+
+# GoogleTest paths
+export GTEST_DIR=${CONDA_PREFIX}
+export GTEST_LIB_DIR=${CONDA_PREFIX}/lib
+export GTEST_INCLUDE_DIR=${CONDA_PREFIX}/include
+
+echo PETSC_DIR=$PETSC_DIR
+echo PETSC_ARCH=$PETSC_ARCH
+echo GTEST_DIR=$GTEST_DIR
+echo GTEST_LIB_DIR=$GTEST_LIB_DIR
+echo GTEST_INCLUDE_DIR=$GTEST_INCLUDE_DIR

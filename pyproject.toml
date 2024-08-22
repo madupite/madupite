@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools", "wheel", "cython>=0.29", "cmake", "numpy"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "madupite"
+version = "4.0"
+authors = [
+  { name="Philip Pawlowsky", email="philip.pawlowsky@gmail.com" },
+  { name="Robin Sieber", email="rjs02@hotmail.com"}
+]
+description = "madupite"
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+# TODO: Add dependencies
+# dependencies = [
+#     "requests",
+#     'importlib-metadata; python_version<"3.8"',
+# ]
+# dynamic = ["version"]
+
+# [project.urls]
+# "Homepage" = "https://github.com/pypa/sampleproject"
+# "Bug Tracker" = "https://github.com/pypa/sampleproject/issues"

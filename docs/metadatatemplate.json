@@ -1,0 +1,23 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "properties": {
+        "number of actions": "Number of actions",
+        "number of states": "Number of states",
+        "ranks": "Number of available ranks to the solver",
+        "residual log (as array)": {
+            "properties": {
+                    "inner solver":
+                    {
+                        "properties": {
+                        "iterations": "Number of iteration in the inner solver",
+                        "residual": "Residual of the inner solver."
+                        }
+                    },
+                  "residual": "The bellman residual. Solve stops as soon as this value is below outer stopping criterion",
+                  "time": "Time in seconds since the solver started"
+                }
+
+        },
+        "time and date": "Fri Jul  7 09:57:40 2023\n"
+    }
+}

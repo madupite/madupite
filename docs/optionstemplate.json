@@ -1,0 +1,24 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "properties": {
+      "initial cost type": "constant number (without quotes) or 'random' for uniformly distributed initial guess",
+      "discount factor": "float between 0 and 1",
+      "solver": {
+        "properties": {
+          "ksptype": "Sparse linear solver, e.g. 'gmres' from `KSPType <https://petsc.org/release/manualpages/KSP/KSPType/>`_",
+          "options": "String that contains PETSc options for the solver, e.g. -ksp_gmres_restart 5 ",
+          "preconditioner": "Preconditioner, e.g. 'jacobi' from `PCType <https://petsc.org/release/manualpages/PC/PCType/>`_",
+          "inner stopping criterion": {
+            "properties": {
+              "alpha": "default for inexact policy iteration (fast) or exact, which is equivalent to standard policy iteration (slow). The accuracy is controlled by the outer stopping criterion",
+              "decreasing": "tbd"
+            }
+          }
+        }
+      },
+      "outer stopping criterion": "The maximum norm of the bellman residual function, e.g. 1e-9",
+      "policy filename": "filename, can be empty",
+      "cost filename": "filename, can be empty",
+      "metadata filename": "filename, can be empty"
+    }
+  }
