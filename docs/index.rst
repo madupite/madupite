@@ -7,7 +7,7 @@ Welcome to madupite's documentation!
    :maxdepth: 2
 
    Installation <install>
-   Tutorial <tutorial>
+   Tutorials <tutorial>
    Options <options>
    Benchmarks <benchmarks>
    API Reference <apiref>

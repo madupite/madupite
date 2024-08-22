@@ -1,4 +1,4 @@
-Tutorial
+Tutorials
 ===============
 
 Let's start with a minimal example that demonstrates how to quickly load and solve for the optimal value function and policy of a Markov Decision Process (MDP) using ``madupite``.
