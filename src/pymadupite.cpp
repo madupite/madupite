@@ -9,6 +9,10 @@
 namespace nb = nanobind;
 using namespace nb::literals;
 
+// Fix for OpenMPI 4
+// (https://github.com/hpc4cmb/toast/issues/298)
+struct ompi_communicator_t {};
+
 NB_MODULE(_madupite_impl, m)
 {
     nb::class_<Madupite>(m, "Madupite");
