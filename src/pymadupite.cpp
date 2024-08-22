@@ -200,7 +200,7 @@ writeToFile(self, filename: str)
     .def_static("typeToString", &Matrix::typeToString)
     .def_static("fromFile", &Matrix::fromFile, nb::kw_only(),
         "comm"_a = Madupite::getCommWorld(), "name"_a, "filename"_a, "category"_a, "type"_a)
-    .def("writeToFile", &Matrix::writeToFile);
+    .def("writeToFile", &Matrix::writeToFile, "filename"_a, "matrix_type"_a, "binary"_a = false);
 
 
     m.def("createTransitionProbabilityTensor", 
