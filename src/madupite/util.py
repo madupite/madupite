@@ -1,10 +1,20 @@
 def writePETScBinary(matrix, filename, info_file=False):
-    """Write numpy/scipy matrix as petsc binary sparse format to file
-    https://petsc.org/release/manualpages/Mat/MatLoad/#notes
+    """Write a numpy/scipy matrix as petsc binary sparse format to file
+    https://petsc.org/release/manualpages/Mat/MatLoad/#notes.
+
+    If you are working with a 3-dimensional array to represent the transition probabilities you
+    must reshape it before writing it to file. If the array P[i,j,k] represents the
+    transition probability from state i to state k given input j, you can reshape it as follows:
+    
+    .. code-block:: python
+
+        1stdim, 2nddim, 3rddim = P.shape
+        P = P.reshape(1stdim * 2nddim, 3rddim)
+
 
     Parameters
     ----------
-    matrix : numpy/scipy matrix
+    matrix : numpy/scipy matrix (2-dimensional)
         any matrix type that allows calling scipy.sparse.csr_array(matrix)
     filename : string
         output filename
@@ -13,6 +23,8 @@ def writePETScBinary(matrix, filename, info_file=False):
     """
     import numpy as np
     from scipy.sparse import csr_array
+
+    assert matrix.ndim == 2, "Matrix must be 2-dimensional."
 
     csr_matrix = csr_array(matrix)
     csr_matrix.sort_indices()
