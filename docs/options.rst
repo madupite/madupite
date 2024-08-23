@@ -1,7 +1,7 @@
 Madupite Options
 ================
 
-Madupite options are specified using ``MDP::setOption()``. This function accepts either two strings, or a single string for boolean options. Numeric values should be passed as strings, e.g., ``"20"``, ``"0.1"``, ``"1e-10"``. Madupite options are built on top of PETSc options, allowing any PETSc option to be passed as well.
+Madupite options are specified using ``MDP.setOption()``. This function accepts either two strings, or a single string for boolean options. Numeric values should be passed as strings, e.g., ``"20"``, ``"0.1"``, ``"1e-10"``. Madupite options are built on top of PETSc options, allowing any PETSc option to be passed as well.
 
 Required Options
 ----------------
