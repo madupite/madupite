@@ -53,7 +53,7 @@ Matrix Matrix::fromFile(MPI_Comm comm, const std::string& name, const std::strin
     if (comm == -1) {
         comm = PETSC_COMM_WORLD;
     }
-    
+
     if (comm == MPI_COMM_NULL) {
         throw MadupiteException("MADUPITE: Invalid MPI communicator");
     }

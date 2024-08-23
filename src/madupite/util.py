@@ -5,7 +5,7 @@ def writePETScBinary(matrix, filename, info_file=False):
     If you are working with a 3-dimensional array to represent the transition probabilities you
     must reshape it before writing it to file. If the array P[i,j,k] represents the
     transition probability from state i to state k given input j, you can reshape it as follows:
-    
+
     .. code-block:: python
 
         1stdim, 2nddim, 3rddim = P.shape

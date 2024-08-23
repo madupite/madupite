@@ -1,5 +1,6 @@
-import madupite as md
 import numpy as np
+
+import madupite as md
 
 numStates = 50
 numActions = 4  # Four possible movements: up, right, down, left
