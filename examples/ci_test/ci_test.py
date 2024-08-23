@@ -1,5 +1,5 @@
 import madupite
-
+import sys
 
 def rewardfunc(s, a):
     return 1.0 if s == 41 else 0.0
@@ -21,7 +21,7 @@ def probfunc(s, a):
 
 
 def main():
-    instance = madupite.initialize_madupite()
+    instance = madupite.initialize_madupite(sys.argv)
 
     mdp = madupite.MDP(instance)
 
