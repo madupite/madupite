@@ -1,5 +1,6 @@
 #pragma once
 
+#include <mpi.h>
 #include <petscksp.h>
 
 #include <memory>
@@ -35,6 +36,7 @@ public:
         return instance;
     }
     static MPI_Comm getCommWorld() { return comm_; }
+    static int      pyGetCommWorld() { return MPI_Comm_c2f(comm_); }
 
     ~Madupite()
     {
