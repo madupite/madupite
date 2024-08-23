@@ -8,12 +8,13 @@ import madupite as md
 
 
 def main():
-    # Create output directory
-    if not os.path.exists("out"):
-        os.makedirs("out")
-
     # Initialize madupite
     instance = md.initialize_madupite()
+    rank, size = md.mpi_rank_size()
+
+    # Create output directory (only on one process)
+    if rank == 0 and not os.path.exists("out"):
+        os.makedirs("out")
 
     # Create the transition probability tensor and the stage cost matrix
     P = md.Matrix.fromFile(
