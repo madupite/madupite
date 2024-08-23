@@ -1,11 +1,18 @@
 Installation
 ============
 
+To install ``madupite``, first clone the repository from GitHub:
+
+::
+
+   git clone https://github.com/madupite/madupite.git
+
+
 --------------
  Dependencies
 --------------
 
-First, you need to make sure that the dependencies are available. A convenient way of installing them is via the conda environment file, which you can find in the repo.
+You need to make sure that the dependencies are available. A convenient way of installing them is via the conda environment file, which you can find in the repo.
 ::
 
    conda env create -f environment.yml
@@ -17,21 +24,20 @@ Users that want to use their own PETSc or MPI version should make sure that cmak
  Python package
 ----------------
 
-Assuming you have a working version of PETSc, e.g. by activating the conda environment above, you can run pip:
+After installing the necessary dependencies you can install madupite for Python via pip:
 ::
 
    pip install .
 
-Make sure to run your executables with mpirun. <number_of_ranks> could be the number of cores on your machine:
+Make sure to run your executables with mpirun. <number_of_ranks> could be the number of cores on your machine. If you want to check whether your installation was successful, you can run the following command:
 ::
 
-   mpirun -n <number_of_ranks> python main.py
-
+   mpirun -n <number_of_ranks> python examples/install/main.py
 
 ---------------
  C++
 ---------------
-Assuming you have a working version of PETSc, e.g. by activating the conda environment above, call the following for a build with cmake.
+For advanced users looking to use the software from C++, ensure you have a functional PETSc installation. From there, you can proceed to build the project using CMake as follows:
 ::
 
    mkdir build
@@ -44,23 +50,42 @@ Make sure to run your executables with mpirun. <number_of_ranks> could be the nu
 
    mpirun -n <number_of_ranks> ./build/main
 
-.. TODO
-.. ------------------------------
-..  Euler (ETH Zurich Cluster)
-.. ------------------------------
-.. Make sure to use the new software stack (run the command env2lmod). The file moduleload.sh is provided in the repo.
-.. ::
+.. note::
+   As of now, only the Python API is documented. However, users can refer to the C++ example provided for guidance.
 
-..    # this loads the correct software dependencies
-..    source moduleload.sh
+------------------------------
+Euler (ETH Zurich Cluster)
+------------------------------
 
-..    # Python-Version:
-..    pip install .
+**Python Version:**
 
-..    # C++-Version:
-..    mkdir build
-..    cd build
-..    cmake ..
-..    make
+To install the Python package on the Euler cluster, first load the necessary software modules:
 
-.. Specify your job and the compute ressources in the launch.sh file.
+::
+
+   ./load-euler-modules.sh
+
+Then, install the Python package using pip:
+
+::
+
+   pip install .
+
+**C++ Version:**
+
+To build the C++ project on the Euler cluster, load the necessary software modules:
+
+::
+
+   ./load-euler-modules.sh
+
+Then, follow the same steps as for the general C++ installation:
+
+::
+
+   mkdir build
+   cd build
+   cmake ..
+   make
+
+The repository contains an example launch file `euler-launch.sh` to run the executables on the Euler cluster.

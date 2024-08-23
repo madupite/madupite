@@ -109,7 +109,7 @@ PetscErrorCode MDP::setOption(const char* option, const char* value)
         || strcmp(option, "-export_optimal_stage_costs") == 0) {
         PetscCallThrow(PetscOptionsSetValue(NULL, option, value));
     } else {
-        SETERRQ(Madupite::getCommWorld(), 1, ("Invalid option: " + std::string(option)).c_str());
+        SETERRQ(Madupite::getCommWorld(), 1, "%s", ("Invalid option: " + std::string(option)).c_str());
     }
     return 0;
 }

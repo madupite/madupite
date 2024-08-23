@@ -8,6 +8,7 @@ Welcome to madupite's documentation!
 
    Installation <install>
    Tutorials <tutorial>
+   Examples <examples>
    Options <options>
    Benchmarks <benchmarks>
    API Reference <apiref>
