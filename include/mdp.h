@@ -4,10 +4,12 @@
 #include <petscksp.h>
 
 #include <memory>
+#include <utility>
 
 #include "JsonWriter.h"
 #include "madupite_errors.h"
 #include "madupite_matrix.h"
+#include "utils.h"
 
 // convenience import so that user code doesn't need to include MDP_matrix.h
 #include "mdp_matrix.h"
@@ -47,7 +49,7 @@ public:
 
 class MDP {
 public:
-    MDP(std::shared_ptr<Madupite> madupite, MPI_Comm comm = Madupite::getCommWorld());
+    template <typename comm_t> MDP(std::shared_ptr<Madupite> madupite, comm_t comm = Madupite::getCommWorld());
     PetscErrorCode setOption(const char* option, const char* value = NULL);
     void           clearOptions();
     void           setStageCostMatrix(const Matrix& g);

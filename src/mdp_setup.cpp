@@ -3,6 +3,7 @@
 #include <string>
 
 #include "mdp.h"
+#include "utils.h"
 
 std::shared_ptr<Madupite> Madupite::instance;
 std::mutex                Madupite::mtx;
@@ -37,12 +38,14 @@ std::shared_ptr<Madupite> Madupite::initialize(int* argc, char*** argv)
     return instance;
 }
 
-MDP::MDP(std::shared_ptr<Madupite> madupite, MPI_Comm comm)
+template <typename comm_t>
+MDP::MDP(std::shared_ptr<Madupite> madupite, comm_t comm_arg)
     : madupite_(madupite)
-    , comm_(comm)
+    , comm_(convertComm(comm_arg))
 {
     json_writer_ = std::make_unique<JsonWriter>(Madupite::getCommWorld());
 }
+template MDP::MDP(std::shared_ptr<Madupite> madupite, int comm);
 
 #define GET_OPTION(type, name, default_value, parse_fn, print_fn)                                                                                    \
     do {                                                                                                                                             \

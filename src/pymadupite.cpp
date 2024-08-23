@@ -1,5 +1,6 @@
 #include "mdp.h"
 #include "petsc.h"
+#include "utils.h"
 #include <nanobind/nanobind.h>
 #include <nanobind/stl/function.h>
 #include <nanobind/stl/pair.h>
@@ -12,14 +13,13 @@ using namespace nb::literals;
 
 // Fix for OpenMPI 4
 // (https://github.com/hpc4cmb/toast/issues/298)
-struct ompi_communicator_t { };
+struct ompi_communicator_t {};
 
 NB_MODULE(_madupite_impl, m)
 {
     nb::class_<Madupite>(m, "Madupite");
 
-    m.def(
-        "initialize_madupite", []() { return Madupite::initialize(nullptr, nullptr); },
+    m.def("initialize_madupite", []() { return Madupite::initialize(nullptr, nullptr); }, 
         R"doc(
         Initialize the Madupite instance.
 
@@ -32,12 +32,11 @@ NB_MODULE(_madupite_impl, m)
             An initialized instance of the `Madupite` class.
         )doc");
 
-    m.def(
-        "getCommWorld", []() { return Madupite::pyGetCommWorld(); },
+    m.def("getCommWorld", []() { return Madupite::pyGetCommWorld(); }, 
         R"doc(
         Get the global MPI communicator.
 
-        This function returns the global MPI communicator as an integer.
+        This function returns the global MPI communicator.
 
         Returns
         -------
@@ -45,14 +44,7 @@ NB_MODULE(_madupite_impl, m)
             The global MPI communicator identifier.
         )doc");
 
-    m.def(
-        "mpi_rank_size",
-        []() {
-            int rank, size;
-            MPI_Comm_rank(Madupite::getCommWorld(), &rank);
-            MPI_Comm_size(Madupite::getCommWorld(), &size);
-            return std::make_pair(rank, size);
-        },
+    m.def("mpi_rank_size", &mpi_rank_size, nb::kw_only(), "comm"_a = 0,
         R"doc(
         Return the rank and size of the global MPI communicator.
 
@@ -110,7 +102,7 @@ NB_MODULE(_madupite_impl, m)
         .value("Cost", MatrixCategory::Cost)
         .export_values();
 
-    nb::class_<MatrixPreallocation>(m, "MatrixPreallocation",
+    nb::class_<MatrixPreallocation>(m, "MatrixPreallocation", 
         R"doc(
         Represents the preallocation for a matrix in the Madupite framework.
 
@@ -139,6 +131,7 @@ NB_MODULE(_madupite_impl, m)
         .def_rw("d_nnz", &MatrixPreallocation::d_nnz, "Diagonal non-zero entries")
         .def_rw("o_nz", &MatrixPreallocation::o_nz, "Number of off-diagonal non-zero entries")
         .def_rw("o_nnz", &MatrixPreallocation::o_nnz, "Off-diagonal non-zero entries");
+
 
     nb::class_<Matrix>(m, "Matrix",
         R"doc(
@@ -202,25 +195,20 @@ NB_MODULE(_madupite_impl, m)
         )doc")
         .def(nb::init<>())
         .def_static("typeToString", &Matrix::typeToString)
-        .def_static(
-            "fromFile",
-            [](int comm, const std::string& name, const std::string& filename, MatrixCategory category, MatrixType type) {
-                MPI_Comm mpi_comm = MPI_Comm_f2c(comm);
-                return Matrix::fromFile(mpi_comm, name, filename, category, type);
-            },
-            nb::kw_only(), "comm"_a = Madupite::pyGetCommWorld(), "name"_a = "", "filename"_a, "category"_a, "type"_a)
-
+        .def_static("fromFile", &Matrix::fromFile<int>, nb::kw_only(),
+            "comm"_a = 0, "name"_a = "", "filename"_a, "category"_a, "type"_a)
         .def("writeToFile", &Matrix::writeToFile, "filename"_a, "matrix_type"_a, "binary"_a = false);
 
-    m.def(
-        "createTransitionProbabilityTensor",
-        [](int comm, const std::string& name, int numStates, int numActions,
-            const std::function<std::pair<std::vector<double>, std::vector<int>>(int, int)>& func, const MatrixPreallocation& preallocation) {
-            MPI_Comm mpi_comm = MPI_Comm_f2c(comm);
-            return createTransitionProbabilityTensor(mpi_comm, name, numStates, numActions, func, preallocation);
-        },
-        nb::kw_only(), "comm"_a = Madupite::pyGetCommWorld(), "name"_a = "", "numStates"_a, "numActions"_a, "func"_a,
-        "preallocation"_a = MatrixPreallocation {},
+
+    m.def("createTransitionProbabilityTensor", 
+        &createTransitionProbabilityTensor<int>, 
+        nb::kw_only(), 
+        "comm"_a = 0, 
+        "name"_a = "",
+        "numStates"_a, 
+        "numActions"_a, 
+        "func"_a, 
+        "preallocation"_a = MatrixPreallocation {}, 
         R"doc(
         Creates a transition probability tensor for a Markov Decision Process (MDP).
 
@@ -253,16 +241,14 @@ NB_MODULE(_madupite_impl, m)
             A matrix object representing the transition probability tensor.
         )doc");
 
-    m.def("createStageCostMatrix", [](int comm, const std::string &name, int numStates, int numActions, 
-                                  const std::function<double(int, int)> &func) {
-        MPI_Comm mpi_comm = MPI_Comm_f2c(comm);
-        return createStageCostMatrix(mpi_comm, name, numStates, numActions, func);
-        }, nb::kw_only(),
-        "comm"_a = Madupite::pyGetCommWorld(),
+    m.def("createStageCostMatrix", 
+        &createStageCostMatrix<int>, 
+        nb::kw_only(),
+        "comm"_a = 0, 
         "name"_a = "", 
         "numStates"_a, 
         "numActions"_a, 
-        "func"_a,
+        "func"_a, 
         R"doc(
         Creates a stage cost matrix for a Markov Decision Process (MDP).
 
@@ -343,30 +329,17 @@ NB_MODULE(_madupite_impl, m)
             This method computes the optimal policy and value function for the defined MDP.
 
             )doc")
-        .def(nb::init<std::shared_ptr<Madupite>, int>(), // Change MPI_Comm to int in the constructor signature
-            "madupite"_a = Madupite::initialize(nullptr, nullptr),
-            "comm"_a     = MPI_Comm_c2f(Madupite::getCommWorld()), // Convert MPI_Comm to integer for the default value
-            R"doc(
-        Initialize the MDP with a Madupite instance and MPI communicator.
-
-        Parameters
-        ----------
-        madupite : Madupite, optional
-            An instance of the Madupite class. Defaults to the result of madupite_initialize().
-        comm : int, optional
-            The MPI communicator as an integer. Defaults to the global MPI communicator.
-        )doc")
-        // Convert the integer comm to MPI_Comm within the lambda function
-        .def("__init__",
-            [](MDP& self, std::shared_ptr<Madupite> madupite, int comm) {
-                MPI_Comm mpi_comm = MPI_Comm_f2c(comm); // Convert the integer to MPI_Comm
-                new (&self) MDP(madupite, mpi_comm);    // Use placement new to construct the MDP
-        })
+        .def(nb::init<std::shared_ptr<Madupite>, int>(), "madupite"_a = Madupite::initialize(nullptr, nullptr),
+            "comm"_a = 0, "Initialize MDP with Madupite instance and MPI communicator")
         .def("setOption", &MDP::setOption, "option"_a, "value"_a = nullptr, "Set options for MDP")
         .def("clearOptions", &MDP::clearOptions, "Clear all options for MDP")
         .def("setStageCostMatrix", &MDP::setStageCostMatrix, "Set the stage cost matrix")
         .def("setTransitionProbabilityTensor", &MDP::setTransitionProbabilityTensor, "Set the transition probability tensor")
         .def("setUp", &MDP::setUp, "Set up the MDP class")
         .def("solve", &MDP::solve, "Solve the MDP problem")
-        .def("__setitem__", [](MDP& self, const char* key, nb::handle value) { self.setOption(key, nb::str(value).c_str()); });
+        .def(
+            "__setitem__",
+            [](MDP& self, const char* key, nb::handle value) {
+                self.setOption(key, nb::str(value).c_str());
+            });
 }

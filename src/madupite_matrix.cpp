@@ -1,8 +1,12 @@
+#include <mpi.h>
+#include <mpi_proto.h>
 #include <petscmat.h>
 #include <petscsys.h>
+#include <type_traits>
 
 #include "madupite_errors.h"
 #include "madupite_matrix.h"
+#include "utils.h"
 
 std::string Matrix::typeToString(MatrixType type)
 {
@@ -46,8 +50,11 @@ Matrix::Matrix(
 }
 
 // TODO PETSc feature proposal: it would be nice if the PETSc loader infers the correct type from the file
-Matrix Matrix::fromFile(MPI_Comm comm, const std::string& name, const std::string& filename, MatrixCategory category, MatrixType type)
+template <typename comm_T>
+Matrix Matrix::fromFile(comm_T comm_arg, const std::string& name, const std::string& filename, MatrixCategory category, MatrixType type)
 {
+    MPI_Comm comm = convertComm(comm_arg);
+
     if (comm == MPI_COMM_NULL) {
         throw MadupiteException("MADUPITE: Invalid MPI communicator");
     }
@@ -96,6 +103,8 @@ Matrix Matrix::fromFile(MPI_Comm comm, const std::string& name, const std::strin
     A._colLayout = Layout(pColLayout);
     return A;
 }
+// explicit template instantiation for nanobind wrapper
+template Matrix Matrix::fromFile<int>(int comm_arg, const std::string& name, const std::string& filename, MatrixCategory category, MatrixType type);
 
 // Get row in AIJ format
 std::vector<PetscScalar> Matrix::getRow(PetscInt row) const

@@ -1,9 +1,14 @@
 #include "mdp_matrix.h"
+#include "madupite_matrix.h"
 #include "mdp.h"
+#include "utils.h"
+#include <petscmat.h>
 
+template <typename comm_t>
 Matrix createTransitionProbabilityTensor(
-    MPI_Comm comm, const std::string& name, PetscInt numStates, PetscInt numActions, Probfunc func, const MatrixPreallocation& pa)
+    comm_t comm_arg, const std::string& name, PetscInt numStates, PetscInt numActions, Probfunc func, const MatrixPreallocation& pa)
 {
+    MPI_Comm comm        = convertComm(comm_arg);
     PetscInt localStates = PETSC_DECIDE;
     PetscSplitOwnership(Madupite::getCommWorld(), &localStates, &numStates);
     Layout rowLayout(Madupite::getCommWorld(), localStates * numActions, true);
@@ -24,9 +29,13 @@ Matrix createTransitionProbabilityTensor(
     A.assemble();
     return A;
 }
+template Matrix createTransitionProbabilityTensor<int>(
+    int comm_arg, const std::string& name, PetscInt numStates, PetscInt numActions, Probfunc func, const MatrixPreallocation& prealloc);
 
-Matrix createStageCostMatrix(MPI_Comm comm, const std::string& name, PetscInt numStates, PetscInt numActions, Costfunc func)
+template <typename comm_t>
+Matrix createStageCostMatrix(comm_t comm_arg, const std::string& name, PetscInt numStates, PetscInt numActions, Costfunc func)
 {
+    MPI_Comm comm        = convertComm(comm_arg);
     PetscInt localStates = PETSC_DECIDE;
     PetscSplitOwnership(Madupite::getCommWorld(), &localStates, &numStates);
     Layout   rowLayout(Madupite::getCommWorld(), localStates, true);
@@ -48,3 +57,4 @@ Matrix createStageCostMatrix(MPI_Comm comm, const std::string& name, PetscInt nu
     A.assemble();
     return A;
 }
+template Matrix createStageCostMatrix<int>(int comm_arg, const std::string& name, PetscInt numStates, PetscInt numActions, Costfunc func);
