@@ -1,5 +1,7 @@
-import madupite
 import sys
+
+import madupite
+
 
 def rewardfunc(s, a):
     return 1.0 if s == 41 else 0.0
