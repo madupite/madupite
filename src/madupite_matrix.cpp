@@ -1,5 +1,4 @@
 #include <mpi.h>
-#include <mpi_proto.h>
 #include <petscmat.h>
 #include <petscsys.h>
 #include <type_traits>
