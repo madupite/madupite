@@ -50,7 +50,7 @@ Matrix Matrix::fromFile(MPI_Comm comm, const std::string& name, const std::strin
 {
     // workaround to allow the default value of comm to be PETSC_COMM_WORLD for the
     // static method fromFile
-    if (comm == -1) {
+    if (comm == MPI_COMM_NULL) {
         comm = PETSC_COMM_WORLD;
     }
 

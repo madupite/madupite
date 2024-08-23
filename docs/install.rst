@@ -63,7 +63,7 @@ To install the Python package on the Euler cluster, first load the necessary sof
 
 ::
 
-   ./load-euler-modules.sh
+   source ./load-euler-modules.sh
 
 Then, install the Python package using pip:
 
@@ -77,7 +77,7 @@ To build the C++ project on the Euler cluster, load the necessary software modul
 
 ::
 
-   ./load-euler-modules.sh
+   source ./load-euler-modules.sh
 
 Then, follow the same steps as for the general C++ installation:
 

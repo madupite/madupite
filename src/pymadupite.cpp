@@ -205,7 +205,7 @@ writeToFile(self, filename: str)
     .def_static("typeToString", &Matrix::typeToString)
     // -1 is  a workaround to allow the default value of comm to be PETSC_COMM_WORLD
     .def_static("fromFile", &Matrix::fromFile, nb::kw_only(),
-        "comm"_a = -1, "name"_a = "", "filename"_a, "category"_a, "type"_a)
+        "comm"_a = 0, "name"_a = "", "filename"_a, "category"_a, "type"_a)
     .def("writeToFile", &Matrix::writeToFile, "filename"_a, "matrix_type"_a, "binary"_a = false);
 
 
