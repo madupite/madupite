@@ -1,4 +1,5 @@
 #include "mdp.h"
+#include "petsc.h"
 #include <nanobind/nanobind.h>
 #include <nanobind/stl/function.h>
 #include <nanobind/stl/pair.h>
@@ -141,7 +142,7 @@ o_nnz : list of int
 
 
     nb::class_<Matrix>(m, "Matrix",
-R"doc(
+        R"doc(
 Represents a matrix used within the Madupite framework.
 
 The `Matrix` class provides functionalities to handle matrices, including the ability to
@@ -202,8 +203,9 @@ writeToFile(self, filename: str)
 )doc")
     .def(nb::init<>())
     .def_static("typeToString", &Matrix::typeToString)
+    // -1 is  a workaround to allow the default value of comm to be PETSC_COMM_WORLD
     .def_static("fromFile", &Matrix::fromFile, nb::kw_only(),
-        "comm"_a = Madupite::getCommWorld(), "name"_a, "filename"_a, "category"_a, "type"_a)
+        "comm"_a = -1, "name"_a = "", "filename"_a, "category"_a, "type"_a)
     .def("writeToFile", &Matrix::writeToFile, "filename"_a, "matrix_type"_a, "binary"_a = false);
 
 
@@ -211,7 +213,7 @@ writeToFile(self, filename: str)
     &createTransitionProbabilityTensor, 
     nb::kw_only(), 
     "comm"_a = Madupite::getCommWorld(), 
-    "name"_a,
+    "name"_a = "",
     "numStates"_a, 
     "numActions"_a, 
     "func"_a, 
@@ -252,7 +254,7 @@ madupite.Matrix
     &createStageCostMatrix, 
     nb::kw_only(),
     "comm"_a = Madupite::getCommWorld(), 
-    "name"_a, 
+    "name"_a = "", 
     "numStates"_a, 
     "numActions"_a, 
     "func"_a, 

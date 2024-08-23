@@ -1,4 +1,5 @@
 #include <petscmat.h>
+#include <petscsys.h>
 
 #include "madupite_errors.h"
 #include "madupite_matrix.h"
@@ -47,6 +48,12 @@ Matrix::Matrix(
 // TODO PETSc feature proposal: it would be nice if the PETSc loader infers the correct type from the file
 Matrix Matrix::fromFile(MPI_Comm comm, const std::string& name, const std::string& filename, MatrixCategory category, MatrixType type)
 {
+    // workaround to allow the default value of comm to be PETSC_COMM_WORLD for the
+    // static method fromFile
+    if (comm == -1) {
+        comm = PETSC_COMM_WORLD;
+    }
+    
     if (comm == MPI_COMM_NULL) {
         throw MadupiteException("MADUPITE: Invalid MPI communicator");
     }
