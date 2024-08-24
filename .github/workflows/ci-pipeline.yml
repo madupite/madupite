@@ -18,15 +18,15 @@ jobs:
         auto-activate-base: false
 
     - name: Run pre-commit on all files
-      run: conda run -n madupte pre-commit run --all-files
+      run: conda run -n madupiteenv pre-commit run --all-files
 
     - name: Install the library
-      run: conda run -n madupte pip install .
+      run: conda run -n madupiteenv pip install .
 
     - name: Build and test with CMake
       run: |
         source ~/miniconda/etc/profile.d/conda.sh
-        conda activate my-env
+        conda activate madupiteenv
         mkdir build
         cd build
         cmake .. -DBUILD_TESTS=ON
