@@ -1,6 +1,7 @@
 Tutorials
 ===============
 
+
 Loading and reading data with ``madupite``
 ----------------------------------------------
 
@@ -184,3 +185,33 @@ In the above case the values for ``d_nnz``, ``o_nnz`` are:
         preallocation=pc
     )
     # Solve the MDP ...
+
+
+Data format
+-----------
+The data format for the MDP is defined by the stage cost matrix and the transition probability tensor. The stage cost matrix is a matrix of size ``numStates x numActions``, where each element (s, a) represents the cost of taking action a in state s. The transition probabilities are usually expressed as a tensor of size ``numStates x numActions x numStates``, where each element (s, a, s') represents the probability of transitioning from state s to state s' after applying action a. For ``madupite`` the tensor is flattened to a matrix of size ``numStates*numActions x numStates``, where each row i represents the transition probabilities from state i // numStates to state s' after applying action i % numStates.
+
+The tensor can be reshaped as follows:
+
+:: 
+
+    >>> import numpy as np
+    >>> numStates = 3
+    >>> numActions = 2
+    >>> P=np.array(
+    ...     [[[0.5,  0.5,  0.0 ],
+    ...       [0.25, 0.33, 0.42]],
+    ...   
+    ...      [[0.3,  0.3,  0.4 ],
+    ...       [0.4,  0.2,  0.4 ]],
+    ...   
+    ...      [[0.6 , 0.1,  0.3 ],
+    ...       [0.7 , 0.1,  0.2 ]]])
+    >>> 
+    >>> P.reshape((numStates*numActions, numStates))
+    array([[0.5 , 0.5 , 0.  ],
+           [0.25, 0.33, 0.42],
+           [0.3 , 0.3 , 0.4 ],
+           [0.4 , 0.2 , 0.4 ],
+           [0.6 , 0.1 , 0.3 ],
+           [0.7 , 0.1 , 0.2 ]])
