@@ -25,10 +25,4 @@ jobs:
 
     - name: Build and test with CMake
       run: |
-        source ~/miniconda/etc/profile.d/conda.sh
-        conda activate madupiteenv
-        mkdir build
-        cd build
-        cmake .. -DBUILD_TESTS=ON
-        make
-        ctest --output-on-failure
+        conda run -n madupiteenv bash -c "mkdir -p build && cd build && cmake .. -DBUILD_TESTS=ON && make && ctest --output-on-failure"
