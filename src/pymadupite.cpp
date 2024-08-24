@@ -31,6 +31,7 @@ NB_MODULE(_madupite_impl, m)
                     cStrings[i] = const_cast<char*>(in[i].c_str());
                 }
                 PetscOptionsInsert(NULL, &argc, &cStrings, NULL);
+                delete[] cStrings;
             } 
             return Madupite::initialize();
         }, "argv"_a = std::vector<std::string>{""},

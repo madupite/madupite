@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <iostream> // TODO: replace with some logger
 #include <memory>
+#include <petscsys.h>
 
 #include "mdp.h"
 
@@ -287,7 +288,7 @@ void MDP::solve()
     PetscCallThrow(PetscTime(&endiPI));
 
     if (PI_iteration >= max_iter_pi_) {
-        std::cout << "Warning: maximum number of PI iterations reached. Solution might not be optimal." << std::endl;
+        PetscPrintf(comm_, "Warning: maximum number of PI iterations reached. Solution might not be optimal.\n");
         json_writer_->add_data("remark", "Warning: maximum number of iPI iterations reached. Solution might not be optimal.");
     }
 
