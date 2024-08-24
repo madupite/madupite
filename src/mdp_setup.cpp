@@ -41,8 +41,8 @@ std::shared_ptr<Madupite> Madupite::initialize(int* argc, char*** argv)
 MDP::MDP(std::shared_ptr<Madupite> madupite)
     : madupite_(madupite)
     , comm_(Madupite::getCommWorld())
-    {}
-    
+{
+}
 
 template <typename comm_t>
 MDP::MDP(std::shared_ptr<Madupite> madupite, comm_t comm_arg)
