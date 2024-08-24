@@ -1,0 +1,98 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches:
+      - main  # Replace with your default branch
+  pull_request:
+
+env:
+  CONDA_ENV_PATH: ${{ github.workspace }}/madupiteenv
+  PETSC_DIR: ${{ github.workspace }}/madupiteenv
+  PETSC_ARCH: ""
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Miniconda
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          auto-activate-base: false
+
+      - name: Install dependencies with Conda
+        shell: bash -l {0}
+        run: |
+          eval "$(conda shell.bash hook)"
+          conda env list
+          if [ -f environment.yml ]; then
+            if [ -d $CONDA_ENV_PATH ]; then
+              echo "Reusing Conda environment $CONDA_ENV_PATH"
+              conda env update --prefix $CONDA_ENV_PATH -f environment.yml
+            else
+              echo "Creating new Conda environment $CONDA_ENV_PATH"
+              conda env create --prefix $CONDA_ENV_PATH -f environment.yml
+            fi
+          else
+            echo "environment.yml not found"
+            exit 1
+          fi
+          conda activate --no-stack $CONDA_ENV_PATH
+          conda env list
+
+      - name: Run pre-commit
+        run: |
+          conda activate --no-stack $CONDA_ENV_PATH
+          pre-commit run --all-files
+        continue-on-error: true
+        cache:
+          key: ${{ runner.os }}-pre-commit-cache
+          paths:
+            - ~/.cache/pre-commit
+
+  build:
+    runs-on: ubuntu-latest
+    needs: prepare
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Miniconda
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          auto-activate-base: false
+
+      - name: Activate Conda Environment
+        run: |
+          eval "$(conda shell.bash hook)"
+          conda activate --no-stack $CONDA_ENV_PATH
+          make
+        shell: bash -l {0}
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: built-examples
+          path: examples/*/bin/
+
+  test:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Miniconda
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          auto-activate-base: false
+
+      - name: Activate Conda Environment and Run Tests
+        run: |
+          eval "$(conda shell.bash hook)"
+          conda activate --no-stack $CONDA_ENV_PATH
+          make test
+        shell: bash -l {0}
