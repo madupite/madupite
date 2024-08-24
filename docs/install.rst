@@ -59,7 +59,13 @@ Euler (ETH Zurich Cluster)
 
 **Python Version:**
 
-To install the Python package on the Euler cluster, first load the necessary software modules:
+To install the Python package on the Euler cluster, access a login node and clone the repository
+
+::
+
+   git clone https://github.com/madupite/madupite.git
+
+Load the necessary software modules:
 
 ::
 
@@ -70,6 +76,17 @@ Then, install the Python package using pip:
 ::
 
    pip install .
+
+**Jupyter Notebook:**
+
+If you want to use ``madupite`` with  `JupyterHub on Euler` you need to install the python package as shown above. After that, copy the module load script to Jupyter.
+
+:: 
+
+   mkdir -p ~/.config/euler/jupyterhub/jupyterlabrc 
+   cp ~/madupite/load-euler-modules.sh ~/.config/euler/jupyterhub/jupyterlabrc
+
+Now, you can leave the login node and go to `JupyterHub on Euler <https://jupyter.euler.hpc.ethz.ch/>`_.
 
 **C++ Version:**
 
