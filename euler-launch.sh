@@ -7,4 +7,4 @@
 #SBATCH --ntasks=6
 #SBATCH --mem-per-cpu=20G
 
-mpirun ${HOME}/madupite/build/ci_test;
+mpirun python ${HOME}/madupite/examples/install/main.py -file_stats stats.json;

@@ -22,7 +22,7 @@ NB_MODULE(_madupite_impl, m)
 
     m.def(
         "initialize_madupite",
-        [](const std::vector<std::string>& in = {}) {
+        []( const std::vector<std::string>& in = {}) {
             int argc = in.size();
             if (argc > 1) {
                 char** cStrings = new char*[in.size()];

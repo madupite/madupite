@@ -1,4 +1,5 @@
 import numpy as np
+import sys
 
 import madupite as md
 
@@ -63,7 +64,7 @@ def print_maze(policy):
 
 
 def main():
-    md.initialize_madupite()
+    md.initialize_madupite(sys.argv)
     mdp = md.MDP()
     mdp.setOption("-mode", "MAXREWARD")
     mdp.setOption("-discount_factor", "0.99")
