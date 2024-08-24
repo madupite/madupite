@@ -49,7 +49,8 @@ public:
 
 class MDP {
 public:
-    template <typename comm_t> MDP(std::shared_ptr<Madupite> madupite, comm_t comm = Madupite::getCommWorld());
+    MDP(std::shared_ptr<Madupite> madupite);
+    template <typename comm_t> MDP(std::shared_ptr<Madupite> madupite, comm_t comm);
     PetscErrorCode setOption(const char* option, const char* value = NULL);
     void           clearOptions();
     void           setStageCostMatrix(const Matrix& g);
