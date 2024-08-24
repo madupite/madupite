@@ -9,4 +9,3 @@
 
 mpirun python compute_pendulum.py;
 # Make sure to call sbatch from <...>/madupite/examples/pendulum/ to have the correct relative filenames
-
