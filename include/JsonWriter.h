@@ -9,6 +9,8 @@
 #include <mpi.h>
 #include <petscsystypes.h>
 
+#include <utils.h>
+
 class JsonWriter {
     std::vector<nlohmann::json> runs;
     PetscMPIInt                 rank_;
@@ -46,35 +48,17 @@ public:
             return;
 
         if (rank_ == 0) {
-            std::string new_filename = filename;
-            int         counter      = 1;
-
-            // Check if the file exists and generate a new filename if it does
-            if (!overwrite) {
-                std::string extension;
-                std::size_t dot_pos       = filename.find_last_of(".");
-                std::string base_filename = filename;
-                if (dot_pos != std::string::npos) {
-                    base_filename = filename.substr(0, dot_pos);
-                    extension     = filename.substr(dot_pos);
-                }
-                while (std::filesystem::exists(new_filename)) {
-                    std::stringstream ss;
-                    ss << base_filename << "_" << counter << extension;
-                    new_filename = ss.str();
-                    counter++;
-                }
-            }
+            std::string safe_filename = get_safe_filename(filename, overwrite);
 
             nlohmann::json data;
             data["runs"] = runs;
 
-            std::ofstream file(new_filename);
+            std::ofstream file(safe_filename);
             if (file.is_open()) {
                 file << data.dump(4);
                 file.close();
             } else {
-                throw std::runtime_error("Failed to open file: " + new_filename);
+                throw std::runtime_error("Failed to open file: " + safe_filename);
             }
         }
     }

@@ -212,7 +212,7 @@ NB_MODULE(_madupite_impl, m)
         .def_static("typeToString", &Matrix::typeToString)
         .def_static("fromFile", &Matrix::fromFile<int>, nb::kw_only(),
             "comm"_a = 0, "name"_a = "", "filename"_a, "category"_a, "type"_a)
-        .def("writeToFile", &Matrix::writeToFile, "filename"_a, "matrix_type"_a, "binary"_a = false);
+        .def("writeToFile", &Matrix::writeToFile, "filename"_a, "matrix_type"_a, "binary"_a = false, "overwrite"_a = false);
 
 
     m.def("createTransitionProbabilityTensor", 

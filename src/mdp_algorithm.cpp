@@ -304,12 +304,12 @@ void MDP::solve()
     // write optimal transition probabilities and stage costs
     if (file_optimal_transition_probabilities_[0] != '\0') {
         auto optimalTransitionProbabilities = getTransitionProbabilities(policyValues);
-        writeMat(optimalTransitionProbabilities, file_optimal_transition_probabilities_);
+        writeMat(optimalTransitionProbabilities, file_optimal_transition_probabilities_, false);
         PetscCallThrow(MatDestroy(&optimalTransitionProbabilities));
     }
     if (file_optimal_stage_costs_[0] != '\0') {
         auto optimalStageCosts = getStageCosts(policyValues);
-        writeVec(optimalStageCosts, file_optimal_stage_costs_);
+        writeVec(optimalStageCosts, file_optimal_stage_costs_, false);
         PetscCallThrow(VecDestroy(&optimalStageCosts));
     }
 

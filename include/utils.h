@@ -1,6 +1,9 @@
 #pragma once
+#include <filesystem>
 #include <mpi.h>
 #include <petscsys.h>
+#include <sstream>
+#include <string>
 #include <type_traits>
 #include <utility>
 
@@ -27,4 +30,33 @@ inline std::pair<int, int> mpi_rank_size(int comm_arg)
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &size);
     return std::make_pair(rank, size);
+}
+
+// returns filename_{i}.ext if filename.ext already exists such that no files are overwritten
+inline std::string get_safe_filename(const std::string& filename, bool overwrite = false)
+{
+    if (filename.empty() || overwrite) {
+        return filename;
+    }
+
+    std::filesystem::path filepath(filename);
+    std::string           base_filename = filepath.stem().string();
+    std::string           extension     = filepath.extension().string();
+    std::string           directory     = filepath.parent_path().string();
+
+    std::string new_filename = filename;
+    int         counter      = 1;
+
+    while (std::filesystem::exists(new_filename)) {
+        std::stringstream ss;
+        ss << directory;
+        if (!directory.empty() && directory.back() != std::filesystem::path::preferred_separator) {
+            ss << std::filesystem::path::preferred_separator;
+        }
+        ss << base_filename << "_" << counter << extension;
+        new_filename = ss.str();
+        counter++;
+    }
+
+    return new_filename;
 }

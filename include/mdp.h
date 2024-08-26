@@ -69,9 +69,9 @@ private:
     Mat       createJacobian(const Mat transitionProbabilities, PetscReal discountFactor);
 
     // TODO: remove
-    void writeMat(const Mat& mat, const PetscChar* filename);
-    void writeVec(const Vec& vec, const PetscChar* filename);
-    void writeIS(const IS& is, const PetscChar* filename);
+    void writeMat(const Mat& mat, const PetscChar* filename, bool overwrite = false);
+    void writeVec(const Vec& vec, const PetscChar* filename, bool overwrite = false);
+    void writeIS(const IS& is, const PetscChar* filename, bool overwrite = false);
     void writeJSONmetadata();
 
     const std::shared_ptr<Madupite> madupite_;

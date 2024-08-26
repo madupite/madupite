@@ -166,13 +166,16 @@ void MDP::setUp()
 
 // write MPIAIJ matrix as ASCII in COO format to file
 // TODO: same function as Matrix::writeToFile. This here should be removed, once Matrix is used in MDP
-void MDP::writeMat(const Mat& mat, const char* filename)
+void MDP::writeMat(const Mat& mat, const char* filename, bool overwrite)
 {
     PetscInt    m, n, rstart, rend;
     PetscViewer viewer;
     PetscMPIInt rank, size;
     MatInfo     info;
     PetscInt    nz_global;
+
+    std::string safe_filename = get_safe_filename(filename, overwrite);
+    const char* c_filename    = safe_filename.c_str();
 
     PetscCallThrow(MatGetSize(mat, &m, &n));
     PetscCallThrow(MatGetOwnershipRange(mat, &rstart, &rend));
@@ -186,7 +189,7 @@ void MDP::writeMat(const Mat& mat, const char* filename)
     PetscCallThrow(PetscViewerCreate(PetscObjectComm((PetscObject)mat), &viewer));
     PetscCallThrow(PetscViewerSetType(viewer, PETSCVIEWERASCII));
     PetscCallThrow(PetscViewerFileSetMode(viewer, FILE_MODE_WRITE));
-    PetscCallThrow(PetscViewerFileSetName(viewer, filename));
+    PetscCallThrow(PetscViewerFileSetName(viewer, c_filename));
 
     // Write the first line with matrix dimensions and global non-zeros (global_rows, global_cols, global_nz)
     if (rank == 0) {
@@ -212,11 +215,14 @@ void MDP::writeMat(const Mat& mat, const char* filename)
     PetscCallThrow(PetscViewerDestroy(&viewer));
 }
 
-void MDP::writeVec(const Vec& vec, const char* filename)
+void MDP::writeVec(const Vec& vec, const char* filename, bool overwrite)
 {
     VecScatter ctx;
     Vec        MPIVec;
     PetscInt   size;
+
+    std::string safe_filename = get_safe_filename(filename, overwrite);
+    const char* c_filename    = safe_filename.c_str();
 
     PetscCallThrow(VecGetSize(vec, &size));
 
@@ -231,7 +237,7 @@ void MDP::writeVec(const Vec& vec, const char* filename)
     PetscCallThrow(MPI_Comm_rank(Madupite::getCommWorld(), &rank));
 
     if (rank == 0) {
-        std::ofstream out(filename);
+        std::ofstream out(c_filename);
         for (PetscInt i = 0; i < size; ++i) {
             out << values[i] << "\n";
         }
@@ -244,7 +250,7 @@ void MDP::writeVec(const Vec& vec, const char* filename)
     PetscCallThrow(VecDestroy(&MPIVec));
 }
 
-void MDP::writeIS(const IS& is, const char* filename)
+void MDP::writeIS(const IS& is, const char* filename, bool overwrite)
 {
     const PetscInt* indices;
     PetscInt        localSize;
@@ -252,6 +258,9 @@ void MDP::writeIS(const IS& is, const char* filename)
     PetscInt*       allIndices = NULL;
     PetscInt*       recvcounts = NULL;
     PetscInt*       displs     = NULL;
+
+    std::string safe_filename = get_safe_filename(filename, overwrite);
+    const char* c_filename    = safe_filename.c_str();
 
     PetscCallThrow(ISGetLocalSize(is, &localSize));
     PetscCallThrow(ISGetSize(is, &size));
@@ -275,7 +284,7 @@ void MDP::writeIS(const IS& is, const char* filename)
 
         PetscCallThrow(MPI_Gatherv(indices, localSize, MPI_INT, allIndices, recvcounts, displs, MPI_INT, 0, Madupite::getCommWorld()));
 
-        std::ofstream out(filename);
+        std::ofstream out(c_filename);
         for (PetscInt i = 0; i < size; ++i) {
             out << allIndices[i] << "\n";
         }

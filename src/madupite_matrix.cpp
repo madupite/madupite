@@ -119,19 +119,21 @@ std::vector<PetscScalar> Matrix::getRow(PetscInt row) const
 }
 
 // write matrix content to file in ascii or binary format
-void Matrix::writeToFile(const std::string& filename, MatrixType type, bool binary = false) const
+void Matrix::writeToFile(const std::string& filename, MatrixType type, bool binary = false, bool overwrite = false) const
 {
+    std::string safe_filename = get_safe_filename(filename, overwrite);
+
     auto mat = const_cast<Mat>(petsc());
     if (binary) {
         PetscViewer viewer;
         auto        mat = const_cast<Mat>(petsc());
-        PetscCallThrow(PetscViewerBinaryOpen(PETSC_COMM_WORLD, filename.c_str(), FILE_MODE_WRITE, &viewer));
+        PetscCallThrow(PetscViewerBinaryOpen(PETSC_COMM_WORLD, safe_filename.c_str(), FILE_MODE_WRITE, &viewer));
         PetscCallThrow(MatView(mat, viewer));
         PetscCallThrow(PetscViewerDestroy(&viewer));
     } else {
         if (type == MatrixType::Dense) {
             PetscViewer viewer;
-            PetscCallThrow(PetscViewerASCIIOpen(PETSC_COMM_WORLD, filename.c_str(), &viewer));
+            PetscCallThrow(PetscViewerASCIIOpen(PETSC_COMM_WORLD, safe_filename.c_str(), &viewer));
             PetscCallThrow(MatView(mat, viewer));
             PetscCallThrow(PetscViewerDestroy(&viewer));
         } else if (type == MatrixType::Sparse) {
@@ -153,7 +155,7 @@ void Matrix::writeToFile(const std::string& filename, MatrixType type, bool bina
             PetscCallThrow(PetscViewerCreate(PetscObjectComm((PetscObject)mat), &viewer));
             PetscCallThrow(PetscViewerSetType(viewer, PETSCVIEWERASCII));
             PetscCallThrow(PetscViewerFileSetMode(viewer, FILE_MODE_WRITE));
-            PetscCallThrow(PetscViewerFileSetName(viewer, filename.c_str()));
+            PetscCallThrow(PetscViewerFileSetName(viewer, safe_filename.c_str()));
 
             // Write the first line with matrix dimensions and global non-zeros (global_rows, global_cols, global_nz)
             if (rank == 0) {
