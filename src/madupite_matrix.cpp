@@ -119,7 +119,7 @@ std::vector<PetscScalar> Matrix::getRow(PetscInt row) const
 }
 
 // write matrix content to file in ascii or binary format
-void Matrix::writeToFile(const std::string& filename, MatrixType type, bool binary = false, bool overwrite = false) const
+void Matrix::writeToFile(const std::string& filename, MatrixType type, bool binary, bool overwrite) const
 {
     std::string safe_filename = get_safe_filename(filename, overwrite);
 
