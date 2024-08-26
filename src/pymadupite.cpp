@@ -1,4 +1,3 @@
-#include <iostream>
 #include "mdp.h"
 #include "petsc.h"
 #include "utils.h"
@@ -22,7 +21,9 @@ NB_MODULE(_madupite_impl, m)
 
     m.def(
         "initialize_madupite",
-        []( const std::vector<std::string>& in = {}) {
+        [](const std::vector<std::string>& in = {}) {
+            auto instance = Madupite::initialize();
+
             int argc = in.size();
             if (argc > 1) {
                 char** cStrings = new char*[in.size()];
@@ -32,9 +33,10 @@ NB_MODULE(_madupite_impl, m)
                 }
                 PetscOptionsInsert(NULL, &argc, &cStrings, NULL);
                 delete[] cStrings;
-            } 
-            return Madupite::initialize();
-        }, "argv"_a = std::vector<std::string>{""},
+            }
+            return instance;
+        },
+        "argv"_a = std::vector<std::string> { "" },
         R"doc(
         Initialize the Madupite instance.
 
