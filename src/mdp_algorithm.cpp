@@ -292,10 +292,10 @@ void MDP::solve()
         PetscCallThrow(MatAXPY(costMatrix, 1.0, stage_cost_matrix_.petsc(), SAME_NONZERO_PATTERN));
 
         // extract greedy policy
-        PetscReal residualNorm = getGreedyPolicyAndResidualNorm(costMatrix, V, policyValues);
+        residualNorm = getGreedyPolicyAndResidualNorm(costMatrix, V, policyValues);
 
         PetscCallThrow(PetscTime(&endTime));
-        json_writer_->add_iteration_data(PI_iteration, 0, (endTime - startTime) * 1000, residualNorm);
+        json_writer_->add_iteration_data(PI_iteration, kspIterations, (endTime - startTime) * 1000, residualNorm);
     }
 
     if (PI_iteration >= max_iter_pi_) {
