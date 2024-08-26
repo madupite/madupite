@@ -1,4 +1,3 @@
-#include <iostream> // todo: replace with logging
 #include <memory>
 #include <string>
 
@@ -72,6 +71,17 @@ template MDP::MDP(std::shared_ptr<Madupite> madupite, int comm);
         }                                                                                                                                            \
     } while (0)
 
+#define CONCAT_PETSC_STRINGS(filename)                                                                                                               \
+    do {                                                                                                                                             \
+        size_t len;                                                                                                                                  \
+        PetscStrlen(filename, &len);                                                                                                                 \
+        if (len) {                                                                                                                                   \
+            PetscStrcpy(tmp, filename_prefix);                                                                                                       \
+            PetscStrlcat(tmp, filename, PETSC_MAX_PATH_LEN);                                                                                         \
+            PetscStrcpy(filename, tmp);                                                                                                              \
+        }                                                                                                                                            \
+    } while (0)
+
 PetscErrorCode MDP::setValuesFromOptions()
 {
     PetscBool flg;
@@ -105,6 +115,20 @@ PetscErrorCode MDP::setValuesFromOptions()
     GET_STRING_OPTION(file_stats, file_stats_);
     GET_STRING_OPTION(export_optimal_transition_probabilities, file_optimal_transition_probabilities_);
     GET_STRING_OPTION(export_optimal_stage_costs, file_optimal_stage_costs_);
+
+    // Append the filenam prefix to all filenames
+    PetscChar filename_prefix[PETSC_MAX_PATH_LEN];
+
+    PetscCall(PetscOptionsGetString(NULL, NULL, "-filename_prefix", filename_prefix, PETSC_MAX_PATH_LEN, &flg));
+    if (flg) {
+        PetscChar tmp[PETSC_MAX_PATH_LEN];
+        CONCAT_PETSC_STRINGS(file_policy_);
+        CONCAT_PETSC_STRINGS(file_cost_);
+        CONCAT_PETSC_STRINGS(file_stats_);
+        CONCAT_PETSC_STRINGS(file_optimal_transition_probabilities_);
+        CONCAT_PETSC_STRINGS(file_optimal_stage_costs_);
+    }
+
     return 0;
 }
 
@@ -115,7 +139,7 @@ PetscErrorCode MDP::setOption(const char* option, const char* value)
         || strcmp(option, "-num_pi_runs") == 0 || strcmp(option, "-alpha") == 0 || strcmp(option, "-atol_pi") == 0
         || strcmp(option, "-file_policy") == 0 || strcmp(option, "-file_cost") == 0 || strcmp(option, "-file_stats") == 0
         || strcmp(option, "-mode") == 0 || strcmp(option, "-ksp_type") == 0 || strcmp(option, "-export_optimal_transition_probabilities") == 0
-        || strcmp(option, "-export_optimal_stage_costs") == 0) {
+        || strcmp(option, "-export_optimal_stage_costs") == 0 || strcmp(option, "-filename_prefix") == 0) {
         PetscCallThrow(PetscOptionsSetValue(NULL, option, value));
     } else {
         SETERRQ(Madupite::getCommWorld(), 1, "%s", ("Invalid option: " + std::string(option)).c_str());
@@ -160,8 +184,7 @@ void MDP::setUp()
     num_actions_      = stage_cost_matrix_.colLayout().size();
     g_start_          = stage_cost_matrix_.rowLayout().start();
     g_end_            = stage_cost_matrix_.rowLayout().end();
-
-    setup_called = true;
+    setup_called      = true;
 }
 
 // write MPIAIJ matrix as ASCII in COO format to file
