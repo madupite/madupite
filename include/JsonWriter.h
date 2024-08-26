@@ -51,7 +51,7 @@ public:
             std::string safe_filename = get_safe_filename(filename, overwrite);
 
             nlohmann::json data;
-            data["runs"] = runs;
+            data["runs"] = runs.back();
 
             std::ofstream file(safe_filename);
             if (file.is_open()) {
