@@ -2,6 +2,7 @@
 #include <iostream> // TODO: replace with some logger
 #include <memory>
 #include <petscsys.h>
+#include <petscsystypes.h>
 
 #include "mdp.h"
 
@@ -239,33 +240,31 @@ void MDP::solve()
     PetscCallThrow(VecDuplicate(V0, &V));
     PetscCallThrow(VecCopy(V0, V));
 
-    PetscLogDouble startTime, endTime, startiPI, endiPI;
+    PetscLogDouble startTime, endTime;
 
-    auto policyValues = std::make_unique<PetscInt[]>(local_num_states_);
+    std::unique_ptr<PetscInt[]> policyValues = std::make_unique<PetscInt[]>(local_num_states_);
 
-    PetscCallThrow(PetscTime(&startiPI));
     PetscInt PI_iteration = 0;
-    for (; PI_iteration < max_iter_pi_; ++PI_iteration) { // outer loop
+
+    PetscCallThrow(PetscTime(&startTime));
+    // costVector = discountFactor * P * V
+    PetscCallThrow(MatMult(transition_probability_tensor_.petsc(), V, costVector));
+    PetscCallThrow(VecScale(costVector, discount_factor_));
+
+    // reshape costVector to costMatrix
+    reshapeCostVectorToCostMatrix(costVector, costMatrix);
+
+    // add g to costMatrix
+    PetscCallThrow(MatAXPY(costMatrix, 1.0, stage_cost_matrix_.petsc(), SAME_NONZERO_PATTERN));
+
+    // extract greedy policy
+    PetscReal residualNorm = getGreedyPolicyAndResidualNorm(costMatrix, V, policyValues);
+
+    PetscCallThrow(PetscTime(&endTime));
+    json_writer_->add_iteration_data(PI_iteration, 0, (endTime - startTime) * 1000, residualNorm);
+
+    for (; (PI_iteration < max_iter_pi_) && (residualNorm >= atol_pi_); ++PI_iteration) { // outer loop
         PetscCallThrow(PetscTime(&startTime));
-        // costVector = discountFactor * P * V
-        PetscCallThrow(MatMult(transition_probability_tensor_.petsc(), V, costVector));
-        PetscCallThrow(VecScale(costVector, discount_factor_));
-
-        // reshape costVector to costMatrix
-        reshapeCostVectorToCostMatrix(costVector, costMatrix);
-
-        // add g to costMatrix
-        PetscCallThrow(MatAXPY(costMatrix, 1.0, stage_cost_matrix_.petsc(), SAME_NONZERO_PATTERN));
-
-        // extract greedy policy
-        auto residualNorm = getGreedyPolicyAndResidualNorm(costMatrix, V, policyValues);
-
-        if (residualNorm < atol_pi_) {
-            PetscCallThrow(PetscTime(&endTime));
-            json_writer_->add_iteration_data(PI_iteration, 0, (endTime - startTime) * 1000, residualNorm);
-            break;
-        }
-
         // compute transition probabilities and stage costs
         // TODO split into two functions
         auto transitionProbabilities = getTransitionProbabilities(policyValues);
@@ -282,10 +281,22 @@ void MDP::solve()
         PetscCallThrow(MatDestroy(&jacobian));
         PetscCallThrow(VecDestroy(&stageCosts));
 
+        // costVector = discountFactor * P * V
+        PetscCallThrow(MatMult(transition_probability_tensor_.petsc(), V, costVector));
+        PetscCallThrow(VecScale(costVector, discount_factor_));
+
+        // reshape costVector to costMatrix
+        reshapeCostVectorToCostMatrix(costVector, costMatrix);
+
+        // add g to costMatrix
+        PetscCallThrow(MatAXPY(costMatrix, 1.0, stage_cost_matrix_.petsc(), SAME_NONZERO_PATTERN));
+
+        // extract greedy policy
+        PetscReal residualNorm = getGreedyPolicyAndResidualNorm(costMatrix, V, policyValues);
+
         PetscCallThrow(PetscTime(&endTime));
-        json_writer_->add_iteration_data(PI_iteration, kspIterations, (endTime - startTime) * 1000, residualNorm);
+        json_writer_->add_iteration_data(PI_iteration, 0, (endTime - startTime) * 1000, residualNorm);
     }
-    PetscCallThrow(PetscTime(&endiPI));
 
     if (PI_iteration >= max_iter_pi_) {
         PetscPrintf(comm_, "Warning: maximum number of PI iterations reached. Solution might not be optimal.\n");
