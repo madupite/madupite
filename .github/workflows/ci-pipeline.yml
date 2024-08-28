@@ -30,3 +30,17 @@ jobs:
     - name: Run MPI executables
       run: |
         conda run -n madupiteenv bash -c "cd build && mpirun -np 4 ./ci_test"
+
+    - name: Deploy documentation to GitHub Pages
+      if: github.ref == 'refs/heads/main'
+      run: |
+        git config --global user.name 'Documentation Deploy GitHub Action'
+        git config --global user.email '-'
+        conda run -n madupiteenv bash -c "pip install pydata-sphinx-theme && cd docs && make html"
+        cd docs/_build/html
+        git init
+        git remote add origin https://github.com/${{ github.repository }}.git
+        git checkout -b gh-pages
+        git add .
+        git commit -m "Deploy docs to GitHub Pages"
+        git push --force origin gh-pages
