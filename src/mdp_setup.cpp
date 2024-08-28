@@ -41,6 +41,7 @@ MDP::MDP(std::shared_ptr<Madupite> madupite)
     : madupite_(madupite)
     , comm_(Madupite::getCommWorld())
 {
+    json_writer_ = std::make_unique<JsonWriter>(Madupite::getCommWorld());
 }
 
 template <typename comm_t>
