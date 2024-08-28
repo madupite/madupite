@@ -74,7 +74,6 @@ def main():
     mdp.setOption("-max_iter_ksp", "1000")
     mdp.setOption("-alpha", "1e-4")
     mdp.setOption("-atol_pi", "1e-8")
-    mdp.setOption("-default_filenames", "false")
 
     g = md.createStageCostMatrix(
         name="g", numStates=numStates, numActions=numActions, func=rewardfunc

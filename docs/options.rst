@@ -91,9 +91,6 @@ Optional Options
 
    Specify a file prefix that is added to all file names. Specifically useful to add the Slurm jobname in front.
 
-.. option:: -default_filenames <BOOL>
-
-   If set to ``true``, default filenames will be used for the output files that have not been specified.
 
 Useful PETSc Options
 --------------------
