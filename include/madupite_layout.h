@@ -17,6 +17,10 @@ public:
 
     Layout(MPI_Comm comm, PetscInt N, bool local = false)
     {
+        if (comm == MPI_COMM_NULL) {
+            throw MadupiteException("Invalid MPI communicator");
+        }
+
         PetscCallThrow(PetscLayoutCreate(comm, &layout));
         if (local) {
             PetscCallThrow(PetscLayoutSetLocalSize(layout, N));
@@ -27,7 +31,13 @@ public:
 
     // create from an existing PetscLayout
     // We might consider removing explicit once the usage is fully clear
-    explicit Layout(PetscLayout petscLayout) { PetscCallThrow(PetscLayoutReference(petscLayout, &layout)); }
+    explicit Layout(PetscLayout petscLayout)
+    {
+        if (!petscLayout) {
+            throw MadupiteException("Invalid PetscLayout");
+        }
+        PetscCallThrow(PetscLayoutReference(petscLayout, &layout));
+    }
 
     // copy constructor (shallow)
     Layout(const Layout& other)

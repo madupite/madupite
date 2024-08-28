@@ -1,11 +1,15 @@
 #pragma once
 
+#include <filesystem>
 #include <fstream>
+#include <sstream>
 #include <vector>
 
 #include <json.h>
 #include <mpi.h>
 #include <petscsystypes.h>
+
+#include <utils.h>
 
 class JsonWriter {
     std::vector<nlohmann::json> runs;
@@ -38,13 +42,24 @@ public:
         }
     }
 
-    void write_to_file(const std::string& filename)
+    void write_to_file(const std::string& filename, bool overwrite = false)
     {
+        if (filename.empty())
+            return;
+
         if (rank_ == 0) {
+            std::string safe_filename = get_safe_filename(filename, overwrite);
+
             nlohmann::json data;
-            data["runs"] = runs;
-            std::ofstream file(filename);
-            file << data.dump(4);
+            data["runs"] = runs.back();
+
+            std::ofstream file(safe_filename);
+            if (file.is_open()) {
+                file << data.dump(4);
+                file.close();
+            } else {
+                throw std::runtime_error("Failed to open file: " + safe_filename);
+            }
         }
     }
 };

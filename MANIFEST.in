@@ -1,4 +1,0 @@
-include CMakeLists.txt
-recursive-include src *
-recursive-include include *
-recursive-include madupite *

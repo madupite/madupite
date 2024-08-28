@@ -58,12 +58,19 @@ init:
 build:
   stage: build
   script:
+    - mkdir -p build
+    - cd build
+    - cmake .. -DBUILD_TESTS=ON
     - make
   artifacts:
     paths:
-      - examples/*/bin/
+      - build/
 
 test:
   stage: test
   script:
-    - make test
+    - pip install .
+    - cd build
+    - ctest --output-on-failure
+  dependencies:
+    - build

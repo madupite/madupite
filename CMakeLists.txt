@@ -1,93 +1,160 @@
-cmake_minimum_required(VERSION 3.10)
-project(madupite VERSION 1.0)
+cmake_minimum_required(VERSION 3.15...3.26)
+project(madupite LANGUAGES CXX)
+
+# Enable CMake's testing framework
+enable_testing()
+
+# Define a CMake option to control test building
+option(BUILD_TESTS "Build the unit tests" OFF)
+
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+find_package(PkgConfig REQUIRED)
+pkg_search_module(PETSC REQUIRED IMPORTED_TARGET PETSc)
+find_package(MPI REQUIRED)
 
 # Generate compile_commands.json for use with clangd
-set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
-
-# Turn on for verbose make output
-set(CMAKE_VERBOSE_MAKEFILE OFF)
-
-# Specify the C++ standard
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-# PETSc configuration
-set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-set(PETSC_DIR $ENV{PETSC_DIR})
-set(PETSC_ARCH $ENV{PETSC_ARCH})
-set(PETSC ${PETSC_DIR}/${PETSC_ARCH})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-set(ENV{PKG_CONFIG_PATH} ${PETSC}/lib/pkgconfig)
-find_package(PkgConfig REQUIRED)
-pkg_search_module(PETSC REQUIRED IMPORTED_TARGET PETSc)
-include_directories(${PETSC_DIR}/include)
-include_directories(${PETSC_DIR}/${PETSC_ARCH}/include)
+# Automatically collect source and header files
+file(GLOB MDP_SOURCES "src/*.cpp")
+list(REMOVE_ITEM MDP_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/pymadupite.cpp")
 
-# Figure out compilers (MPI wrappers) from PETSc configuration
-# We currenly handle only the debug build type and rely on PETSc to be built without --with-debugging=no
-set(CMAKE_BUILD_TYPE Debug)
-execute_process ( COMMAND pkg-config PETSc --variable=ccompiler COMMAND tr -d '\n' OUTPUT_VARIABLE CMAKE_C_COMPILER)
-execute_process ( COMMAND pkg-config PETSc --variable=cxxcompiler COMMAND tr -d '\n' OUTPUT_VARIABLE CMAKE_CXX_COMPILER)
-execute_process ( COMMAND pkg-config PETSc --variable=cflags_extra COMMAND tr -d '\n' OUTPUT_VARIABLE CMAKE_C_FLAGS_DEBUG)
-execute_process ( COMMAND pkg-config PETSc --variable=cxxflags_extra COMMAND tr -d '\n' OUTPUT_VARIABLE CMAKE_CXX_FLAGS_DEBUG)
-# Workaround for the -fvisibility=hidden flag that is added by PETSc
-# - we currently need to have symbols exported by default
-string(REPLACE " -fvisibility=hidden" "" CMAKE_C_FLAGS_DEBUG ${CMAKE_C_FLAGS_DEBUG})
-string(REPLACE " -fvisibility=hidden" "" CMAKE_CXX_FLAGS_DEBUG ${CMAKE_CXX_FLAGS_DEBUG})
-message(STATUS "Compilers inferred from PETSc:")
-message(STATUS "  C: ${CMAKE_C_COMPILER}  ${CMAKE_C_FLAGS_DEBUG}")
-message(STATUS "  C++: ${CMAKE_CXX_COMPILER}  ${CMAKE_CXX_FLAGS_DEBUG}")
+# Always build the core library
+add_library(madupite SHARED ${MDP_SOURCES})
 
-# Add include directories
-include_directories(include)
+# Set optimization flags for the core library
+target_compile_options(madupite PRIVATE -O3)
 
-# Define the shared library that compiles from the specified sources
-add_library(madupite SHARED
-    src/MDP/MDP_algorithm.cpp
-    src/MDP/MDP_setup.cpp
-)
-
-# Link the madupite library with PETSc
+# Link necessary libraries
 target_link_libraries(madupite
-    PkgConfig::PETSC
-    # ${Boost_LIBRARIES}
+    PUBLIC
+        PkgConfig::PETSC
+        MPI::MPI_CXX
 )
 
-# Specify where the compiled shared library should be placed
-set_target_properties(madupite PROPERTIES
-    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
+# Specify include directories
+target_include_directories(madupite
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-# Add an executable target for example/example.cpp
-add_executable(example example/example.cpp)
-
-# Link the "example" target with the madupite library and PETSc
-target_link_libraries(example
-    madupite
-    PkgConfig::PETSC
-    # ${Boost_LIBRARIES}
+# Install the C++ library
+install(TARGETS madupite
+    LIBRARY DESTINATION lib
 )
 
-# CI Test
-add_executable(ci-test test/ci_test.cpp)
-target_link_libraries(ci-test
-    madupite
-    PkgConfig::PETSC
+# Install header files
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
+    DESTINATION include
+    FILES_MATCHING PATTERN "*.h"
 )
 
-add_executable(maze example/maze/maze.cpp)
-target_link_libraries(maze
-    madupite
-    PkgConfig::PETSC
-)
+# Check if the project is being built with pip install .
+if(SKBUILD)
+    find_package(Python 3.8
+        REQUIRED COMPONENTS Interpreter Development.Module
+        OPTIONAL_COMPONENTS Development.SABIModule
+    )
 
-add_executable(continuous example/continuous/continuous.cpp)
-target_link_libraries(continuous
-    madupite
-    PkgConfig::PETSC
-)
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+        execute_process(
+            COMMAND "${Python_EXECUTABLE}" -m nanobind --cmake_dir
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            OUTPUT_VARIABLE nanobind_ROOT
+        )
+    endif()
 
-# Ensure the "example" target can find the madupite library at runtime
-set_target_properties(example PROPERTIES
-    INSTALL_RPATH "${CMAKE_BINARY_DIR}/lib"
-)
+    find_package(nanobind CONFIG REQUIRED)
+
+    # Build the Python extension using nanobind
+    nanobind_add_module(_madupite_impl
+        STABLE_ABI
+        NB_STATIC
+        src/pymadupite.cpp
+    )
+
+    # Link against the optimized core library
+    target_link_libraries(_madupite_impl
+        PRIVATE
+            madupite
+            PkgConfig::PETSC
+            MPI::MPI_CXX
+    )
+
+    # Set RPATH for the Python module
+    set_target_properties(_madupite_impl PROPERTIES
+        INSTALL_RPATH "$ORIGIN"
+        BUILD_WITH_INSTALL_RPATH TRUE
+    )
+
+    # Install the core library alongside the Python module
+    install(TARGETS madupite LIBRARY DESTINATION madupite)
+
+    # Install the Python module
+    install(TARGETS _madupite_impl LIBRARY DESTINATION madupite)
+
+    nanobind_add_stub(madupite_stub
+        MODULE _madupite_impl
+        OUTPUT madupite.pyi
+        PYTHON_PATH $<TARGET_FILE_DIR:_madupite_impl>
+        DEPENDS _madupite_impl
+        MARKER_FILE py.typed
+    )
+
+    install(FILES
+        ${CMAKE_BINARY_DIR}/madupite.pyi
+        ${CMAKE_BINARY_DIR}/py.typed
+        DESTINATION madupite
+    )
+else()
+    # Build examples
+    file(GLOB EXAMPLE_SOURCES "examples/**/*.cpp")
+    foreach(EXAMPLE_SOURCE ${EXAMPLE_SOURCES})
+        get_filename_component(EXAMPLE_NAME ${EXAMPLE_SOURCE} NAME_WE)
+        add_executable(${EXAMPLE_NAME} ${EXAMPLE_SOURCE})
+        target_link_libraries(${EXAMPLE_NAME}
+            PRIVATE
+                madupite
+        )
+        install(TARGETS ${EXAMPLE_NAME}
+            RUNTIME DESTINATION bin
+        )
+    endforeach()
+
+    if(BUILD_TESTS)
+        include(FetchContent)
+        FetchContent_Declare(googletest
+            GIT_REPOSITORY https://github.com/google/googletest.git
+            GIT_TAG main
+        )
+        FetchContent_MakeAvailable(googletest)
+        set_target_properties(gtest gtest_main PROPERTIES CXX_STANDARD 20)
+
+        add_executable(unit_tests tests/unit_tests.cpp)
+        target_link_libraries(unit_tests
+            PRIVATE
+                madupite
+                gtest
+                gtest_main
+                PkgConfig::PETSC
+                MPI::MPI_CXX
+        )
+        add_test(NAME MadupiteUnitTests COMMAND unit_tests)
+        install(TARGETS unit_tests RUNTIME DESTINATION bin)
+
+        find_package(Python REQUIRED COMPONENTS Interpreter)
+        set(PYTHON_TESTS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/tests)
+        file(GLOB PYTHON_TEST_FILES "${PYTHON_TESTS_DIR}/*.py")
+        foreach(PYTHON_TEST_FILE ${PYTHON_TEST_FILES})
+            get_filename_component(PYTHON_TEST_NAME ${PYTHON_TEST_FILE} NAME_WE)
+            add_test(NAME ${PYTHON_TEST_NAME}
+                COMMAND ${Python_EXECUTABLE} -m pytest ${PYTHON_TEST_FILE}
+                WORKING_DIRECTORY ${PYTHON_TESTS_DIR}
+            )
+        endforeach()
+    endif()
+endif()

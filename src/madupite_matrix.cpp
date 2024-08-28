@@ -1,7 +1,11 @@
+#include <mpi.h>
 #include <petscmat.h>
+#include <petscsys.h>
+#include <type_traits>
 
 #include "madupite_errors.h"
 #include "madupite_matrix.h"
+#include "utils.h"
 
 std::string Matrix::typeToString(MatrixType type)
 {
@@ -45,8 +49,15 @@ Matrix::Matrix(
 }
 
 // TODO PETSc feature proposal: it would be nice if the PETSc loader infers the correct type from the file
-Matrix Matrix::fromFile(MPI_Comm comm, const std::string& name, const std::string& filename, MatrixCategory category, MatrixType type)
+template <typename comm_T>
+Matrix Matrix::fromFile(comm_T comm_arg, const std::string& name, const std::string& filename, MatrixCategory category, MatrixType type)
 {
+    MPI_Comm comm = convertComm(comm_arg);
+
+    if (comm == MPI_COMM_NULL) {
+        throw MadupiteException("MADUPITE: Invalid MPI communicator");
+    }
+
     Matrix      A(comm, name, type);
     PetscViewer viewer;
     auto        mat = A.petsc();
@@ -65,7 +76,7 @@ Matrix Matrix::fromFile(MPI_Comm comm, const std::string& name, const std::strin
         PetscInt numStates      = sizes[2];
         PetscInt numActions     = sizes[1] / sizes[2];
         PetscInt localNumStates = PETSC_DECIDE;
-        PetscCallThrow(PetscSplitOwnership(PETSC_COMM_WORLD, &localNumStates, &numStates));
+        PetscCallThrow(PetscSplitOwnership(comm, &localNumStates, &numStates));
         PetscCallThrow(MatSetSizes(mat, localNumStates * numActions, PETSC_DECIDE, PETSC_DECIDE, numStates));
         break;
     }
@@ -73,7 +84,7 @@ Matrix Matrix::fromFile(MPI_Comm comm, const std::string& name, const std::strin
         PetscInt numStates      = sizes[1];
         PetscInt numActions     = sizes[2];
         PetscInt localNumStates = PETSC_DECIDE;
-        PetscCallThrow(PetscSplitOwnership(PETSC_COMM_WORLD, &localNumStates, &numStates));
+        PetscCallThrow(PetscSplitOwnership(comm, &localNumStates, &numStates));
         PetscCallThrow(MatSetSizes(mat, localNumStates, PETSC_DECIDE, PETSC_DECIDE, numActions));
         break;
     }
@@ -91,6 +102,8 @@ Matrix Matrix::fromFile(MPI_Comm comm, const std::string& name, const std::strin
     A._colLayout = Layout(pColLayout);
     return A;
 }
+// explicit template instantiation for nanobind wrapper
+template Matrix Matrix::fromFile<int>(int comm_arg, const std::string& name, const std::string& filename, MatrixCategory category, MatrixType type);
 
 // Get row in AIJ format
 std::vector<PetscScalar> Matrix::getRow(PetscInt row) const
@@ -105,59 +118,69 @@ std::vector<PetscScalar> Matrix::getRow(PetscInt row) const
     return result;
 }
 
-// write matrix content to file in ascii format
-void Matrix::writeToFile(const std::string& filename, MatrixType type) const
+// write matrix content to file in ascii or binary format
+void Matrix::writeToFile(const std::string& filename, MatrixType type, bool binary, bool overwrite) const
 {
+    std::string safe_filename = get_safe_filename(filename, overwrite);
+
     auto mat = const_cast<Mat>(petsc());
-    if (type == MatrixType::Dense) {
+    if (binary) {
         PetscViewer viewer;
-        PetscCallThrow(PetscViewerASCIIOpen(PETSC_COMM_WORLD, filename.c_str(), &viewer));
+        auto        mat = const_cast<Mat>(petsc());
+        PetscCallThrow(PetscViewerBinaryOpen(PETSC_COMM_WORLD, safe_filename.c_str(), FILE_MODE_WRITE, &viewer));
         PetscCallThrow(MatView(mat, viewer));
         PetscCallThrow(PetscViewerDestroy(&viewer));
-    } else if (type == MatrixType::Sparse) {
-        PetscInt    m, n, rstart, rend;
-        PetscViewer viewer;
-        PetscMPIInt rank, size;
-        MatInfo     info;
-        PetscInt    nz_global;
-
-        PetscCallThrow(MatGetSize(mat, &m, &n));
-        PetscCallThrow(MatGetOwnershipRange(mat, &rstart, &rend));
-        PetscCallThrow(MPI_Comm_rank(PetscObjectComm((PetscObject)mat), &rank));
-        PetscCallThrow(MPI_Comm_size(PetscObjectComm((PetscObject)mat), &size));
-
-        // Get matrix info
-        PetscCallThrow(MatGetInfo(mat, MAT_GLOBAL_SUM, &info));
-        nz_global = (PetscInt)info.nz_used;
-
-        PetscCallThrow(PetscViewerCreate(PetscObjectComm((PetscObject)mat), &viewer));
-        PetscCallThrow(PetscViewerSetType(viewer, PETSCVIEWERASCII));
-        PetscCallThrow(PetscViewerFileSetMode(viewer, FILE_MODE_WRITE));
-        PetscCallThrow(PetscViewerFileSetName(viewer, filename.c_str()));
-
-        // Write the first line with matrix dimensions and global non-zeros (global_rows, global_cols, global_nz)
-        if (rank == 0) {
-            PetscCallThrow(PetscViewerASCIIPrintf(viewer, "%d,%d,%d\n", m, n, nz_global));
-        }
-
-        PetscCallThrow(PetscViewerASCIIPushSynchronized(viewer));
-
-        for (PetscInt row = rstart; row < rend; row++) {
-            PetscInt           ncols;
-            const PetscInt*    cols;
-            const PetscScalar* vals;
-            PetscCallThrow(MatGetRow(mat, row, &ncols, &cols, &vals));
-            for (PetscInt j = 0; j < ncols; j++) {
-                // rowidx, colidx, value
-                PetscCallThrow(PetscViewerASCIISynchronizedPrintf(viewer, "%d,%d,%.15e\n", row, cols[j], (double)PetscRealPart(vals[j])));
-            }
-            PetscCallThrow(MatRestoreRow(mat, row, &ncols, &cols, &vals));
-        }
-
-        PetscCallThrow(PetscViewerFlush(viewer));
-        PetscCallThrow(PetscViewerASCIIPopSynchronized(viewer));
-        PetscCallThrow(PetscViewerDestroy(&viewer));
     } else {
-        throw MadupiteException("Unsupported matrix type");
+        if (type == MatrixType::Dense) {
+            PetscViewer viewer;
+            PetscCallThrow(PetscViewerASCIIOpen(PETSC_COMM_WORLD, safe_filename.c_str(), &viewer));
+            PetscCallThrow(MatView(mat, viewer));
+            PetscCallThrow(PetscViewerDestroy(&viewer));
+        } else if (type == MatrixType::Sparse) {
+            PetscInt    m, n, rstart, rend;
+            PetscViewer viewer;
+            PetscMPIInt rank, size;
+            MatInfo     info;
+            PetscInt    nz_global;
+
+            PetscCallThrow(MatGetSize(mat, &m, &n));
+            PetscCallThrow(MatGetOwnershipRange(mat, &rstart, &rend));
+            PetscCallThrow(MPI_Comm_rank(PetscObjectComm((PetscObject)mat), &rank));
+            PetscCallThrow(MPI_Comm_size(PetscObjectComm((PetscObject)mat), &size));
+
+            // Get matrix info
+            PetscCallThrow(MatGetInfo(mat, MAT_GLOBAL_SUM, &info));
+            nz_global = (PetscInt)info.nz_used;
+
+            PetscCallThrow(PetscViewerCreate(PetscObjectComm((PetscObject)mat), &viewer));
+            PetscCallThrow(PetscViewerSetType(viewer, PETSCVIEWERASCII));
+            PetscCallThrow(PetscViewerFileSetMode(viewer, FILE_MODE_WRITE));
+            PetscCallThrow(PetscViewerFileSetName(viewer, safe_filename.c_str()));
+
+            // Write the first line with matrix dimensions and global non-zeros (global_rows, global_cols, global_nz)
+            if (rank == 0) {
+                PetscCallThrow(PetscViewerASCIIPrintf(viewer, "%d,%d,%d\n", m, n, nz_global));
+            }
+
+            PetscCallThrow(PetscViewerASCIIPushSynchronized(viewer));
+
+            for (PetscInt row = rstart; row < rend; row++) {
+                PetscInt           ncols;
+                const PetscInt*    cols;
+                const PetscScalar* vals;
+                PetscCallThrow(MatGetRow(mat, row, &ncols, &cols, &vals));
+                for (PetscInt j = 0; j < ncols; j++) {
+                    // rowidx, colidx, value
+                    PetscCallThrow(PetscViewerASCIISynchronizedPrintf(viewer, "%d,%d,%.15e\n", row, cols[j], (double)PetscRealPart(vals[j])));
+                }
+                PetscCallThrow(MatRestoreRow(mat, row, &ncols, &cols, &vals));
+            }
+
+            PetscCallThrow(PetscViewerFlush(viewer));
+            PetscCallThrow(PetscViewerASCIIPopSynchronized(viewer));
+            PetscCallThrow(PetscViewerDestroy(&viewer));
+        } else {
+            throw MadupiteException("Unsupported matrix type");
+        }
     }
 }

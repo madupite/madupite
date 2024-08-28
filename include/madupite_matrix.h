@@ -148,8 +148,9 @@ public:
     ////////
     static std::string typeToString(MatrixType type);
 
+    template <typename comm_t>
     static Matrix fromFile(
-        MPI_Comm comm, const std::string& name, const std::string& filename, MatrixCategory category, MatrixType type = MatrixType::Sparse);
+        comm_t comm, const std::string& name, const std::string& filename, MatrixCategory category, MatrixType type = MatrixType::Sparse);
 
     ////////
     // Operators
@@ -214,5 +215,5 @@ public:
     std::vector<PetscScalar> getRow(PetscInt row) const;
 
     // write matrix to file
-    void writeToFile(const std::string& filename, MatrixType type) const;
+    void writeToFile(const std::string& filename, MatrixType type, bool binary = false, bool overwrite = false) const;
 };

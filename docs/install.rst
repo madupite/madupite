@@ -1,37 +1,44 @@
 Installation
 ============
 
+To install ``madupite``, first clone the repository from GitHub:
+
+::
+
+   git clone https://github.com/madupite/madupite.git
+
+
 --------------
  Dependencies
 --------------
 
-First, you need to make sure that the dependencies are available. A convenient way of installing them is via the conda environment file, which you can find in the repo.
+You need to make sure that the dependencies are available. A convenient way of installing them is via the conda environment file, which you can find in the repo. Make sure you have an updated version of conda installed, then run the following commands:
 ::
-
+  
+   cd madupite
    conda env create -f environment.yml
-   conda activate petscmadupite
+   conda activate madupiteenv
 
-Users that want to use their own PETSc or MPI version should make sure that cmake can find them with pkg-config.
+Users who want to use their own PETSc or MPI version should make sure that cmake can find them.
 
 ----------------
  Python package
 ----------------
 
-Assuming you have a working version of PETSc, e.g. by activating the conda environment above, you can install with pip inside the repo.
+After installing the necessary dependencies you can install ``madupite`` for Python via pip:
 ::
 
    pip install .
 
-Make sure to always run your executables with mpirun. <number_of_ranks> could be the number of cores on your machine:
+Make sure to run your executables with ``mpirun`` if you want to run them exploiting parallel-computing. ``<number_of_ranks>`` could be the number of cores on your machine. If you want to check whether your installation was successful, you can run the following command:
 ::
 
-   mpirun -N <number_of_ranks> python main.py
-
+   mpirun -n <number_of_ranks> python examples/install/main.py
 
 ---------------
  C++
 ---------------
-Assuming you have a working version of PETSc, e.g. by activating the conda environment above, call the following for a build with cmake.
+For advanced users who want to use the software from C++, they should make sure to have a working PETSc installation. From there, you can proceed to build the project using CMake as follows:
 ::
 
    mkdir build
@@ -39,29 +46,64 @@ Assuming you have a working version of PETSc, e.g. by activating the conda envir
    cmake ..
    make
 
-Now, you can change the main.cc file according to your application.
-Make sure to always run your executables with mpirun. <number_of_ranks> could be the number of cores on your machine:
+Make sure to run your executables with ``mpirun``. ``<number_of_ranks>`` could be the number of cores on your machine:
 ::
 
-   mpirun -N <number_of_ranks> ./build/main
+   mpirun -n <number_of_ranks> ./build/main
 
+.. note::
+   As of now, only the Python API is documented. However, C++ users can refer to the examples provided in the ``examples`` folder for guidance.
 
 ------------------------------
- Euler (ETH Zurich Cluster)
+Euler (ETH Zurich Cluster)
 ------------------------------
-Make sure to use the new software stack (run the command env2lmod). The file moduleload.sh is provided in the repo.
+
+**Python Version:**
+
+To install the Python package on the Euler cluster, access a login node and clone the repository
+
 ::
 
-   # this loads the correct software dependencies
-   source moduleload.sh
+   git clone https://github.com/madupite/madupite.git
 
-   # Python-Version:
+Load the necessary software modules:
+
+::
+
+   source ./load-euler-modules.sh
+
+Then, install the Python package using pip:
+
+::
+
    pip install .
 
-   # C++-Version:
+**Jupyter Notebook:**
+
+If you want to use ``madupite`` with  `JupyterHub on Euler` you need to install the python package as shown above. After that, copy the module load script to Jupyter.
+
+:: 
+
+   mkdir -p ~/.config/euler/jupyterhub/jupyterlabrc 
+   cp ~/madupite/load-euler-modules.sh ~/.config/euler/jupyterhub/jupyterlabrc
+
+Now, you can leave the login node and go to `JupyterHub on Euler <https://jupyter.euler.hpc.ethz.ch/>`_.
+
+**C++ Version:**
+
+To build the C++ project on the Euler cluster, load the necessary software modules:
+
+::
+
+   source ./load-euler-modules.sh
+
+Then, follow the same steps as for the general C++ installation:
+
+::
+
    mkdir build
    cd build
    cmake ..
    make
 
-Specify your job and the compute ressources in the launch.sh file.
+The repository contains an example launch file `euler-launch.sh` to run the executables on the Euler cluster.

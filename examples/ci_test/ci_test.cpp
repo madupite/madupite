@@ -6,7 +6,7 @@
 #include <utility>
 #include <vector>
 
-#include "MDP.h"
+#include "mdp.h"
 
 // MDP: 1d grid world (=circle); 50 states; 3 actions (stay, left, right),
 // 0: 90% stay, 5% left, 5% right
@@ -45,10 +45,9 @@ int main(int argc, char** argv)
     auto madupite = Madupite::initialize(&argc, &argv);
     auto comm     = PETSC_COMM_WORLD;
 
-    // TODO need to specify Matrix P, g
+    // Test specifying the matrix P, g through
     // 1. from function
-    // 2. from hard-wired filename
-    // 3. from CLI filename
+    // 2. from filename
 
     MDP mdp(madupite);
     mdp.setOption("-mode", "MAXREWARD");
@@ -107,8 +106,8 @@ int main(int argc, char** argv)
     mdp.setOption("-alpha", "0.1");
     // mdp.setOption("-pc_type", "svd"); // standard PI (exact), only works in sequential
 
-    g_mat = Matrix::fromFile(comm, "g_file", "100_50_0.1/g.bin", MatrixCategory::Cost, MatrixType::Dense);
-    P_mat = Matrix::fromFile(comm, "P_file", "100_50_0.1/P.bin", MatrixCategory::Dynamics);
+    g_mat = Matrix::fromFile(comm, "g_file", "../examples/ci_test/100_50_0.1/g.bin", MatrixCategory::Cost, MatrixType::Dense);
+    P_mat = Matrix::fromFile(comm, "P_file", "../examples/ci_test/100_50_0.1/P.bin", MatrixCategory::Dynamics);
 
     mdp.setStageCostMatrix(g_mat);
     mdp.setTransitionProbabilityTensor(P_mat);

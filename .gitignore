@@ -20,7 +20,10 @@ madupite/madupite.cpp
 **/compile_commands.json
 petsc-env
 **/.cache
-**/*stats.json
+**/*stats*.json
 bin/
 lib/
 petsc*-env
+.pytest_cache/
+docs/_*
+!docs/_images/

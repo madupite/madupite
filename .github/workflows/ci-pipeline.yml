@@ -1,99 +1,46 @@
 name: CI Pipeline
 
-on:
-  push:
-    branches:
-      - main  # Replace with your default branch
-  pull_request:
-
-env:
-  CONDA_ENV_PATH: ${{ github.workspace }}/madupiteenv
-  PETSC_DIR: ${{ github.workspace }}/madupiteenv
-  PETSC_ARCH: ""
+on: [push]
 
 jobs:
-  prepare:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Set up Miniconda
-        uses: conda-incubator/setup-miniconda@v3
-        with:
-          auto-activate-base: false
-
-      - name: Install dependencies with Conda
-        shell: bash -l {0}
-        run: |
-          eval "$(conda shell.bash hook)"
-          conda env list
-          if [ -f environment.yml ]; then
-            if [ -d $CONDA_ENV_PATH ]; then
-              echo "Reusing Conda environment $CONDA_ENV_PATH"
-              conda env update --prefix $CONDA_ENV_PATH -f environment.yml
-            else
-              echo "Creating new Conda environment $CONDA_ENV_PATH"
-              conda env create --prefix $CONDA_ENV_PATH -f environment.yml
-            fi
-          else
-            echo "environment.yml not found"
-            exit 1
-          fi
-          conda activate --no-stack $CONDA_ENV_PATH
-          conda env list
-
-      - name: Run pre-commit
-        run: |
-          conda activate --no-stack $CONDA_ENV_PATH
-          pre-commit run --all-files
-        continue-on-error: true
-        cache:
-          key: ${{ runner.os }}-pre-commit-cache
-          paths:
-            - ~/.cache/pre-commit
-
   build:
     runs-on: ubuntu-latest
-    needs: prepare
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+    - name: Checkout code
+      uses: actions/checkout@v2
 
-      - name: Set up Miniconda
-        uses: conda-incubator/setup-miniconda@v3
-        with:
-          auto-activate-base: false
+    - name: Set up Conda
+      uses: conda-incubator/setup-miniconda@v2
+      with:
+        activate-environment: madupiteenv
+        environment-file: environment.yml
+        auto-activate-base: false
 
-      - name: Activate Conda Environment
-        run: |
-          eval "$(conda shell.bash hook)"
-          conda activate --no-stack $CONDA_ENV_PATH
-          make
-        shell: bash -l {0}
+    - name: Run pre-commit on all files
+      run: conda run -n madupiteenv pre-commit run --all-files
 
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: built-examples
-          path: examples/*/bin/
+    - name: Install the library
+      run: conda run -n madupiteenv pip install .
 
-  test:
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+    - name: Build and test with CMake
+      run: |
+        conda run -n madupiteenv bash -c "mkdir -p build && cd build && cmake .. -DBUILD_TESTS=ON && make && ctest --output-on-failure"
 
-      - name: Set up Miniconda
-        uses: conda-incubator/setup-miniconda@v3
-        with:
-          auto-activate-base: false
+    - name: Run MPI executables
+      run: |
+        conda run -n madupiteenv bash -c "cd build && mpirun -np 2 ./ci_test"
 
-      - name: Activate Conda Environment and Run Tests
-        run: |
-          eval "$(conda shell.bash hook)"
-          conda activate --no-stack $CONDA_ENV_PATH
-          make test
-        shell: bash -l {0}
-
+    - name: Deploy documentation to GitHub Pages
+      if: github.ref == 'refs/heads/main'
+      run: |
+        git config --global user.name 'Documentation Deploy GitHub Action'
+        git config --global user.email '-'
+        conda run -n madupiteenv bash -c "pip install pydata-sphinx-theme && cd docs && make html"
+        cd docs/_build/html
+        git init
+        git remote add origin https://github.com/${{ github.repository }}.git
+        git checkout -b gh-pages
+        git add .
+        git commit -m "Deploy docs to GitHub Pages"
+        git push --force origin gh-pages

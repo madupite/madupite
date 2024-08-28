@@ -1,29 +1,29 @@
 [build-system]
-requires = ["setuptools", "wheel", "cython>=0.29", "cmake", "numpy"]
-build-backend = "setuptools.build_meta"
+requires = ["scikit-build-core >=0.4.3", "nanobind >= 1.3.2"]
+build-backend = "scikit_build_core.build"
 
 [project]
 name = "madupite"
-version = "4.0"
+version = "1.0"
+description = "madupite is a package for solving large-scale Markov decision processes."
 authors = [
-  { name="Philip Pawlowsky", email="philip.pawlowsky@gmail.com" },
-  { name="Robin Sieber", email="rjs02@hotmail.com"}
+    { name = "Robin Sieber", email = "rjs02@hotmail.com" },
+    { name = "Philip Pawlowsky" },
+    { name = "Matilde Gargiani" },
+    { name = "Václav Hapla" },
+    { name = "John Lygeros" }
 ]
-description = "madupite"
-requires-python = ">=3.7"
 classifiers = [
-    "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
+    "License :: OSI Approved :: BSD License"
 ]
 
-# TODO: Add dependencies
-# dependencies = [
-#     "requests",
-#     'importlib-metadata; python_version<"3.8"',
-# ]
-# dynamic = ["version"]
+[tool.scikit-build]
+minimum-version = "0.4"
+build-dir = "build/{wheel_tag}"
+wheel.py-api = "cp312"
+# wheel.packages = ["src/madupite"]
+# wheel.install-dir = "madupite"
+# install.components = ["lib", "madupite"]
 
-# [project.urls]
-# "Homepage" = "https://github.com/pypa/sampleproject"
-# "Bug Tracker" = "https://github.com/pypa/sampleproject/issues"
+[project.urls]
+Homepage = "https://ethz.ch"
