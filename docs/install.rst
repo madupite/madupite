@@ -12,24 +12,25 @@ To install ``madupite``, first clone the repository from GitHub:
  Dependencies
 --------------
 
-You need to make sure that the dependencies are available. A convenient way of installing them is via the conda environment file, which you can find in the repo.
+You need to make sure that the dependencies are available. A convenient way of installing them is via the conda environment file, which you can find in the repo. Make sure you have an updated version of conda installed, then run the following commands:
 ::
-
+  
+   cd madupite
    conda env create -f environment.yml
    conda activate madupiteenv
 
-Users that want to use their own PETSc or MPI version should make sure that cmake can find them.
+Users who want to use their own PETSc or MPI version should make sure that cmake can find them.
 
 ----------------
  Python package
 ----------------
 
-After installing the necessary dependencies you can install madupite for Python via pip:
+After installing the necessary dependencies you can install ``madupite`` for Python via pip:
 ::
 
    pip install .
 
-Make sure to run your executables with mpirun. <number_of_ranks> could be the number of cores on your machine. If you want to check whether your installation was successful, you can run the following command:
+Make sure to run your executables with ``mpirun`` if you want to run them exploiting parallel-computing. ``<number_of_ranks>`` could be the number of cores on your machine. If you want to check whether your installation was successful, you can run the following command:
 ::
 
    mpirun -n <number_of_ranks> python examples/install/main.py
@@ -37,7 +38,7 @@ Make sure to run your executables with mpirun. <number_of_ranks> could be the nu
 ---------------
  C++
 ---------------
-For advanced users looking to use the software from C++, ensure you have a functional PETSc installation. From there, you can proceed to build the project using CMake as follows:
+For advanced users who want to use the software from C++, they should make sure to have a working PETSc installation. From there, you can proceed to build the project using CMake as follows:
 ::
 
    mkdir build
@@ -45,13 +46,13 @@ For advanced users looking to use the software from C++, ensure you have a funct
    cmake ..
    make
 
-Make sure to run your executables with mpirun. <number_of_ranks> could be the number of cores on your machine:
+Make sure to run your executables with ``mpirun``. ``<number_of_ranks>`` could be the number of cores on your machine:
 ::
 
    mpirun -n <number_of_ranks> ./build/main
 
 .. note::
-   As of now, only the Python API is documented. However, users can refer to the C++ example provided for guidance.
+   As of now, only the Python API is documented. However, C++ users can refer to the examples provided in the ``examples`` folder for guidance.
 
 ------------------------------
 Euler (ETH Zurich Cluster)
