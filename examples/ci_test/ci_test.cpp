@@ -45,10 +45,9 @@ int main(int argc, char** argv)
     auto madupite = Madupite::initialize(&argc, &argv);
     auto comm     = PETSC_COMM_WORLD;
 
-    // TODO need to specify Matrix P, g
+    // Test specifying the matrix P, g through
     // 1. from function
-    // 2. from hard-wired filename
-    // 3. from CLI filename
+    // 2. from filename
 
     MDP mdp(madupite);
     mdp.setOption("-mode", "MAXREWARD");

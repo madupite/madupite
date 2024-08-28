@@ -133,7 +133,7 @@ Vec MDP::getStageCosts(const std::unique_ptr<PetscInt[]>& policy)
 PetscInt MDP::iterativePolicyEvaluation(const Mat jacobian, const Vec stageCosts, PetscInt maxIter, PetscReal threshold, Vec V)
 {
     // TODO: Perhaps KSP could be reused
-    // TODO: Then also the JSON outpur could be done somewhere else
+    // TODO: Then also the JSON output could be done somewhere else
 
     // KSP setup
     KSP ksp;
@@ -266,7 +266,6 @@ void MDP::solve()
         ++PI_iteration;
         PetscCallThrow(PetscTime(&startTime));
         // compute transition probabilities and stage costs
-        // TODO split into two functions
         auto transitionProbabilities = getTransitionProbabilities(policyValues);
         auto stageCosts              = getStageCosts(policyValues);
 
