@@ -110,12 +110,27 @@ PetscErrorCode MDP::setValuesFromOptions()
     GET_OPTION(int, max_iter_ksp, 1000, PetscOptionsGetInt, PetscPrintf);
     GET_OPTION(double, alpha, 1e-4, PetscOptionsGetReal, PetscPrintf);
     GET_OPTION(double, atol_pi, 1e-8, PetscOptionsGetReal, PetscPrintf);
+    PetscBool default_filenames_;
+    GET_OPTION(bool, default_filenames, PETSC_TRUE, PetscOptionsGetBool, PetscPrintf);
 
     GET_STRING_OPTION(file_policy, file_policy_);
     GET_STRING_OPTION(file_cost, file_cost_);
     GET_STRING_OPTION(file_stats, file_stats_);
     GET_STRING_OPTION(export_optimal_transition_probabilities, file_optimal_transition_probabilities_);
     GET_STRING_OPTION(export_optimal_stage_costs, file_optimal_stage_costs_);
+
+    if (default_filenames_) {
+        if (file_policy_[0] == '\0')
+            PetscStrcpy(file_policy_, "policy.out");
+        if (file_cost_[0] == '\0')
+            PetscStrcpy(file_cost_, "cost.out");
+        if (file_stats_[0] == '\0')
+            PetscStrcpy(file_stats_, "stats.json");
+        if (file_optimal_transition_probabilities_[0] == '\0')
+            PetscStrcpy(file_optimal_transition_probabilities_, "optimal_transition_probabilities.out");
+        if (file_optimal_stage_costs_[0] == '\0')
+            PetscStrcpy(file_optimal_stage_costs_, "optimal_stage_costs.out");
+    }
 
     // Append the filenam prefix to all filenames
     PetscChar filename_prefix[PETSC_MAX_PATH_LEN];
@@ -136,15 +151,7 @@ PetscErrorCode MDP::setValuesFromOptions()
 PetscErrorCode MDP::setOption(const char* option, const char* value)
 {
     setup_called = false;
-    if (strcmp(option, "-discount_factor") == 0 || strcmp(option, "-max_iter_pi") == 0 || strcmp(option, "-max_iter_ksp") == 0
-        || strcmp(option, "-num_pi_runs") == 0 || strcmp(option, "-alpha") == 0 || strcmp(option, "-atol_pi") == 0
-        || strcmp(option, "-file_policy") == 0 || strcmp(option, "-file_cost") == 0 || strcmp(option, "-file_stats") == 0
-        || strcmp(option, "-mode") == 0 || strcmp(option, "-ksp_type") == 0 || strcmp(option, "-export_optimal_transition_probabilities") == 0
-        || strcmp(option, "-export_optimal_stage_costs") == 0 || strcmp(option, "-filename_prefix") == 0) {
-        PetscCallThrow(PetscOptionsSetValue(NULL, option, value));
-    } else {
-        SETERRQ(Madupite::getCommWorld(), 1, "%s", ("Invalid option: " + std::string(option)).c_str());
-    }
+    PetscCallThrow(PetscOptionsSetValue(NULL, option, value));
     return 0;
 }
 
