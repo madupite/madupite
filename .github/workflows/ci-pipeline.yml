@@ -26,3 +26,7 @@ jobs:
     - name: Build and test with CMake
       run: |
         conda run -n madupiteenv bash -c "mkdir -p build && cd build && cmake .. -DBUILD_TESTS=ON && make && ctest --output-on-failure"
+
+    - name: Run MPI executables
+      run: |
+        conda run -n madupiteenv bash -c "cd build && mpirun -np 4 ./ci_test"
