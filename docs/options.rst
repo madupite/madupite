@@ -87,6 +87,10 @@ Optional Options
 
    Exports the :math:`n`-dimensional vector of optimal stage costs (or rewards) in ASCII format, with entries separated by line breaks.
 
+.. option:: -filename_prefix <STRING>
+
+   Specify a file prefix that is added to all file names. Specifically useful to add the Slurm jobname in front.
+
 Useful PETSc Options
 --------------------
 
@@ -139,20 +143,22 @@ Where `options_file` contains:
 
 Hard-coded options:
 
+.. code-block:: python
+
+   mdp = md.MDP()
+   mdp.setOption("-mode", "MINCOST")
+   mdp.setOption("-discount_factor", "0.999")
+   # or
+   mdp["-mode"] = "MINCOST"
+   mdp["-discount_factor"] = 0.999
+
+
 .. code-block:: c++
 
    MDP mdp;
    mdp.setOption("-discount_factor", "0.999");
    mdp.setOption("-mode", "MINCOST");
    mdp.setOption("-max_iter_pi", "500");
-
-.. warning::
-   Python does not support command line options. Instead, they must be passed using the API:
-   
-   .. code-block:: python
-
-      mdp.setOption("-mode", "MINCOST")
-      mdp.setOption("-discount_factor", "0.999")
 
 For more information on available KSP types and preconditioners, refer to the PETSc documentation:
 
