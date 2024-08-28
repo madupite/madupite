@@ -1,5 +1,4 @@
 #include <algorithm>
-#include <iostream> // TODO: replace with some logger
 #include <memory>
 #include <petscsys.h>
 #include <petscsystypes.h>
@@ -263,7 +262,8 @@ void MDP::solve()
     PetscCallThrow(PetscTime(&endTime));
     json_writer_->add_iteration_data(PI_iteration, 0, (endTime - startTime) * 1000, residualNorm);
 
-    for (; (PI_iteration < max_iter_pi_) && (residualNorm >= atol_pi_); ++PI_iteration) { // outer loop
+    while ((PI_iteration < max_iter_pi_) && (residualNorm >= atol_pi_)) { // outer loop
+        ++PI_iteration;
         PetscCallThrow(PetscTime(&startTime));
         // compute transition probabilities and stage costs
         // TODO split into two functions
