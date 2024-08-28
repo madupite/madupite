@@ -1,6 +1,22 @@
 Tutorials
 ===============
 
+In the following, we propose some short tutorials which we hope can help the users to better understand the deployment of some of the fundamental functionalities of ``madupite``.
+
+Initializing and finalizing ``madupite`` 
+---------------------------------------------------
+
+``madupite`` can be imported as any other Python package. Though, since it relies on MPI for the distributed memory parallelism, it is crucial to first initialize the MPI and PETSc environment to ensure that the communication between the processes is set up correctly. 
+In addition, to properly finalize all MPI jobs, we suggest that the code is contained inside a main function.
+
+.. code-block:: python
+    
+    import madupite as md
+    instance = md.initialize_madupite()
+
+    def main():
+
+        #main body of your code :)
 
 Loading and reading data with ``madupite``
 ----------------------------------------------
@@ -12,7 +28,7 @@ Assuming the stage cost matrix and transition probability tensor are stored as `
 
 Furthermore, you can specify whether the matrix is sparse or dense using the ``md.MatrixType`` enum. Sparse matrices are stored in a compressed format, which can save memory and speed up computations. 
 
-Defining an object for matrix preallocation is not necessary when loading from files since the information about non-zero elements is stored in the binary file.
+Notice that, unlike with function simulations, defining an object for matrix preallocation is not necessary when loading from files since the information about non-zero elements is already contained in the binary file.
 
 .. code-block:: python
 
@@ -53,9 +69,9 @@ Defining an object for matrix preallocation is not necessary when loading from f
 
 Generating data with ``madupite``
 ---------------------------------
-Depending on the problem, creating the MDP data with numpy and reading them with madupite is often slower than generating them directly with madupite. This is because madupite can  generate the transition probabilities in parallel and in the correct format, which avoids the need to convert the data.
+Depending on the problem, creating the MDP data with numpy and reading them with ``madupite`` is often slower than generating them directly with ``madupite``. This is because ``madupite`` can  generate the transition probabilities in parallel and in the correct format, which avoids the need to convert the data.
 
-In the following example, we show how to generate the stage cost matrix and transition probability tensor with madupite. We define a cost function and a probability function that are used to generate the data. The cost function takes the current state and action as input and returns the cost. The probability function takes the current state and action as input and returns the transition probabilities and the next state indices.
+In the following example, we show how to generate the stage cost matrix and transition probability tensor with ``madupite``. We define a cost function and a probability function that are used to generate the data. The cost function takes the current state and action as input and returns the cost. The probability function takes the current state and action as input and returns the transition probabilities and the next state indices.
 
 .. code-block:: python
 
@@ -83,14 +99,12 @@ In the following example, we show how to generate the stage cost matrix and tran
             numActions=num_actions,
             func=probfunc,
         )
-        # Solve the MDP ...
-
 
     if __name__ == "__main__":
         main()
 
 
-Matrix Preallocation
+Matrix preallocation
 -----------------------------------------
 For large MDPs with sparse transition probability tensors, it is often beneficial to preallocate the matrices to avoid reallocations during the computation. This can be done by specifying the ``preallocation`` argument. The method takes an instance of the :class:`madupite.MatrixPreallocation` class, which specifies the number of non-zero elements per row in the diagonal and off-diagonal block. See the example below for more details (adapted from `PETSc <https://petsc.org/release/manualpages/Mat/MatMPIAIJSetPreallocation/>`_).
 
@@ -136,9 +150,9 @@ In this case, the values of ``d_nz``, ``o_nz`` are:
 
 .. code-block::
 
-      rank0  dnz = 2, o_nz = 2
-      rank1  dnz = 3, o_nz = 2
-      rank2  dnz = 1, o_nz = 4
+      rank0  d_nz = 2, o_nz = 2
+      rank1  d_nz = 3, o_nz = 2
+      rank2  d_nz = 1, o_nz = 4
 
 When ``d_nnz``, ``o_nnz`` parameters are specified, the storage is specified
 for every row, corresponding to both DIAGONAL and OFF-DIAGONAL submatrices.
@@ -178,14 +192,22 @@ In the above case the values for ``d_nnz``, ``o_nnz`` are:
         pc2.d_nnz = [1, 1]
         pc2.o_nnz = [4, 4]
     
-    P = md.createTransitionProbabilityTensor(
-        numStates=num_states,
-        numActions=num_actions,
+    def probfunc(s, a):
+        return [1], [0]
+
+    P1 = md.createTransitionProbabilityTensor(
+        numStates=8,
+        numActions=1,
         func=probfunc,
         preallocation=pc
     )
-    # Solve the MDP ...
 
+    P2 = md.createTransitionProbabilityTensor(
+        numStates=8,
+        numActions=1,
+        func=probfunc,
+        preallocation=pc2
+    )
 
 Data format
 -----------
@@ -215,3 +237,10 @@ The tensor can be reshaped as follows:
            [0.4 , 0.2 , 0.4 ],
            [0.6 , 0.1 , 0.3 ],
            [0.7 , 0.1 , 0.2 ]])
+
+
+The MDP-class in ``madupite``
+----------------------------------------------
+
+Now that all the main ingredients are explained, we are ready to introduce the MDP-class, which is basically where all the magic of ``madupite`` happens! This class allows you to create and solve your own MDP, and it comes with a lot of options that you can customize. 
+TODO
