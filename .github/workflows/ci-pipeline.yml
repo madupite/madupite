@@ -29,7 +29,7 @@ jobs:
 
     - name: Run MPI executables
       run: |
-        conda run -n madupiteenv bash -c "cd build && mpirun -np 4 ./ci_test"
+        conda run -n madupiteenv bash -c "cd build && mpirun -np 2 ./ci_test"
 
     - name: Deploy documentation to GitHub Pages
       if: github.ref == 'refs/heads/main'
