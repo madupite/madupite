@@ -91,6 +91,10 @@ Optional Options
 
    Specify a file prefix that is added to all file names. Specifically useful to add the Slurm jobname in front.
 
+.. option:: -verbose
+
+   Enable console output of option values and algorithm progress.
+
 
 Useful PETSc Options
 --------------------

@@ -219,6 +219,9 @@ void MDP::solve()
     json_writer_->add_solver_run();
     writeJSONmetadata();
 
+    if (verbose_)
+        PetscPrintf(comm_, "Solving MDP using iPI with %d states, %d actions and discount factor %f\n", num_states_, num_actions_, discount_factor_);
+
     // initial guess V0
     Vec V0;
     PetscCallThrow(VecCreateMPI(Madupite::getCommWorld(), local_num_states_, num_states_, &V0));
@@ -239,12 +242,13 @@ void MDP::solve()
     PetscCallThrow(VecDuplicate(V0, &V));
     PetscCallThrow(VecCopy(V0, V));
 
-    PetscLogDouble startTime, endTime;
+    PetscLogDouble startTime, endTime, globalStartTime;
 
     std::unique_ptr<PetscInt[]> policyValues = std::make_unique<PetscInt[]>(local_num_states_);
 
     PetscInt PI_iteration = 0;
 
+    PetscCallThrow(PetscTime(&globalStartTime));
     PetscCallThrow(PetscTime(&startTime));
     // costVector = discountFactor * P * V
     PetscCallThrow(MatMult(transition_probability_tensor_.petsc(), V, costVector));
@@ -261,6 +265,9 @@ void MDP::solve()
 
     PetscCallThrow(PetscTime(&endTime));
     json_writer_->add_iteration_data(PI_iteration, 0, (endTime - startTime) * 1000, residualNorm);
+    if (verbose_)
+        PetscPrintf(
+            comm_, "iPI iteration %d: residual norm = %e, time elapsed = %f ms\n", PI_iteration, residualNorm, (endTime - globalStartTime) * 1000);
 
     while ((PI_iteration < max_iter_pi_) && (residualNorm >= atol_pi_)) { // outer loop
         ++PI_iteration;
@@ -295,12 +302,16 @@ void MDP::solve()
 
         PetscCallThrow(PetscTime(&endTime));
         json_writer_->add_iteration_data(PI_iteration, kspIterations, (endTime - startTime) * 1000, residualNorm);
+        if (verbose_)
+            PetscPrintf(comm_, "iPI iteration %d: residual norm = %e, time elapsed = %f ms\n", PI_iteration, residualNorm,
+                (endTime - globalStartTime) * 1000);
     }
 
     if (PI_iteration >= max_iter_pi_) {
         PetscPrintf(comm_, "Warning: maximum number of PI iterations reached. Solution might not be optimal.\n");
         json_writer_->add_data("remark", "Warning: maximum number of iPI iterations reached. Solution might not be optimal.");
     }
+    json_writer_->add_data("total_solver_time", (endTime - globalStartTime) * 1000);
 
     json_writer_->write_to_file(file_stats_);
 
