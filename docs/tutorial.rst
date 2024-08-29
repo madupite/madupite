@@ -19,7 +19,7 @@ In addition, to properly finalize all MPI jobs, we suggest that the code is cont
         #main body of your code :)
 
 .. warning::
-    Note that as of ``madupite`` V1.0, if you do not use the `main` function, then your code will still run through, but an error will be raised at the end of the execution because the finalization of the ranks is not handled appropriately.
+    Note that as of ``madupite`` V1.0, if you do not use the `main` function, then your code will still run and output results, but an error will be raised at the end of the execution because the finalization of the ranks is not handled appropriately.
 
     ::
         

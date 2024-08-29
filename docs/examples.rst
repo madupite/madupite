@@ -14,7 +14,7 @@ MDPs are a very useful tool to describe stochastic dynamical systems. In mathema
 Given an MDP, ``madupite`` will compute which actions should be played on the system such that the cumulative discounted cost (reward) over the infinite-horizon is minimized (maximized). You can find more details on the mathematical formulation of the problem setting in [Gargiani2024].
 
 Toy-Example
-----------
+------------
 
 We start with a simple example. 
 

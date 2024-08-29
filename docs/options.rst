@@ -146,6 +146,7 @@ Hard-coded options:
 
 .. code-block:: python
 
+   # Python
    mdp = md.MDP()
    mdp.setOption("-mode", "MINCOST")
    mdp.setOption("-discount_factor", "0.999")
@@ -156,6 +157,7 @@ Hard-coded options:
 
 .. code-block:: c++
 
+   // C++
    MDP mdp;
    mdp.setOption("-discount_factor", "0.999");
    mdp.setOption("-mode", "MINCOST");
