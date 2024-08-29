@@ -1,9 +1,9 @@
 Examples
 =============
 
-Let's start with a minimal example that demonstrates how to quickly load and solve for the optimal value function and policy of a Markov Decision Process (MDP) using ``madupite``.
+Here you can find some examples on how to use ``madupite`` to create and solve MDPs arising from different scenarios. But first, a small recap on MDPs.
 
-We define an MDP as a tuple :math:`(\mathcal{S}, \mathcal{A}, P, g, \gamma)`, where: 
+MDPs are a very useful tool to describe stochastic dynamical systems. In mathematical terms, an MDP is a 5-elements tuple :math:`(\mathcal{S}, \mathcal{A}, P, g, \gamma)`, where: 
 
 * :math:`\mathcal{S} = \{0, 1, \dots, n-1\}` is the set of states,
 * :math:`\mathcal{A} = \{0, 1, \dots, m-1\}` is the set of actions,
@@ -11,15 +11,17 @@ We define an MDP as a tuple :math:`(\mathcal{S}, \mathcal{A}, P, g, \gamma)`, wh
 * :math:`g : \mathcal{S} \times \mathcal{A} \to \mathbb{R}` is the stage cost function (or reward in an alternative but equivalent formulation),
 * :math:`\gamma \in (0, 1)` is the discount factor.
 
+Given an MDP, ``madupite`` will compute which actions should be played on the system such that the cumulative discounted cost (reward) over the infinite-horizon is minimized (maximized). You can find more details on the mathematical formulation of the problem setting in [Gargiani2024].
 
-Example 1
+Toy-Example
 ----------
 
-We start with a simple example: We have an agent that lives on a periodic 1-dimensional line of length 50. At each time step, the agent has to choose between moving to the left, to the right or staying in place. The goal is to move to the state with index 42. We want to find the optimal policy that minimizes the expected number of steps to reach the goal.
+We start with a simple example. We have an agent that lives on a periodic 1-dimensional line of length 50. At each time step, the agent has to choose between moving to the left, to the right or staying in place. The goal is to move to the state with index 42. We want to find the optimal policy that minimizes the expected number of steps to reach the goal.
 
 .. image:: _images/tutorial_ex1.jpg
     :align: center
-    :scale: 75%
+    :scale: 35%
+
 
 To do so, we first define the state space :math:`\mathcal{S} = \{0, 1, \dots, 49\}` and the action space :math:`\mathcal{A} = \{0, 1, 2\}` where 0 means staying in place, 1 means moving to the left and 2 means moving to the right. 
 
@@ -180,3 +182,8 @@ Further examples
 Note that defining data from a function or loading from a file can be combined. See for example the maze example where the transition probabilities encode a deterministic movement in a 2D grid world and the maze logic is entirely defined in the cost function that is generated in a separate script. This can also apply to situations where e.g. costs come from measuring an experiment and are preproucessed in a separate application, independent of ``madupite``.
 
 Standard control applications like the double integrator and inverted pendulum using an LQR controller are also provided in the examples folder. They can also serve as examples for how to use multi-dimensional state spaces and actions.
+
+
+.. rubric:: References
+
+.. [Gargiani2024] Gargiani, M.; Sieber. R.; Balta, E.; Liao-McPherson, D.; Lygeros, J. *Inexact Policy Iteration Methods for Large-Scale Markov Decision Processes*. `<https://arxiv.org/abs/2404.06136>`_.
