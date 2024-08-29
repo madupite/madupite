@@ -58,7 +58,6 @@ template MDP::MDP(std::shared_ptr<Madupite> madupite, int comm);
         PetscBool flg;                                                                                                                               \
         PetscCall(parse_fn(NULL, NULL, "-" #name, &name##_, &flg));                                                                                  \
         if (!flg) {                                                                                                                                  \
-            print_fn(Madupite::getCommWorld(), #name " not specified. Using default value: " #default_value ".\n");                                  \
             name##_ = default_value;                                                                                                                 \
         }                                                                                                                                            \
     } while (0)
