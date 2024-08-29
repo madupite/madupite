@@ -39,43 +39,4 @@ jobs:
       with:
         folder: docs/_build/html
         repository-name: madupite/madupite.github.io
-        token: ${{ secrets.MADUPITE_GITHUB_PAGES }}name: CI Pipeline
-
-on: [push]
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
-
-    - name: Set up Conda
-      uses: conda-incubator/setup-miniconda@v2
-      with:
-        activate-environment: madupiteenv
-        environment-file: environment.yml
-        auto-activate-base: false
-
-    - name: Run pre-commit on all files
-      run: conda run -n madupiteenv pre-commit run --all-files
-
-    - name: Install the library
-      run: conda run -n madupiteenv pip install .
-
-    - name: Build and test with CMake
-      run: |
-        conda run -n madupiteenv bash -c "mkdir -p build && cd build && cmake .. -DBUILD_TESTS=ON && make && ctest --output-on-failure"
-    - name: Run MPI executables
-      run: |
-        conda run -n madupiteenv bash -c "cd build && mpirun -np 2 ./ci_test"
-    - name: Build documentation for GitHub Pages
-      run: |
-        conda run -n madupiteenv bash -c "pip install pydata-sphinx-theme && cd docs && make html"
-    - name: Deploy
-      uses: JamesIves/github-pages-deploy-action@v4
-      with:
-        folder: docs/_build/html
-        repository-name: madupite/madupite.github.io
         token: ${{ secrets.MADUPITE_GITHUB_PAGES }}
