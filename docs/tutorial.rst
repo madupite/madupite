@@ -18,6 +18,17 @@ In addition, to properly finalize all MPI jobs, we suggest that the code is cont
 
         #main body of your code :)
 
+.. warning::
+    Note that as of ``madupite`` V1.0, if you do not use the `main` function, then your code will still run through, but an error will be raised at the end of the execution because the finalization of the ranks is not handled appropriately.
+
+    ::
+        
+        nanobind: leaked 1 instances!
+        nanobind: leaked 1 keep_alive records!
+        nanobind: leaked 1 types!
+          - leaked type "madupite._madupite_impl.Madupite"
+        nanobind: this is likely caused by a reference counting issue in the binding code.
+
 Loading and reading data
 ----------------------------------------------
 
