@@ -93,7 +93,15 @@ Optional Options
 
 .. option:: -verbose
 
-   Enable console output of option values and algorithm progress.
+   Enable console output of option values and algorithm progress. 
+   
+   Default: ``false``
+
+.. option:: -overwrite
+
+   Allow overwriting existing files. This might be useful while debugging to avoid creating new files for each run or to avoid e.g. adapting filenames in a plotting script. 
+   
+   Default: ``false``
 
 
 Useful PETSc Options
@@ -113,15 +121,22 @@ Useful PETSc Options
 
    Default: ``"none"``
 
-   Only preconditioners that rely on the (transposed) matrix-vector product are supported. For the standard (exact) policy iteration algorithm, set this to "svd" (available only for sequential execution, not recommended for large-scale problems).
+   Only preconditioners that rely on the (transposed) matrix-vector product are supported. For the standard (exact) policy iteration algorithm, set this to "svd" (available only for sequential execution, not recommended for large-scale problems) or "lu".
 
    For a list of available preconditioners, see: https://petsc.org/release/manualpages/PC/PCType/
 
-.. option:: -log_view
+.. option:: -ksp_view
 
-   Enables output of a detailed algorithm log to the console.
+   Prints information about the Krylov subspace method (inner solver) to the console.
 
-   This option is useful for debugging and benchmarking purposes.
+   Default: ``false``
+
+.. option:: -pc_svd_monitor
+
+   When using SVD as preconditioner, this option outputs the condition number of the matrix :math:`P^\pi` to the console at each outer iteration. 
+
+   Default: ``false``
+
 
 Usage Example
 -------------

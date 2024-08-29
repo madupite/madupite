@@ -104,4 +104,5 @@ private:
 
     bool setup_called = false;
     bool verbose_     = false;
+    bool overwrite_   = false;
 };

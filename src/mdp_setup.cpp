@@ -95,9 +95,11 @@ PetscErrorCode MDP::setValuesFromOptions()
 
     setup_called = false;
 
-    PetscBool verbose_flag = PETSC_FALSE;
+    PetscBool verbose_flag = PETSC_FALSE, overwrite_flag = PETSC_FALSE;
     PetscCall(PetscOptionsGetBool(NULL, NULL, "-verbose", &verbose_flag, &flg));
     verbose_ = flg && verbose_flag;
+    PetscCall(PetscOptionsGetBool(NULL, NULL, "-overwrite", &overwrite_flag, &flg));
+    overwrite_ = flg && overwrite_flag;
 
     // Mandatory options
     PetscCall(PetscOptionsGetReal(NULL, NULL, "-discount_factor", &discount_factor_, &flg));
