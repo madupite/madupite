@@ -18,7 +18,18 @@ In addition, to properly finalize all MPI jobs, we suggest that the code is cont
 
         #main body of your code :)
 
-Loading and reading data with ``madupite``
+.. warning::
+    Note that as of ``madupite`` V1.0, if you do not use the `main` function, then your code will still run through, but an error will be raised at the end of the execution because the finalization of the ranks is not handled appropriately.
+
+    ::
+        
+        nanobind: leaked 1 instances!
+        nanobind: leaked 1 keep_alive records!
+        nanobind: leaked 1 types!
+          - leaked type "madupite._madupite_impl.Madupite"
+        nanobind: this is likely caused by a reference counting issue in the binding code.
+
+Loading and reading data
 ----------------------------------------------
 
 In this tutorial, we want to show how to load and read MDP data that is stored in files. The data itself must be stored as a PETSc binary file (explained `here <https://petsc.org/release/manualpages/Mat/MatLoad/>`_). ``madupite`` provides a method to save numpy or scipy matrices to PETSc binary files (:func:`madupite.writePETScBinary`).
@@ -67,7 +78,7 @@ Notice that, unlike with function simulations, defining an object for matrix pre
 .. warning::
     Note that as of ``madupite`` V1.0, the files themselves must contain the data in a sparse format because PETSc does not support reading dense matrices from binary files. By specifying the matrix type as dense, the data will be read as a sparse matrix and then converted to a dense matrix. This is recommended for stage cost matrices to benefit from data locality and speed up computations.
 
-Generating data with ``madupite``
+Generating data
 ---------------------------------
 Depending on the problem, creating the MDP data with numpy and reading them with ``madupite`` is often slower than generating them directly with ``madupite``. This is because ``madupite`` can  generate the transition probabilities in parallel and in the correct format, which avoids the need to convert the data.
 
@@ -239,8 +250,61 @@ The tensor can be reshaped as follows:
            [0.7 , 0.1 , 0.2 ]])
 
 
-The MDP-class in ``madupite``
+The MDP-class
 ----------------------------------------------
 
-Now that all the main ingredients are explained, we are ready to introduce the MDP-class, which is basically where all the magic of ``madupite`` happens! This class allows you to create and solve your own MDP, and it comes with a lot of options that you can customize. 
-TODO
+Now that all the main ingredients are explained, we are ready to introduce the MDP-class, which is basically where all the magic of ``madupite`` happens! This class allows you to create and solve your own MDP, and it comes with a lot of options that you can customize. The code snippet down below exemplifies how you use instances of this class to create and solve an MDP. In particular, it simulates via functions, creates and solves a dense random MDP with ``madupite``. 
+The optimal policy and stats are saved into `policy.out` and `stats.json` files at the end.
+
+.. code-block:: python
+
+    import madupite as md
+    import numpy as np
+
+    num_states = 100
+    num_actions = 5
+
+    def probfunc(s,a):
+        prob_sprime = np.random.uniform(size=num_states)
+        values = (prob_sprime/prob_sprime.sum()).tolist()
+        return values, list(range(num_states))
+
+    def costfunc(s, a):
+        return np.random.uniform(-100, 100)
+
+    def main():
+
+        instance = md.initialize_madupite()
+
+        mdp = md.MDP(instance)
+
+        prealloc = md.MatrixPreallocation()
+        prealloc.d_nz = num_states
+        prealloc.o_nz = num_states
+
+        g = md.createStageCostMatrix(
+            name="g", numStates=num_states, numActions=num_actions, func=costfunc
+        )
+        P = md.createTransitionProbabilityTensor(
+            name="P",
+            numStates=num_states,
+            numActions=num_actions,
+            func=probfunc,
+            preallocation=prealloc
+        )
+
+        mdp.setStageCostMatrix(g)
+        mdp.setTransitionProbabilityTensor(P)
+
+        #mandatory options to select
+        mdp.setOption("-mode", "MINCOST")
+        mdp.setOption("-discount_factor", "0.9")
+
+        mdp.setOption("-default_filenames", "false")
+        mdp.setOption("-file_policy", "policy.out")
+        mdp.setOption("-file_stats", "stats.json")
+
+        mdp.solve()
+
+    if __name__ == "__main__":
+        main()
