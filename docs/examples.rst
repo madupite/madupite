@@ -118,7 +118,13 @@ In order to run the code, add at the end:
     if __name__ == "__main__":
         main()
 
-then save it to a file, e.g. ``toy_example.py`` and run it sequentially using ``python toy_example.py`` or in parallel using ``mpirun -n <number_of_ranks> python toy_example.py`` where ``<number_of_ranks>`` is the number of processes.
+then save it in a file ``.py``, *e.g.* ``toy_example.py``, and run it sequentially using the command ``python toy_example.py``, or in parallel using the command ``mpirun -n <number_of_ranks> python toy_example.py`` where ``<number_of_ranks>`` is the number of processes.
+
+
+Inverted Pendulum
+-----------------
+
+
 
 Further examples
 ----------------

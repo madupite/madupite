@@ -10,7 +10,6 @@ And, in case you did not know, madupite is also the name of a volcanic rock!
    Tutorials <tutorial>
    Examples <examples>
    Options <options>
-   Benchmarks <benchmarks>
    API Reference <apiref>
 
 
