@@ -123,7 +123,29 @@ then save it in a file ``.py``, *e.g.* ``toy_example.py``, and run it sequential
 
 Inverted Pendulum
 -----------------
-:download:`data.zip <data.zip>`.
+
+``madupite`` can also be used to create and solve MDPs from offline simulation data. In this example for instace we consider offline data collected by simulating an inverted pendulum, whose dynamic is described by the following equation:
+
+.. math::
+   :nowrap:
+
+   \begin{eqnarray}
+      \ddot{\theta}  + \frac{g}{\ell}\sin(\theta)  & = \frac{F}{m \ell^2}\,, 
+   \end{eqnarray}
+
+where :math:`m` and :math:`\ell` are the pendulum mass and length, respectively; :math:`g` is the gravitational acceleration; :math:`\theta` is the angular position of the pendulum, and :math:`F` the torque that we apply on it.
+The dynamic is continuous in time and space, therefore we must first discretize it in order to be able to simulate it. In particular, we select 0.01 as time-step and we discretize the space in the ranges :math:`[-10;\,10]` and :math:`[0;\, 2 \pi]` for the angular position and acceleration, respectively, and :math:`[-3;\, 3]` for the action. The finer the discretization grid that we use and the more accurate will be the resulting approximate model, but it will also result into a bigger computational and memory load. ``madupite`` allows one to deploy a finer discretization by distributing the memory and computation across nodes of a computing cluster. 
+For the simulation of the pendulum we used different discretization granularities and we collected the data into `.bin` files which you can download here :download:`data.zip <data.zip>`.
+The goal is to find the values of torque that minimize at each time-step the following stage-cost:
+
+.. math::
+   :nowrap:
+
+   \begin{eqnarray}
+      g(\theta,\,\dot{\theta},\, F) = (\theta - \pi)^2 + \dot{\theta}^2 + 2 F^2\,. 
+   \end{eqnarray}
+
+To fit into the problem setting, we also add a discount factor of 0.999, which approximates well-enough the undiscounted setting. In the following code snippet, we use ``madupite`` to build and solve the MDP associated to the simulation data that we collected from the inverted pendulum when different discretization granularities are used. The optimal policy, cost and statistics are saved into files.
 
 .. code-block:: python
 
@@ -168,6 +190,8 @@ Inverted Pendulum
     if __name__ == "__main__":
         main()
 
+In this video there is a nice graphic visualization of the results returned by ``madupite`` for different values of the discretization step.
+
 .. video:: _static/pendulum.mp4
     :height: 500
     :width: 900
@@ -178,8 +202,8 @@ Inverted Pendulum
 Further examples
 ----------------
 
-Note that defining data from a function or loading from a file can be combined. See for example the maze example where the transition probabilities encode a deterministic movement in a 2D grid world and the maze logic is entirely defined in the cost function that is generated in a separate script. This can also apply to situations where e.g. costs come from measuring an experiment and are preproucessed in a separate application, independent of ``madupite``.
-Standard control applications like the double integrator and inverted pendulum using an LQR controller are also provided in the examples folder. They can also serve as examples for how to use multi-dimensional state spaces and actions.
+Note that defining data from a function or loading from a file can be combined. See for example the maze example in the ``examples`` folder, where the transition probabilities encode a deterministic movement in a 2D grid world and the maze logic is entirely defined in the cost function which is instead loaded from a `.bin` file that is generated in a separate script. This can also apply to situations where, *e.g.*, the dynamics are generated from experimental data that are collected offline, while the stage-cost is defined by the user, or viceversa.
+More examples on the deployment of ``madupite``, such as optimal control of a double integrator, an LQR controller and the derivation of optimal health policies for the infectious disease model, are also provided in the ``examples`` folder.
 
 
 .. rubric:: References
