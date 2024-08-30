@@ -123,8 +123,57 @@ then save it in a file ``.py``, *e.g.* ``toy_example.py``, and run it sequential
 
 Inverted Pendulum
 -----------------
+:download:`data.zip <data.zip>`.
 
+.. code-block:: python
 
+    import madupite as md
+    import numpy as np
+
+    def main():
+
+        mdp = md.MDP()
+
+        # the first element in the tuple is the number of states, the second element is the number of actions
+        dims_ = [(121, 5), (441, 9), (1681, 11), (10201, 11), (22801, 9)]
+
+        for dim in dims_:
+
+            # Load data from .bin files
+            g = md.Matrix.fromFile(
+                filename = "data/pend_g_{}_{}.bin".format(dim[0], dim[1]),
+                category=md.MatrixCategory.Cost,
+                type=md.MatrixType.Dense
+            )
+            P = md.Matrix.fromFile(
+                filename = "data/pend_P_{}_{}.bin".format(dim[0], dim[1]),
+                category=md.MatrixCategory.Dynamics,
+                type=md.MatrixType.Sparse
+            )
+
+            mdp.setStageCostMatrix(g)
+            mdp.setTransitionProbabilityTensor(P)
+
+            #mandatory options to select
+            mdp.setOption("-mode", "MINCOST")
+            mdp.setOption("-discount_factor", "0.999")
+
+            #saving policy, cost and stats into files
+            mdp.setOption("-file_policy", "policy_{}_{}.out".format(dim[0], dim[1]))
+            mdp.setOption("-file_cost", "cost_{}_{}.out".format(dim[0], dim[1]))
+            mdp.setOption("-file_stats", "stats_{}_{}.json".format(dim[0], dim[1]))
+
+            mdp.solve()
+
+    if __name__ == "__main__":
+        main()
+
+.. video:: _static/pendulum.mp4
+    :height: 500
+    :width: 900
+    :autoplay:
+    :loop:
+    :poster: _static/pendulum.png
 
 Further examples
 ----------------
