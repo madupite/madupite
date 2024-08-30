@@ -17,16 +17,15 @@ Toy-Example
 ------------
 
 We start with a simple example. 
+Let's consider an agent that lives on a periodic 1-dimensional line of length 50. At each time-step, the agent has to decide whether moving to the left, to the right or staying in its place. The goal is to reach state 42 with the minimal number of steps. This problem can be mathematically formulated as an MDP with :math:`\mathcal{S} = \left\{0, \,1,\,\dots,\,49 \right\}` and :math:`\mathcal{A} = \left\{0,\,1,\,2\right\}`, where 0 corresponds to the action *stay*, 1 to the action *move-left* and 2 to the action *move-right*. By moving to the right from state :math:`s` the agent will lend to state :math:`(s+1) \,\text{mod}\, 50` and by moving to the left it will move to state :math:`(s-1) \,\text{mod}\, 50`. Transitions are deterministic in this case and a probability of 1 is associated to the triplet :math:`(s,a,s')` only when :math:`s` is the transitioning state associated to the pair :math:`(s,a)`. Finally, the agent will get a reward of 1 if it reaches state 42, while a reward of 0 is associated to all other state-action pairs.
+Imagine also the scenario where our agent is moving on ice. When it tries to move to the left (or right), there is a 10% chance that it falls and ends up staying in its place instead of moving in state :math:`(s-1)\,\text{mod}\,50` (or :math:`(s-1)\,\text{mod}\,50`). The slippery iced floor also introduces a 10% chance that when it plays action 0 it slips to the left or right state. 
+Now we turn this into code and use ``madupite`` to model and solve the MDP associated to the described system.
 
 .. image:: _images/tutorial_ex1.jpg
     :align: center
     :scale: 35%
 
-Let's consider an agent that lives on a periodic 1-dimensional line of length 50. At each time-step, the agent has to decide whether moving to the left, to the right or staying in its place. The goal is to reach state 42 with the minimal number of steps. This problem can be mathematically formulated as an MDP with :math:`\mathcal{S} = \left\{0, \,1,\,\dots,\,49 \right\}` and :math:`\mathcal{A} = \left\{0,\,1,\,2\right\}`, where 0 corresponds to the action *stay*, 1 to the action *move-left* and 2 to the action *move-right*. By moving to the right from state :math:`s` the agent will lend to state :math:`(s+1) \,\text{mod}\, 50` and by moving to the left it will move to state :math:`(s-1) \,\text{mod}\, 50`. Transitions are deterministic in this case and a probability of 1 is associated to the triplet :math:`(s,a,s')` only when :math:`s` is the transitioning state associated to the pair :math:`(s,a)`. Finally, the agent will get a reward of 1 if it reaches state 42, while a reward of 0 is associated to all other state-action pairs.
-Imagine also the scenario where our agent is moving on ice. When it tries to move to the left (or right), there is a 10% chance that it falls and ends up staying in its place instead of moving in state :math:`(s-1)\,\text{mod}\,50` (or :math:`(s-1)\,\text{mod}\,50`). The slippery iced floor also introduces a 10% chance that when it plays action 0 it slips to the left or right state. 
-Now we turn this into code and use ``madupite`` to model and solve the MDP associated to the described system.
-
-We start by defining the transition probability function for both the deterministic and the stochastic scenarios, and the reward function:
+We start by defining the transition probability function for both the deterministic and the stochastic scenario, and the reward function:
 
 .. code-block:: python
 
@@ -58,8 +57,6 @@ Within the ``main`` function, we first create the ``madupite``-objects for the t
 
     def main():
 
-        instance = md.initialize_madupite()
-
         prealloc = md.MatrixPreallocation()
         prealloc.d_nz = 1
         prealloc.o_nz = 1    
@@ -80,14 +77,13 @@ Within the ``main`` function, we first create the ``madupite``-objects for the t
             func=r
         )
 
-        mdp = md.MDP(instance)
+        mdp = md.MDP()
         mdp.setTransitionProbabilityTensor(P_mat_deterministic)
         mdp.setStageCostMatrix(r_mat)
 
         mdp.setOption("-mode", "MAXREWARD")
         mdp.setOption("-discount_factor", "0.9")
 
-        mdp.setOption("-default_filenames", "false")
         mdp.setOption("-file_policy", "policy_deterministic.out")
         mdp.setOption("-file_stats", "stats_deterministic.json")
 
@@ -109,13 +105,10 @@ In case we want to run benchmarks with a different discount factor, inner solver
 
         mdp.setTransitionProbabilityTensor(P_mat_deterministic)
 
-        mdp.setOption("-discount_factor", "0.99")
         mdp.setOption("-file_policy", "policy_stochastic.out")
         mdp.setOption("-file_stats", "statistics_stochastic.json")
 
         mdp.solve()
-
-
 
 
 In order to run the code, add at the end:

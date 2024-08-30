@@ -3,23 +3,23 @@ Tutorials
 
 In the following, we propose some short tutorials which we hope can help the users to better understand the deployment of some of the fundamental functionalities of ``madupite``.
 
-Initializing and finalizing ``madupite`` 
+Writing and running your code using ``madupite`` 
 ---------------------------------------------------
 
-``madupite`` can be imported as any other Python package. Though, since it relies on MPI for the distributed memory parallelism, it is crucial to first initialize the MPI and PETSc environment to ensure that the communication between the processes is set up correctly. 
-In addition, to properly finalize all MPI jobs, we suggest that the code is contained inside a main function.
+``madupite`` can be imported and used as any other Python package. Though, if you want to run your code it in a parallel/distributed set up, the code should be contained inside a ``main`` function as this guarantees a correct finalization of the MPI ranks.
 
 .. code-block:: python
     
     import madupite as md
-    instance = md.initialize_madupite()
 
     def main():
 
-        #main body of your code :)
+        # main body of your code 
+
+In this way, you can save your code into a ``.py`` file, *e.g.* ``mycode.py``, and then run it smoothly with the command ``mpirun -n <number_of_ranks> python mycode.py``. There is no need to use the ``main`` function if you instead just want to run your code in a single-core setting with the command ``python mycode.py``.
 
 .. warning::
-    Note that as of ``madupite`` V1.0, if you do not use the `main` function, then your code will still run and output results, but an error will be raised at the end of the execution because the finalization of the ranks is not handled appropriately.
+    Note that as of ``madupite`` V1.0, if you do not use the ``main`` function and then run your code with ``mpirun -n <number_of_ranks> python mycode.py``, then your code will still run and output the desired results, but an error will be raised at the end of the execution because the finalization of the ranks is not handled appropriately.
 
     ::
         
@@ -60,14 +60,14 @@ Notice that, unlike with function simulations, defining an object for matrix pre
 
         # Load matrices from file
         g = md.Matrix.fromFile(
-            filename="g.bin",
+            filename = "g.bin",
             category=md.MatrixCategory.Cost,
-            type=md.MatrixType.Dense,
+            type=md.MatrixType.Dense
         )
         P = md.Matrix.fromFile(
-            filename="P.bin",
+            filename = "P.bin",
             category=md.MatrixCategory.Dynamics,
-            type=md.MatrixType.Sparse,
+            type=md.MatrixType.Sparse
         )
 
 
@@ -108,7 +108,7 @@ In the following example, we show how to generate the stage cost matrix and tran
         P = md.createTransitionProbabilityTensor(
             numStates=num_states,
             numActions=num_actions,
-            func=probfunc,
+            func=probfunc
         )
 
     if __name__ == "__main__":
@@ -253,7 +253,7 @@ The tensor can be reshaped as follows:
 The MDP-class
 ----------------------------------------------
 
-Now that all the main ingredients are explained, we are ready to introduce the MDP-class, which is basically where all the magic of ``madupite`` happens! This class allows you to create and solve your own MDP, and it comes with a lot of options that you can customize. The code snippet down below exemplifies how you use instances of this class to create and solve an MDP. In particular, it simulates via functions, creates and solves a dense random MDP with ``madupite``. 
+Now that all the main ingredients are explained, we are ready to introduce the MDP-class, which is basically where all the magic of ``madupite`` happens! This class allows you to create and solve your own MDP, and it comes with a lot of options that you can use to customize your MDP. The code snippet down below exemplifies how you use instances of this class to create and solve an MDP. In particular, it simulates via functions, creates and solves a dense random MDP with ``madupite``. 
 The optimal policy and stats are saved into `policy.out` and `stats.json` files at the end.
 
 .. code-block:: python
@@ -274,9 +274,7 @@ The optimal policy and stats are saved into `policy.out` and `stats.json` files 
 
     def main():
 
-        instance = md.initialize_madupite()
-
-        mdp = md.MDP(instance)
+        mdp = md.MDP()
 
         prealloc = md.MatrixPreallocation()
         prealloc.d_nz = num_states
@@ -300,7 +298,6 @@ The optimal policy and stats are saved into `policy.out` and `stats.json` files 
         mdp.setOption("-mode", "MINCOST")
         mdp.setOption("-discount_factor", "0.9")
 
-        mdp.setOption("-default_filenames", "false")
         mdp.setOption("-file_policy", "policy.out")
         mdp.setOption("-file_stats", "stats.json")
 
