@@ -33,4 +33,5 @@ dependencies:
   - pytest
   - sphinx
   - pydata-sphinx-theme
+  - sphinxcontrib-video
   - matplotlib
