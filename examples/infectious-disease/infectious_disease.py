@@ -1,14 +1,7 @@
-import matplotlib.cm as cm
 import matplotlib.colors as mcolors
 import numpy as np
-import scipy
 from matplotlib import pyplot as plt
-from matplotlib.colors import LinearSegmentedColormap
-from scipy.sparse import csr_matrix, vstack
-from scipy.sparse.linalg import spsolve
-from scipy.stats import (
-    binom,  # to calculate binomial distribution for transition probabilities
-)
+from scipy.stats import binom  # for binomial transition probabilities
 
 import madupite
 
@@ -146,7 +139,7 @@ class InfectiousDiseaseModel:
 # parameter
 population_size = 5000
 num_transitions = (
-    100  # max. number of non-zero entries in transition probability matrix per row
+    100  # max. non-zeros in transition matrix (to keep it sparse and efficient)
 )
 
 psi_hygiene = [0.25, 0.125, 0.08, 0.05, 0.03]
