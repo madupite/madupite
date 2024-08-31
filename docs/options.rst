@@ -151,15 +151,15 @@ Command line usage:
 
 .. code-block:: bash
 
-   ./pendulum -discount_factor 0.999 -mode MINCOST -max_iter_pi 500 -verbose True
+   mpirun -n <number_of_ranks> python pendulum.py -discount_factor 0.999 -mode MINCOST -max_iter_pi 500 -verbose True
 
-Using options file:
+Using options in a ``.txt`` file:
 
 .. code-block:: bash
 
-   ./pendulum -options options_file
+   mpirun -n <number_of_ranks> python pendulum.py -options <filename>.txt
 
-Where `options_file` contains:
+Where ``<filename>.txt`` contains:
 
 .. code-block:: text
 
@@ -167,6 +167,8 @@ Where `options_file` contains:
    -mode MINCOST
    -max_iter_pi 500
    -verbose True
+
+You can use the same logics to set the options also when using ``madupite`` from C++ or when running in single-core.
 
 Hard-coded options:
 
