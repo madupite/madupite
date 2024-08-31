@@ -10,6 +10,7 @@ from scipy.sparse.linalg import spsolve
 
 import madupite
 
+# See Gargiani et al. (2024, arXiv:2404.06136), Chapter 5 for a detailed description of the model.
 
 class InfectiousDiseaseModel:
     def __init__(self, population_size, num_transitions, cf_a1, cf_a2, cq_a1, cq_a2, psi, lambda_, weights):
@@ -49,7 +50,7 @@ class InfectiousDiseaseModel:
         q_prob = self.q(state, action)
         ev = state * q_prob
         start = int(max(0, ev - self.num_transitions // 2))
-        end = int(min(state, ev + self.num_transitions // 2))
+        end = int(min(state, ev + self.num_transitions // 2 - 1))
         
         binom_values = binom.pmf(np.arange(start, end + 1), state, q_prob)
         sum_binom = np.sum(binom_values)
@@ -86,19 +87,34 @@ class InfectiousDiseaseModel:
             ax.set_title(f'Action Index: ({i}, {j}) = {action}')
 
         fig.colorbar(im, ax=axs.ravel().tolist(), shrink=0.6)
-        plt.show()
+        plt.savefig("transition_probabilities.png", dpi=300)
 
-    def visualize_stage_costs(self):        
-        stage_cost_matrix = np.array([[self.g(state, action) for state in range(self.num_states)] 
-                                      for action in range(self.num_actions)])
+    def visualize_stage_costs(self):
+        stage_cost_matrix = np.empty((self.num_states, self.num_actions))
+        for state in range(self.num_states):
+            for action in range(self.num_actions):
+                stage_cost_matrix[state, action] = self.g(state, action)
         
-        fig, ax = plt.subplots(figsize=(8, 2))
+        fig, ax = plt.subplots(figsize=(6, 10))  # Adjusted figure size for vertical orientation
         im = ax.imshow(stage_cost_matrix, cmap='hot_r', interpolation='nearest', aspect='auto')
         ax.set_title("Stage Cost Matrix")
+        
+        # Set x-axis (action) ticks and label
+        ax.set_xticks(range(0, 20, 2))  # Show every other tick to avoid crowding
+        ax.set_xticklabels(range(0, 20, 2))
+        ax.set_xlabel("Action Index (Higher Index = Stricter Measures)")
+        
+        # Set y-axis (state) ticks and label
+        num_y_ticks = 5  # Adjust this number for desired density of y-ticks
+        y_ticks = np.linspace(0, self.num_states - 1, num_y_ticks, dtype=int)
+        ax.set_yticks(y_ticks)
+        ax.set_yticklabels(y_ticks)
+        ax.set_ylabel("State Index (Number of Susceptible Individuals)")
+        
         fig.colorbar(im, ax=ax, shrink=0.6)
-        plt.show()
+        plt.tight_layout()  # Adjust layout to prevent clipping of labels
+        plt.savefig("stage_costs.png", dpi=300)
 
-rank_id, n_ranks = madupite.mpi_rank_size() 
 
 # parameter
 population_size = 5000
@@ -114,18 +130,22 @@ cq_social_distancing = [1, 0.9, 0.5, 0.1]
 
 weights = [5, 20, 0.05] # [wf, wq, wh]
 
-# create model
-idm = InfectiousDiseaseModel(population_size, num_transitions, cf_hygiene, cf_social_distancing, cq_hygiene, cq_social_distancing, psi_hygiene, lambda_social_distancing, weights)
-
-if rank_id == 0:
-    idm.visualize_stage_costs()
-    idm.visualize_transition_probabilities()
 
 def main():
+    # create model
+    idm = InfectiousDiseaseModel(population_size, num_transitions, 
+                                    cf_hygiene, cf_social_distancing, 
+                                    cq_hygiene, cq_social_distancing,
+                                    psi_hygiene, lambda_social_distancing, weights)
+
+    rank_id, n_ranks = madupite.mpi_rank_size() 
+    if rank_id == 0:
+        idm.visualize_stage_costs()
+        idm.visualize_transition_probabilities()
     
     prealloc = madupite.MatrixPreallocation()
-    prealloc.o_nz = num_transitions + 1
-    prealloc.d_nz = num_transitions + 1
+    prealloc.o_nz = num_transitions
+    prealloc.d_nz = num_transitions
     
     g = madupite.createStageCostMatrix(name="g", numStates=idm.num_states, numActions=idm.num_actions, func=idm.g)
     P = madupite.createTransitionProbabilityTensor(name="P", numStates=idm.num_states, numActions=idm.num_actions, func=idm.P, preallocation=prealloc)
@@ -139,6 +159,7 @@ def main():
     mdp.setOption("-alpha", "0.1")
     mdp.setOption("-atol_pi", "1e-8")
     mdp.setOption("-overwrite", "true")
+    mdp.setOption("-verbose", "true")
     mdp.setOption("-file_stats", "idm_stats.json")
     mdp.setOption("-file_cost", "idm_reward.out")
     mdp.setOption("-file_policy", "idm_policy.out")
