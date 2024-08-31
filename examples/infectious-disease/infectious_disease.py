@@ -98,6 +98,8 @@ class InfectiousDiseaseModel:
         fig.colorbar(im, ax=ax, shrink=0.6)
         plt.show()
 
+rank_id, n_ranks = madupite.mpi_rank_size() 
+
 # parameter
 population_size = 5000
 num_transitions = 100 # max. number of non-zero entries in transition probability matrix per row
@@ -114,6 +116,10 @@ weights = [5, 20, 0.05] # [wf, wq, wh]
 
 # create model
 idm = InfectiousDiseaseModel(population_size, num_transitions, cf_hygiene, cf_social_distancing, cq_hygiene, cq_social_distancing, psi_hygiene, lambda_social_distancing, weights)
+
+if rank_id == 0:
+    idm.visualize_stage_costs()
+    idm.visualize_transition_probabilities()
 
 def main():
     
