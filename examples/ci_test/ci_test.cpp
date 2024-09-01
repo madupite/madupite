@@ -45,13 +45,13 @@ int main(int argc, char** argv)
     auto madupite = Madupite::initialize(&argc, &argv);
     auto comm     = PETSC_COMM_WORLD;
 
-    // Test specifying the matrix P, g through
+    // Test specifying the matrix P, g
     // 1. from function
     // 2. from filename
 
     MDP mdp(madupite);
     mdp.setOption("-mode", "MAXREWARD");
-    mdp.setOption("-discount_factor", "0.9999");
+    mdp.setOption("-discount_factor", "0.999");
     mdp.setOption("-max_iter_pi", "200");
     mdp.setOption("-max_iter_ksp", "1000");
     mdp.setOption("-alpha", "1e-4");
@@ -59,6 +59,7 @@ int main(int argc, char** argv)
     mdp.setOption("-file_stats", "ci_stats.json");
     mdp.setOption("-file_cost", "ci_reward.out");
     mdp.setOption("-file_policy", "ci_policy.out");
+    mdp.setOption("-overwrite", "true");
     mdp.setOption("-ksp_type", "gmres");
 
     PetscInt numStates = 50, numActions = 3;
@@ -73,7 +74,6 @@ int main(int argc, char** argv)
 
     // Check solution
     // 42 (goal) has the highest reward, 17 has the lowest (1-based indexing)
-    // only if rank 0 (else some error with stod?)
     int rank;
     MPI_Comm_rank(comm, &rank);
     if (rank == 0) {
@@ -104,14 +104,17 @@ int main(int argc, char** argv)
     mdp.setOption("-mode", "MINCOST");
     mdp.setOption("-discount_factor", "0.9");
     mdp.setOption("-alpha", "0.1");
+    mdp.setOption("-file_stats", "ci_stats_fromfile.json");
+    mdp.setOption("-file_cost", "ci_reward_fromfile.out");
+    mdp.setOption("-file_policy", "ci_policy_fromfile.out");
     // mdp.setOption("-pc_type", "svd"); // standard PI (exact), only works in sequential
 
-    g_mat = Matrix::fromFile(comm, "g_file", "../examples/ci_test/100_50_0.1/g.bin", MatrixCategory::Cost, MatrixType::Dense);
-    P_mat = Matrix::fromFile(comm, "P_file", "../examples/ci_test/100_50_0.1/P.bin", MatrixCategory::Dynamics);
+    g_mat = Matrix::fromFile(comm, "g_file", "../examples/ci_test/data/g.bin", MatrixCategory::Cost, MatrixType::Dense);
+    P_mat = Matrix::fromFile(comm, "P_file", "../examples/ci_test/data/P.bin", MatrixCategory::Dynamics);
 
     mdp.setStageCostMatrix(g_mat);
     mdp.setTransitionProbabilityTensor(P_mat);
-
     mdp.solve();
+
     return 0;
 }

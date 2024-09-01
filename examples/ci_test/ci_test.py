@@ -57,7 +57,13 @@ def main():
     mdp.setTransitionProbabilityTensor(P)
     mdp.solve()
 
-    # We now update the mdp parameters by loading them from .bin files which are stored in the ./data folder. We can re-use the same mdp instance, but we simply update the stage cost matrix and the transition probability tensor with the values loaded from files.
+    # We now update the mdp parameters by loading them from .bin files which are stored
+    # in the ./data folder. We can re-use the same mdp instance, but we simply update
+    # the stage cost matrix and the transition probability tensor with the values
+    # loaded from files.
+    mdp.setOption("-mode", "MINCOST")
+    mdp.setOption("-discount_factor", "0.9")
+    mdp.setOption("-alpha", "0.1")
     mdp.setOption("-file_stats", "ci_stats_fromfile.json")
     mdp.setOption("-file_cost", "ci_reward_fromfile.out")
     mdp.setOption("-file_policy", "ci_policy_fromfile.out")
