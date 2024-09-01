@@ -44,14 +44,13 @@ def main():
     prealloc.o_nz = 3
     prealloc.d_nz = 3
     g = madupite.createStageCostMatrix(
-        name="g", numStates=num_states, numActions=num_actions, func=rewardfunc
+        numStates=num_states, numActions=num_actions, func=rewardfunc
     )
     P = madupite.createTransitionProbabilityTensor(
-        name="P",
         numStates=num_states,
         numActions=num_actions,
         func=probfunc,
-        preallocation=prealloc,
+        preallocation=prealloc
     )
     mdp.setStageCostMatrix(g)
     mdp.setTransitionProbabilityTensor(P)
