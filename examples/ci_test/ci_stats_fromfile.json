@@ -1,0 +1,50 @@
+{
+    "runs": {
+        "KSPType": "gmres",
+        "PCType": "none",
+        "alpha": 0.0001,
+        "atol_pi": 1e-08,
+        "discount_factor": 0.999,
+        "file_cost": "ci_reward_fromfile.out",
+        "file_policy": "ci_policy_fromfile.out",
+        "file_stats": "ci_stats_fromfile.json",
+        "iterations": [
+            {
+                "computation_time": 0.11577099985515815,
+                "ksp_iterations": 0,
+                "pi_iteration": 0,
+                "residual": 99.90887002973139
+            },
+            {
+                "computation_time": 0.5748829998992733,
+                "ksp_iterations": 21,
+                "pi_iteration": 1,
+                "residual": 38.833169322955655
+            },
+            {
+                "computation_time": 0.5254410002635268,
+                "ksp_iterations": 20,
+                "pi_iteration": 2,
+                "residual": 4.135073917466798
+            },
+            {
+                "computation_time": 0.5048860002716538,
+                "ksp_iterations": 20,
+                "pi_iteration": 3,
+                "residual": 0.00011916561925318092
+            },
+            {
+                "computation_time": 0.5261119999886432,
+                "ksp_iterations": 22,
+                "pi_iteration": 4,
+                "residual": 1.6589183360338211e-09
+            }
+        ],
+        "max_iter_ksp": 1000,
+        "max_iter_pi": 200,
+        "num_actions": 50,
+        "num_ranks": 3,
+        "num_states": 100,
+        "total_solver_time": 2.257908000046882
+    }
+}

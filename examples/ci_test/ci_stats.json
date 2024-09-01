@@ -1,0 +1,38 @@
+{
+    "runs": {
+        "KSPType": "gmres",
+        "PCType": "none",
+        "alpha": 0.0001,
+        "atol_pi": 1e-08,
+        "discount_factor": 0.999,
+        "file_cost": "ci_reward.out",
+        "file_policy": "ci_policy.out",
+        "file_stats": "ci_stats.json",
+        "iterations": [
+            {
+                "computation_time": 0.0982569999905536,
+                "ksp_iterations": 0,
+                "pi_iteration": 0,
+                "residual": 0.9990000000000001
+            },
+            {
+                "computation_time": 1.5956119996189955,
+                "ksp_iterations": 26,
+                "pi_iteration": 1,
+                "residual": 8.302403029923205
+            },
+            {
+                "computation_time": 0.4526990001068043,
+                "ksp_iterations": 26,
+                "pi_iteration": 2,
+                "residual": 1.1368683772161603e-11
+            }
+        ],
+        "max_iter_ksp": 1000,
+        "max_iter_pi": 200,
+        "num_actions": 3,
+        "num_ranks": 3,
+        "num_states": 50,
+        "total_solver_time": 2.152463000129501
+    }
+}
