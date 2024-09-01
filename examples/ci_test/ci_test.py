@@ -1,7 +1,5 @@
-import sys
-
+#Toy-example of the agent walking in a 1-dimensional periodic environment on a slippery ground. 
 import madupite
-
 
 def rewardfunc(s, a):
     return 1.0 if s == 41 else 0.0
@@ -23,12 +21,12 @@ def probfunc(s, a):
 
 
 def main():
-    instance = madupite.initialize_madupite(sys.argv)
+    
+    mdp = madupite.MDP()
 
-    mdp = madupite.MDP(instance)
-
+    #setting the options for the mdp
     mdp.setOption("-mode", "MAXREWARD")
-    mdp.setOption("-discount_factor", "0.9999")
+    mdp.setOption("-discount_factor", "0.999")
     mdp.setOption("-max_iter_pi", "200")
     mdp.setOption("-max_iter_ksp", "1000")
     mdp.setOption("-alpha", "1e-4")
@@ -36,8 +34,10 @@ def main():
     mdp.setOption("-file_stats", "ci_stats.json")
     mdp.setOption("-file_cost", "ci_reward.out")
     mdp.setOption("-file_policy", "ci_policy.out")
+    mdp.setOption("-overwrite", "true")
     mdp.setOption("-ksp_type", "gmres")
-
+    
+    #We first create the mdp with simulations for the transition probability tensor and the cost-function
     num_states = 50
     num_actions = 3
     prealloc = madupite.MatrixPreallocation()
@@ -57,19 +57,22 @@ def main():
     mdp.setTransitionProbabilityTensor(P)
     mdp.solve()
 
+    #We now update the mdp parameters by loading them from files. We can re-use the same mdp instance, but we simply update the stage cost matrix and the transition probability tensor with the values loaded from files.
+    mdp.setOption("-file_stats", "ci_stats_fromfile.json")
+    mdp.setOption("-file_cost", "ci_reward_fromfile.out")
+    mdp.setOption("-file_policy", "ci_policy_fromfile.out")
+
     g = madupite.Matrix.fromFile(
         comm=madupite.getCommWorld(),
-        name="g",
         filename="100_50_0.1/g.bin",
         category=madupite.MatrixCategory.Cost,
-        type=madupite.MatrixType.Dense,
+        type=madupite.MatrixType.Dense
     )
     P = madupite.Matrix.fromFile(
         comm=madupite.getCommWorld(),
-        name="P",
         filename="100_50_0.1/P.bin",
         category=madupite.MatrixCategory.Dynamics,
-        type=madupite.MatrixType.Sparse,
+        type=madupite.MatrixType.Sparse
     )
 
     mdp.setStageCostMatrix(g)
