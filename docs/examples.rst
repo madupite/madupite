@@ -111,14 +111,10 @@ In case we want to run benchmarks with a different discount factor, inner solver
         mdp.solve()
 
 
-In order to run the code, add at the end:
+To try the example yourself, see ``examples/tutorial/ex1.py``. Run it using ``python ex1.py`` or in parallel using ``mpirun -n <number_of_ranks> python ex1.py`` where ``<number_of_ranks>`` is the number of processes.
 
-.. code-block:: python
-    
-    if __name__ == "__main__":
-        main()
+In ``examples/tutorial/ex2_data_generation.py`` you can see how to generate the data for this example from a NumPy or SciPy array and save it in ``.bin`` files. In ``examples/tutorial/ex2.py`` you can see how to load the data from the ``.bin`` files and solve the MDP.
 
-then save it in a file ``.py``, *e.g.* ``toy_example.py``, and run it sequentially using the command ``python toy_example.py``, or in parallel using the command ``mpirun -n <number_of_ranks> python toy_example.py`` where ``<number_of_ranks>`` is the number of processes.
 
 
 Inverted Pendulum
@@ -134,8 +130,8 @@ Inverted Pendulum
    \end{eqnarray}
 
 where :math:`m` and :math:`\ell` are the pendulum mass and length, respectively; :math:`g` is the gravitational acceleration; :math:`\theta` is the angular position of the pendulum, and :math:`F` the torque that we apply on it.
-The dynamic is continuous in time and space, therefore we must first discretize it in order to be able to simulate it. In particular, we select 0.01 as time-step and we discretize the space in the ranges :math:`[-10;\,10]` and :math:`[0;\, 2 \pi]` for the angular position and acceleration, respectively, and :math:`[-3;\, 3]` for the action. The finer the discretization grid that we use and the more accurate will be the resulting approximate model, but it will also result into a bigger computational and memory load. ``madupite`` allows one to deploy a finer discretization by distributing the memory and computation across nodes of a computing cluster. 
-For the simulation of the pendulum we used different discretization granularities and we collected the data into `.bin` files which you can download here :download:`data.zip <data.zip>`.
+The dynamic is continuous in time and space, therefore we must first discretize it in order to be able to simulate it. In particular, we select 0.01 as time-step and we discretize the space in the ranges :math:`[-10;\,10]` and :math:`[0;\, 2 \pi]` for the angular acceleration and position, respectively, and :math:`[-3;\, 3]` for the action. The finer the discretization grid that we use and the more accurate will be the resulting approximate model, but it will also result into a bigger computational and memory load. ``madupite`` allows one to deploy a finer discretization by distributing the memory and computation across nodes of a computing cluster. 
+For the simulation of the pendulum we used different discretization granularities and we collected the data into `.bin` files which you can download here :download:`data.zip (8.4 MB) <data.zip>`.
 The goal is to find the values of torque that minimize at each time-step the following stage-cost:
 
 .. math::

@@ -1,5 +1,6 @@
-#Toy-example of the agent walking in a 1-dimensional periodic environment on a slippery ground. 
+# Toy-example of the agent walking in a 1-dimensional periodic environment on a slippery ground.
 import madupite
+
 
 def rewardfunc(s, a):
     return 1.0 if s == 41 else 0.0
@@ -21,10 +22,10 @@ def probfunc(s, a):
 
 
 def main():
-    
+
     mdp = madupite.MDP()
 
-    #Setting the options for the mdp
+    # Setting the options for the mdp
     mdp.setOption("-mode", "MAXREWARD")
     mdp.setOption("-discount_factor", "0.999")
     mdp.setOption("-max_iter_pi", "200")
@@ -36,8 +37,8 @@ def main():
     mdp.setOption("-file_policy", "ci_policy.out")
     mdp.setOption("-overwrite", "true")
     mdp.setOption("-ksp_type", "gmres")
-    
-    #We first create the mdp with simulations for the transition probability tensor and the cost-function
+
+    # We first create the mdp with simulations for the transition probability tensor and the cost-function
     num_states = 50
     num_actions = 3
     prealloc = madupite.MatrixPreallocation()
@@ -50,13 +51,17 @@ def main():
         numStates=num_states,
         numActions=num_actions,
         func=probfunc,
-        preallocation=prealloc
+        preallocation=prealloc,
     )
     mdp.setStageCostMatrix(g)
     mdp.setTransitionProbabilityTensor(P)
     mdp.solve()
 
-    #We now update the mdp parameters by loading them from .bin files which are stored in the ./data folder. We can re-use the same mdp instance by updating the stage cost matrix and the transition probability tensor with the values loaded from files.
+    # We now update the mdp parameters by loading them from .bin files which are stored
+    # in the ./data folder. We can re-use the same mdp instance, but we simply update
+    # the stage cost matrix and the transition probability tensor with the values
+    # loaded from files.
+
     mdp.setOption("-file_stats", "ci_stats_fromfile.json")
     mdp.setOption("-file_cost", "ci_reward_fromfile.out")
     mdp.setOption("-file_policy", "ci_policy_fromfile.out")
@@ -65,13 +70,13 @@ def main():
         comm=madupite.getCommWorld(),
         filename="data/g.bin",
         category=madupite.MatrixCategory.Cost,
-        type=madupite.MatrixType.Dense
+        type=madupite.MatrixType.Dense,
     )
     P = madupite.Matrix.fromFile(
         comm=madupite.getCommWorld(),
         filename="data/P.bin",
         category=madupite.MatrixCategory.Dynamics,
-        type=madupite.MatrixType.Sparse
+        type=madupite.MatrixType.Sparse,
     )
 
     mdp.setStageCostMatrix(g)

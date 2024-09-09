@@ -193,6 +193,11 @@ Hard-coded options:
    mdp.setOption("-max_iter_pi", "500");
    mdp.setOption("-max_iter_pi", "True");
 
+
+.. warning::
+
+   As of ``madupite`` V1.0, ``MDP::setOption()`` uses a global options data base even though it is called on an instance of the MDP class. This means that ``mdp1.setOption("-discount_factor", "0.999")`` will also set the discount factor for ``mdp2``. This holds for both C++ and Python.
+
 For more information on available KSP types and preconditioners, refer to the PETSc documentation:
 
 * KSP types: https://petsc.org/release/manualpages/KSP/KSPType/

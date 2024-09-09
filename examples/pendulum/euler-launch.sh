@@ -7,5 +7,5 @@
 #SBATCH --ntasks=6
 #SBATCH --mem-per-cpu=20G
 
-mpirun python compute_pendulum.py -filename_prefix ${SLURM_JOB_ID};
+mpirun python pendulum.py -filename_prefix ${SLURM_JOB_ID};
 # Make sure to call sbatch from <...>/madupite/examples/pendulum/ to have the correct relative filenames
