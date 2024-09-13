@@ -45,7 +45,7 @@ def test_matrix_from_file():
     matrix = madupite.Matrix.fromFile(
         comm=madupite.getCommWorld(),
         name="matrix_name",
-        filename="../examples/ci_test/100_50_0.1/g.bin",
+        filename="../examples/ci_test/data/g.bin",
         category=madupite.MatrixCategory.Dynamics,
         type=madupite.MatrixType.Dense,
     )
@@ -56,7 +56,7 @@ def test_matrix_write_to_file():
     matrix = madupite.Matrix.fromFile(
         comm=madupite.getCommWorld(),
         name="matrix_name",
-        filename="../examples/ci_test/100_50_0.1/g.bin",
+        filename="../examples/ci_test/data/g.bin",
         category=madupite.MatrixCategory.Dynamics,
         type=madupite.MatrixType.Dense,
     )
@@ -101,14 +101,14 @@ def test_mdp_setup_and_solve():
     g = madupite.Matrix.fromFile(
         comm=madupite.getCommWorld(),
         name="matrix_name",
-        filename="../examples/ci_test/100_50_0.1/g.bin",
+        filename="../examples/ci_test/data/g.bin",
         category=madupite.MatrixCategory.Cost,
         type=madupite.MatrixType.Dense,
     )
     P = madupite.Matrix.fromFile(
         comm=madupite.getCommWorld(),
         name="matrix_name",
-        filename="../examples/ci_test/100_50_0.1/P.bin",
+        filename="../examples/ci_test/data/P.bin",
         category=madupite.MatrixCategory.Dynamics,
         type=madupite.MatrixType.Sparse,
     )

@@ -58,8 +58,11 @@ template MDP::MDP(std::shared_ptr<Madupite> madupite, int comm);
         PetscBool flg;                                                                                                                               \
         PetscCall(parse_fn(NULL, NULL, "-" #name, &name##_, &flg));                                                                                  \
         if (!flg) {                                                                                                                                  \
-            print_fn(Madupite::getCommWorld(), #name " not specified. Using default value: " #default_value ".\n");                                  \
+            if (verbose_)                                                                                                                            \
+                print_fn(Madupite::getCommWorld(), #name " not specified. Using default value: " #default_value ".\n");                              \
             name##_ = default_value;                                                                                                                 \
+        } else if (verbose_) {                                                                                                                       \
+            print_fn(Madupite::getCommWorld(), #name " = %f\n", name##_);                                                                            \
         }                                                                                                                                            \
     } while (0)
 
@@ -69,7 +72,9 @@ template MDP::MDP(std::shared_ptr<Madupite> madupite, int comm);
         PetscCall(PetscOptionsGetString(NULL, NULL, "-" #name, buffer, PETSC_MAX_PATH_LEN, &flg));                                                   \
         if (!flg) {                                                                                                                                  \
             buffer[0] = '\0';                                                                                                                        \
-        }                                                                                                                                            \
+        } /*else if (verbose_) {                                                                                                                     \
+            PetscPrintf(Madupite::getCommWorld(), #name " = %s\n", buffer);                                                                          \
+        } do not use because filenames may change due to overwrite protection*/                                                                      \
     } while (0)
 
 #define CONCAT_PETSC_STRINGS(filename)                                                                                                               \
@@ -90,10 +95,19 @@ PetscErrorCode MDP::setValuesFromOptions()
 
     setup_called = false;
 
+    PetscBool verbose_flag = PETSC_FALSE, overwrite_flag = PETSC_FALSE;
+    PetscCall(PetscOptionsGetBool(NULL, NULL, "-verbose", &verbose_flag, &flg));
+    verbose_ = flg && verbose_flag;
+    PetscCall(PetscOptionsGetBool(NULL, NULL, "-overwrite", &overwrite_flag, &flg));
+    overwrite_ = flg && overwrite_flag;
+
     // Mandatory options
     PetscCall(PetscOptionsGetReal(NULL, NULL, "-discount_factor", &discount_factor_, &flg));
     if (!flg) {
         SETERRQ(Madupite::getCommWorld(), 1, "Discount factor not specified. Use -discount_factor <double>.\n");
+    }
+    if (verbose_) {
+        PetscPrintf(Madupite::getCommWorld(), "discount_factor = %f\n", discount_factor_);
     }
     PetscCall(PetscOptionsGetString(NULL, NULL, "-mode", buf, PETSC_MAX_PATH_LEN, &flg));
     if (!flg) {
@@ -105,7 +119,12 @@ PetscErrorCode MDP::setValuesFromOptions()
     } else {
         SETERRQ(Madupite::getCommWorld(), 1, "Input mode not recognized. Use -mode MINCOST or MAXREWARD.\n");
     }
+    if (verbose_) {
+        PetscPrintf(Madupite::getCommWorld(), "mode = %s\n", buf);
+    }
+
     // Optional options with defaults
+
     GET_OPTION(int, max_iter_pi, 1000, PetscOptionsGetInt, PetscPrintf);
     GET_OPTION(int, max_iter_ksp, 1000, PetscOptionsGetInt, PetscPrintf);
     GET_OPTION(double, alpha, 1e-4, PetscOptionsGetReal, PetscPrintf);

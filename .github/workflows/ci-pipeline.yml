@@ -26,21 +26,17 @@ jobs:
     - name: Build and test with CMake
       run: |
         conda run -n madupiteenv bash -c "mkdir -p build && cd build && cmake .. -DBUILD_TESTS=ON && make && ctest --output-on-failure"
-
     - name: Run MPI executables
       run: |
         conda run -n madupiteenv bash -c "cd build && mpirun -np 2 ./ci_test"
-
-    - name: Deploy documentation to GitHub Pages
+    - name: Build documentation for GitHub Pages
       if: github.ref == 'refs/heads/main'
       run: |
-        git config --global user.name 'Documentation Deploy GitHub Action'
-        git config --global user.email '-'
         conda run -n madupiteenv bash -c "pip install pydata-sphinx-theme && cd docs && make html"
-        cd docs/_build/html
-        git init
-        git remote add origin https://github.com/${{ github.repository }}.git
-        git checkout -b gh-pages
-        git add .
-        git commit -m "Deploy docs to GitHub Pages"
-        git push --force origin gh-pages
+    - name: Deploy
+      if: github.ref == 'refs/heads/main'
+      uses: JamesIves/github-pages-deploy-action@v4
+      with:
+        folder: docs/_build/html
+        repository-name: madupite/madupite.github.io
+        token: ${{ secrets.MADUPITE_GITHUB_PAGES }}

@@ -4,12 +4,15 @@
 
 #include "mdp.h"
 
-// 2D Grid world
-constexpr int       _H = 25, _W = 25; // s = row-major index
+// 2D Grid world with height _H and width _W
+constexpr int _H = 25, _W = 25;
+// Convert one dimensional state index to height and width
 std::pair<int, int> s2hw(int s) { return { s / _W, s % _W }; }
-int                 hw2s(int h, int w) { return h * _W + w; }
-/* bool                is_boundary(int h, int w) { return h == 0 || h == _H - 1 || w == 0 || w == _W - 1; } */
+// Convert height and width to one dimensional state index
+int hw2s(int h, int w) { return h * _W + w; }
 
+// Transition probability function. Given a state s and action a, return the state
+// indices where you transition to with their corresponding probabilities.
 std::pair<std::vector<double>, std::vector<int>> P(const int s, const int a)
 {
     std::vector<double> values;
@@ -80,7 +83,12 @@ int main(int argc, char** argv)
     mdp.setOption("-ksp_type", "tfqmr");
 
     auto comm = PETSC_COMM_WORLD;
-
+    // Check if stagecost file exists
+    if (!std::filesystem::exists("../examples/maze/data/maze_25x25.bin")) {
+        std::cerr << "File not found: ../examples/maze/data/maze_25x25.bin\n"
+                  << "Please run the jupyter notebook maze.ipynb to generate the file\n";
+        return 1;
+    }
     auto g_mat = Matrix::fromFile(comm, "g_file", "../examples/maze/data/maze_25x25.bin", MatrixCategory::Cost, MatrixType::Dense);
     auto P_mat = createTransitionProbabilityTensor(comm, "P_func", _H * _W, 5, P);
 
