@@ -72,7 +72,8 @@ def main():
     mdp = md.MDP(instance)
     mdp.setOption("-mode", "MAXREWARD")
     mdp.setOption("-discount_factor", "0.99")
-    mdp.setOption("-file_stats", "out/ex1_stats.json")
+    mdp.setOption("-overwrite", "true")
+    mdp.setOption("-file_stats", "out/ex1_stats_deterministic.json")
     mdp.setOption("-file_policy", "out/ex1_policy_deterministic.json")
     mdp.setOption("-file_cost", "out/ex1_reward_deterministic.out")
 
@@ -86,6 +87,7 @@ def main():
     # Second run using stochastic transition probabilities, reuse the same MDP object and options
     mdp.setTransitionProbabilityTensor(P_mat_stochastic)
     mdp.setOption("-file_policy", "out/ex1_policy_stochastic.json")
+    mdp.setOption("-file_stats", "out/ex1_stats_stochastic.json")
     mdp.setOption("-file_cost", "out/ex1_reward_stochastic.out")
     mdp.solve()
 
