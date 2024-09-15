@@ -41,6 +41,8 @@ Furthermore, you can specify whether the matrix is sparse or dense using the ``m
 
 Notice that, unlike with function simulations, defining an object for matrix preallocation is not necessary when loading from files since the information about non-zero elements is already contained in the binary file.
 
+In the following code snippet, we show how to save numpy matrices into *.bin* files and then correctly create the madupite stage-cost and transition probability objects from those files.
+
 .. code-block:: python
 
     import madupite as md
