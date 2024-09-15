@@ -151,13 +151,13 @@ Where the submatrices A, B, C are owned by rank0, D, E, F are
 owned by rank1, G, H, I are owned by rank2.
 
 The DIAGONAL submatrices corresponding to rank0, rank1, rank2 are
-submatrices [A], [E], [I] respectively. The OFF-DIAGONAL submatrices
-corresponding to rank0, rank1, rank2 are [BC], [DF], [GH] respectively.
+submatrices [A], [E], [I], respectively. The OFF-DIAGONAL submatrices
+corresponding to rank0, rank1, rank2 are [BC], [DF], [GH], respectively.
 
 When ``d_nz``, ``o_nz`` parameters are specified, ``d_nz`` storage elements are
 allocated for every row of the local diagonal submatrix, and ``o_nz``
 storage locations are allocated for every row of the OFF-DIAGONAL submatrix.
-Typically one chooses ``d_nz`` and ``o_nz`` as the max nonzeros per local
+Typically one chooses ``d_nz`` and ``o_nz`` as the max non-zeros per local
 rows for each of the local DIAGONAL, and the OFF-DIAGONAL submatrices.
 In this case, the values of ``d_nz``, ``o_nz`` are:
 
@@ -221,6 +221,9 @@ In the above case the values for ``d_nnz``, ``o_nnz`` are:
         func=probfunc,
         preallocation=pc2
     )
+
+.. note::
+    Using the preallocation greatly improves performance. At the same time, it can be quite cumbersome to compute these parameters for larger settings. We suggest to use the parameters ``d_nz`` and ``o_nz`` and set their values to the maximum number of non-zero entries per-row of the full-matrix. 
 
 Data format
 -----------
