@@ -38,13 +38,13 @@ Solve any stochastic optimal control problem formulated as a Markov Decision Pro
 </div>
 
 
-Examples on how to use `madupite` can be found in the documentation ([tutorial](https://madupite.github.io/tutorial.html) and [examples](https://madupite.github.io/examples.html)) as well as in the `examples` directory. 
+Examples on how to use `madupite` can be found in the documentation ([tutorials](https://madupite.github.io/tutorial.html) and [examples](https://madupite.github.io/examples.html)) as well as in the `examples` directory. 
 
 In short: The transition probabilities and stage costs can either be loaded from files or generated using functions in the code (or a combination of both): 
 * See `examples/tutorial/ex1.py` for an example on how to generate the required data using function in the code.
 * See `examples/tutorial/ex2.py` for an example on how to load the required data from files as well as `examples/tutorial/ex2_data_generation.py` to see how the required files can be generated from NumPy or SciPy arrays. 
 
-The [tutorial](https://madupite.github.io/tutorial.html) also provides more detail on the data layout and how to preallocate sparse matrices for improved performance.
+The [tutorials](https://madupite.github.io/tutorial.html) also provides more detail on the data layout and how to preallocate sparse matrices for improved performance.
 
 
 ## Contributing
