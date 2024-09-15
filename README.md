@@ -2,11 +2,10 @@
 
 <div align="center">
 <i>a High-Performance Distributed Solver for Large-Scale Markov Decision Processes</i>
-<br>
-<p style="margin-top: 20px;">
+<br/><br/>
 <img src="docs/_static/madupite_logo.png" width="250" height="250"/>
 </div>
-<p style="margin-top: 20px;">
+<br/>
 
 `madupite` is a high-performance C++ library with a Python interface designed for solving large-scale **Markov Decision Processes (MDPs)** using **Distributed Inexact Policy Iteration (iPI)**[^1]. Leveraging distributed sparse linear solvers from [PETSc](https://petsc.org/), `madupite` efficiently handles the computational complexity associated with large-scale MDPs.
 
