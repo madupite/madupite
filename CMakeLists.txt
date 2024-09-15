@@ -19,6 +19,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 
+# Fetch nlohmann/json
+include(FetchContent)
+FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz)
+FetchContent_MakeAvailable(json)
+
 # Automatically collect source and header files
 file(GLOB MDP_SOURCES "src/*.cpp")
 list(REMOVE_ITEM MDP_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/pymadupite.cpp")
@@ -34,6 +39,7 @@ target_link_libraries(madupite
     PUBLIC
         PkgConfig::PETSC
         MPI::MPI_CXX
+        nlohmann_json::nlohmann_json
 )
 
 # Specify include directories

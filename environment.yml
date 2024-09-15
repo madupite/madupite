@@ -1,15 +1,3 @@
-# NOTE:
-# In case of troubles during compilation like
-#   error: '::timespec_get' has not been declared
-# please try
-#   conda upgrade -c conda-forge --all
-# to make sure that all dependencies come from the conda-forge channel.
-# Also consider
-#   conda config --add channels conda-forge
-#   conda config --set channel_priority strict
-# See also:
-#   https://github.com/rapidsai/cuml/issues/3620
-#   https://root-forum.cern.ch/t/error-timespec-get-has-not-been-declared-with-conda-root-package/45712
 name: madupiteenv
 channels:
   - conda-forge
@@ -35,3 +23,16 @@ dependencies:
   - pydata-sphinx-theme
   - sphinxcontrib-video
   - matplotlib
+
+# NOTE:
+# In case of troubles during compilation like
+#   error: '::timespec_get' has not been declared
+# please try
+#   conda upgrade -c conda-forge --all
+# to make sure that all dependencies come from the conda-forge channel.
+# Also consider
+#   conda config --add channels conda-forge
+#   conda config --set channel_priority strict
+# See also:
+#   https://github.com/rapidsai/cuml/issues/3620
+#   https://root-forum.cern.ch/t/error-timespec-get-has-not-been-declared-with-conda-root-package/45712

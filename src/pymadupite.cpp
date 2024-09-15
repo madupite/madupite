@@ -43,6 +43,8 @@ NB_MODULE(_madupite_impl, m)
         This function initializes the Madupite library, setting up the necessary environment
         for solving Markov Decision Processes (MDPs). It returns an instance of the `Madupite` class.
 
+        The function is automatically called when the module is imported.
+
         Returns
         -------
         Madupite

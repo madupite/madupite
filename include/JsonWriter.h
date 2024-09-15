@@ -5,8 +5,8 @@
 #include <sstream>
 #include <vector>
 
-#include <json.h>
 #include <mpi.h>
+#include <nlohmann/json.hpp>
 #include <petscsystypes.h>
 
 #include <utils.h>

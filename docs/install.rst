@@ -70,7 +70,7 @@ Load the necessary software modules:
 
 ::
 
-   source ./load-euler-modules.sh
+   source ./examples/euler/euler-load-modules.sh
 
 Then, install the Python package using pip:
 
@@ -85,7 +85,7 @@ If you want to use ``madupite`` with  `JupyterHub on Euler` you need to install 
 :: 
 
    mkdir -p ~/.config/euler/jupyterhub/jupyterlabrc 
-   cp ~/madupite/load-euler-modules.sh ~/.config/euler/jupyterhub/jupyterlabrc
+   cp ~/madupite/examples/euler/euler-load-modules.sh ~/.config/euler/jupyterhub/jupyterlabrc
 
 Now, you can leave the login node and go to `JupyterHub on Euler <https://jupyter.euler.hpc.ethz.ch/>`_.
 
@@ -95,7 +95,7 @@ To build the C++ project on the Euler cluster, load the necessary software modul
 
 ::
 
-   source ./load-euler-modules.sh
+   source ./examples/euler/euler-load-modules.sh
 
 Then, follow the same steps as for the general C++ installation:
 
@@ -106,4 +106,4 @@ Then, follow the same steps as for the general C++ installation:
    cmake ..
    make
 
-The repository contains an example launch file `euler-launch.sh` to run the executables on the Euler cluster.
+The repository contains an example launch file `examples/euler/euler-launch.sh` to run the executables on the Euler cluster.
