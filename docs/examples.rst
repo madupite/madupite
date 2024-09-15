@@ -103,7 +103,7 @@ In case we want to run benchmarks with a different discount factor, inner solver
             preallocation=prealloc
         )
 
-        mdp.setTransitionProbabilityTensor(P_mat_deterministic)
+        mdp.setTransitionProbabilityTensor(P_mat_stochastic)
 
         mdp.setOption("-file_policy", "policy_stochastic.out")
         mdp.setOption("-file_stats", "statistics_stochastic.json")
@@ -120,7 +120,7 @@ In ``examples/tutorial/ex2_data_generation.py`` you can see how to generate the 
 Inverted Pendulum
 -----------------
 
-``madupite`` can also be used to create and solve MDPs from offline simulation data. In this example for instace we consider offline data collected by simulating an inverted pendulum, whose dynamic is described by the following equation:
+``madupite`` can also be used to create and solve MDPs from offline simulation data. In this example for instance we consider offline data collected by simulating an inverted pendulum, whose dynamic is described by the following equation:
 
 .. math::
    :nowrap:
