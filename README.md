@@ -16,7 +16,7 @@
 - **Distributed Computing**: Integrates with PETSc and MPI for distributed computing on multi-core and cluster environments.
 
 ## Installation
-After cloning the repository, you can install the package using the following commands. 
+After cloning the repository, you can install the package using the following commands.
 
 ```bash
 conda env create -f environment.yml
@@ -40,11 +40,11 @@ Solve any stochastic optimal control problem formulated as a MDP using `madupite
 </div>
 
 
-Examples on how to use `madupite` can be found in the documentation ([tutorials](https://madupite.github.io/tutorial.html) and [examples](https://madupite.github.io/examples.html)) as well as in the `examples` directory. 
+Examples on how to use `madupite` can be found in the documentation ([tutorials](https://madupite.github.io/tutorial.html) and [examples](https://madupite.github.io/examples.html)) as well as in the `examples` directory.
 
-In short: The transition probabilities and stage costs can either be loaded from files or generated using functions in the code (or a combination of both): 
+In short: The transition probabilities and stage costs can either be loaded from files or generated using functions in the code (or a combination of both):
 * See [`examples/tutorial/ex1.py`](https://github.com/madupite/madupite/blob/main/examples/tutorial/ex1.py) for an example on how to generate the required data using function in the code.
-* See [`examples/tutorial/ex2.py`](https://github.com/madupite/madupite/blob/main/examples/tutorial/ex2.py) for an example on how to load the required data from files as well as [`examples/tutorial/ex2_data_generation.py`](https://github.com/madupite/madupite/blob/main/examples/tutorial/ex2_data_generation.py) to see how the required files can be generated from NumPy or SciPy arrays. 
+* See [`examples/tutorial/ex2.py`](https://github.com/madupite/madupite/blob/main/examples/tutorial/ex2.py) for an example on how to load the required data from files as well as [`examples/tutorial/ex2_data_generation.py`](https://github.com/madupite/madupite/blob/main/examples/tutorial/ex2_data_generation.py) to see how the required files can be generated from NumPy or SciPy arrays.
 
 The [tutorials](https://madupite.github.io/tutorial.html) also provides more detail on the data layout and how to preallocate sparse matrices for improved performance.
 
@@ -56,7 +56,7 @@ Contributions to `madupite` are welcome! Whether it's reporting bugs, suggesting
 `madupite` is distributed under the MIT License. See the `LICENSE` file for more information.
 
 ## Acknowledgements
-`madupite` was developed at the [Automatic Control Laboratory](https://control.ethz.ch/) at [ETH Zurich](https://ethz.ch/en). This work was supported by the European Research Council under the Horizon 2020 Advanced under Grant 787845 (OCAL) and by the SNSF through NCCR Automation (Grant Number 180545). 
+`madupite` was developed at the [Automatic Control Laboratory](https://control.ethz.ch/) at [ETH Zurich](https://ethz.ch/en). This work was supported by the European Research Council under the Horizon 2020 Advanced under Grant 787845 (OCAL) and by the SNSF through NCCR Automation (Grant Number 180545).
 
 If you use `madupite` in your research, please cite it.
 
