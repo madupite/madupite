@@ -84,7 +84,7 @@ Generating data
 ---------------------------------
 Depending on the problem, creating the MDP data with numpy and reading them with ``madupite`` is often slower than generating them directly with ``madupite``. This is because ``madupite`` can  generate the transition probabilities in parallel and in the correct format, which avoids the need to convert the data.
 
-In the following example, we show how to generate the stage cost matrix and transition probability tensor with ``madupite``. We define a cost function and a probability function that are used to generate the data. The cost function takes the current state and action as input and returns the cost. The probability function takes the current state and action as input and returns the transition probabilities and the next state indices.
+In the following example, we show how to generate the stage cost matrix and transition probability tensor with ``madupite``. We define a cost function and a probability function that are used to generate the data. The cost function takes a state and an action as input and returns the associated cost. The probability function takes a state and an action as input and returns two lists: the first list containts the non-zero transition probabilities values, and the second list contains their associated next state indices.
 
 .. code-block:: python
 
