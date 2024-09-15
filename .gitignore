@@ -26,4 +26,4 @@ lib/
 petsc*-env
 .pytest_cache/
 docs/_*
-!docs/_images/
+!docs/_static/

@@ -47,7 +47,7 @@ html_theme = "pydata_sphinx_theme"
 
 html_title = "madupite"
 
-html_logo = "_images/madupite_logo.png"
+html_logo = "_static/madupite_logo.png"
 
 html_theme_options = {
     "footer_end": ["theme-version", "last-updated"],
@@ -57,7 +57,7 @@ html_theme_options = {
     'nosidebar': True,
     "logo": {
         "text": "madupite",
-        "image_dark": "_images/madupite_logo.png",
+        "image_dark": "_static/madupite_logo.png",
     },
 }
 

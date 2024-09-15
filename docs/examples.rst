@@ -21,7 +21,7 @@ Let's consider an agent that lives on a periodic 1-dimensional line of length 50
 Imagine also the scenario where our agent is moving on ice. When it tries to move to the left (or right), there is a 10% chance that it falls and ends up staying in its place instead of moving in state :math:`(s-1)\,\text{mod}\,50` (or :math:`(s-1)\,\text{mod}\,50`). The slippery iced floor also introduces a 10% chance that when it plays action 0 it slips to the left or right state. 
 Now we turn this into code and use ``madupite`` to model and solve the MDP associated to the described system.
 
-.. image:: _images/tutorial_ex1.jpg
+.. image:: _static/tutorial_ex1.jpg
     :align: center
     :scale: 35%
 
@@ -131,7 +131,7 @@ Inverted Pendulum
 
 where :math:`m` and :math:`\ell` are the pendulum mass and length, respectively; :math:`g` is the gravitational acceleration; :math:`\theta` is the angular position of the pendulum, and :math:`F` the torque that we apply on it.
 The dynamic is continuous in time and space, therefore we must first discretize it in order to be able to simulate it. In particular, we select 0.01 as time-step and we discretize the space in the ranges :math:`[-10;\,10]` and :math:`[0;\, 2 \pi]` for the angular acceleration and position, respectively, and :math:`[-3;\, 3]` for the action. The finer the discretization grid that we use and the more accurate will be the resulting approximate model, but it will also result into a bigger computational and memory load. ``madupite`` allows one to deploy a finer discretization by distributing the memory and computation across nodes of a computing cluster. 
-For the simulation of the pendulum we used different discretization granularities and we collected the data into `.bin` files which you can download here :download:`data.zip (8.4 MB) <data.zip>`.
+For the simulation of the pendulum we used different discretization granularities and we collected the data into `.bin` files which you can download here :download:`data.zip (8.4 MB) <_static/data.zip>`.
 The goal is to find the values of torque that minimize at each time-step the following stage-cost:
 
 .. math::
