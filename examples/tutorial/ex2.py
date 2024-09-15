@@ -37,6 +37,7 @@ def main():
     mdp = md.MDP(instance)
     mdp.setOption("-mode", "MAXREWARD")
     mdp.setOption("-discount_factor", "0.99")
+    mdp.setOption("-overwrite", "true")
     mdp.setOption("-file_stats", "out/ex2_stats.json")
     mdp.setOption("-file_policy", "out/ex2_policy.json")
     mdp.setOption("-file_cost", "out/ex2_reward.out")
