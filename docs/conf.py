@@ -10,8 +10,8 @@ import inspect
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = "madupite"
-copyright = "2024, Philip Pawlowsky, Robin Sieber"
-author = "Philip Pawlowsky, Robin Sieber"
+copyright = "2024, Matilde Gargiani, Philip Pawlowsky, Robin Sieber"
+author = "Matilde Gargiani, Philip Pawlowsky, Robin Sieber"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
