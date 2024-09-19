@@ -6,7 +6,8 @@ exclude: |
     ^docs/|
     __init__.py|
     ^vscode.example/|
-    pymadupite.cpp
+    pymadupite.cpp|
+    ^joss/
     )
 
 repos:
