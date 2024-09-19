@@ -14,6 +14,7 @@ And, in case you did not know, madupite is also the name of a volcanic rock!
    Installation <install>
    Tutorials <tutorial>
    Examples <examples>
+   Algorithm <algorithm>
    Options <options>
    API Reference <apiref>
 
