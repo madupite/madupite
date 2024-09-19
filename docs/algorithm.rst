@@ -1,7 +1,7 @@
 Algorithm
 =============
 
-**Dynamic programming** (DP) comprises algorithms to compute the optimal cost and an optimal policy of an MDP. The main DP methods are *value iteration* (VI) and *policy iteration* (PI) [Bertsekas]. As dynamic programming suffers from the so called *curse of dimensionality*, there is need for solution methods which scale and are distributable. 
+**Dynamic programming** (DP) comprises algorithms to compute the optimal cost and an optimal policy of an MDP. The main DP methods are *value iteration* (VI) and *policy iteration* (PI) [Bertsekas]_. As dynamic programming suffers from the so called *curse of dimensionality*, there is need for solution methods which scale and are distributable. 
 
 Various approximation methods have been developed to address this issue, *e.g.*, *optimistic/modified policy iteration* (OPI) approximates the expensive policy evaluation step in PI using a finite number VI iterations.
 
