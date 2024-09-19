@@ -3,9 +3,8 @@
 <div align="center">
 <i>a High-Performance Distributed Solver for Large-Scale Markov Decision Processes</i>
 <br/><br/>
-<a href="https://github.com/madupite/madupite/actions/workflows/ci-pipeline.yml">
-  <img src="https://github.com/madupite/madupite/actions/workflows/ci-pipeline.yml/badge.svg" alt="CI Pipeline">
-</a>
+<a href="https://github.com/madupite/madupite/actions/workflows/ci-pipeline.yml"><img src="https://github.com/madupite/madupite/actions/workflows/ci-pipeline.yml/badge.svg" alt="CI Pipeline"></a>
+<a href="https://madupite.github.io/"><img src="https://img.shields.io/badge/docs-latest-blue.svg" alt="Documentation"></a>
 <br/><br/>
 <img src="docs/_static/madupite_logo.png" width="250" height="250"/>
 </div>
