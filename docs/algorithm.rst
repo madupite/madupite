@@ -34,5 +34,5 @@ Yes, but be aware of their performance limitations. Since iPI is a more general 
 
 .. rubric:: References
 
-.. [Bertsekas] D. P. Bertsekas. *Dynamic Programming and Optimal Control*, Vol. II, Athena Scientific, Belmont, Massachusets, 4th edition, 2012.
+.. [Bertsekas] Bertsekas, D. P. *Dynamic Programming and Optimal Control*, Vol. II, Athena Scientific, Belmont, Massachusets, 4th edition, 2012.
 .. [Gargiani2024] Gargiani, M.; Sieber. R.; Balta, E.; Liao-McPherson, D.; Lygeros, J. *Inexact Policy Iteration Methods for Large-Scale Markov Decision Processes*. `<https://arxiv.org/abs/2404.06136>`_.
