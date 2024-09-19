@@ -26,7 +26,7 @@ Yes, but be aware of their performance limitations. Since iPI is a more general 
 
     $ python ex1.py -ksp_type richardson -ksp_richardson_scale 1.0 -alpha 1e-40 -max_iter_ksp 1
 
-**Optimistic Policy Iteration** (OPI): you can retrieve OPI by selecting the same parameters as for VI, but with a number of inner iterations that can potentially be greater than 1. In particular, set the value of ``-max_iter_ksp`` to the desired number of inner VI iterations you would like to be performed, *e.g.*, 50. Finally, be sure to set the inner tolerance parameter to a very small value such that it does not impact on the execution of the inner loop.
+**Optimistic Policy Iteration** (OPI): You can retrieve OPI by selecting the same parameters as for VI, but with a number of inner iterations that can potentially be greater than 1. In particular, set the value of ``-max_iter_ksp`` to the desired number of inner VI iterations you would like to be performed, *e.g.*, 50. Finally, be sure to set the inner tolerance parameter to a very small value such that it does not impact on the execution of the inner loop.
 
 .. code-block:: bash
     
